@@ -92,3 +92,35 @@ Work is split into stages, each with its own plan in
 The relays switch real loads (up to 10 A at 250 V AC / 30 V DC). Until the
 first release has been tested on hardware, don't connect this board to
 anything on a boat that matters.
+
+## Board hardware
+
+What's on the Waveshare ESP32-S3-ETH-8DI-8RO-C and what this firmware does
+with it. Pins are from the Waveshare wiki and the community ESPHome config
+for this board, and are not yet confirmed on real hardware.
+
+| Component | Pins / interface | Used | By |
+|---|---|---|---|
+| ESP32-S3 dual-core CPU | — | Yes | Everything |
+| 16 MB flash | internal | Yes | Firmware (two OTA slots), settings, web UI |
+| 8 MB PSRAM | internal | **No** | Off until its type (quad or octal) is confirmed; the wrong mode stops boot |
+| WiFi 2.4 GHz | internal | Yes | espOS: setup access point, network, SignalK |
+| Bluetooth LE | internal | **No** | espOS could provision over BLE instead of the access point |
+| 8 relays via TCA9554 I²C expander (0x20) | SCL 41, SDA 42 | Yes | `relay_ctrl` |
+| 8 isolated digital inputs | GPIO 4–11 | Yes | `input_sense` |
+| Isolated CAN transceiver | TX 17, RX 18 | Yes | NMEA 2000 (`switch_bank`) |
+| W5500 Ethernet, RJ45 | SPI MOSI 13, MISO 14, SCLK 15, CS 16, INT 12 | Yes | `eth_w5500` |
+| WS2812 RGB LED | GPIO 38 | Yes | `indicator`: status colour |
+| Passive piezo buzzer | GPIO 46 | Yes | `indicator`: Morse alarm (off by default) |
+| PCF85063 real-time clock | same I²C bus as the relays | **No** | Would keep time across power loss, e.g. for scheduled switching |
+| BOOT button | GPIO 0 | Partly | USB bootloader only; the firmware doesn't read it (could do a factory reset or reopen the setup access point) |
+| microSD (TF) card slot | SPI MISO 45, MOSI 47, SCLK 48 | **No** | Could hold an event log; chip-select pin not yet known |
+| GPIO expansion header | various | **No** | Out of scope (SPEC.md §10.2) |
+| USB-C | USB-Serial-JTAG | Yes | Power, flashing, serial log |
+| Power input 7–36 V DC | — | Yes | Supply only; the voltage isn't measured |
+
+The isolation, optocoupler and TVS protection circuits are passive.
+
+GPIO 45 (SD card) and GPIO 46 (buzzer) are ESP32-S3 strapping pins: they
+set boot options at reset, so anything using them must leave them at their
+safe levels during reset.
