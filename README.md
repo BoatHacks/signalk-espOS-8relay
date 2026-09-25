@@ -87,6 +87,8 @@ Work is split into stages, each with its own plan in
   project relates to SignalK RFC 0009
 - [IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md) — how each stage
   is worked through
+- [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) — how to test a release
+  on the real board
 
 ## Safety
 

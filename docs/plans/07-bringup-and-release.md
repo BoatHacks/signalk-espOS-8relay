@@ -17,6 +17,10 @@ goes back to the plan that owns it. Record hardware facts learned here
 
 ## Test Strategy
 
+The step-by-step procedure, with commands and pass criteria, is
+[docs/HARDWARE_TESTS.md](../HARDWARE_TESTS.md). The list below is the
+summary; tick items here as the procedure passes them.
+
 **Hardware basics**
 - [ ] Relay polarity: which expander level turns a relay on
 - [ ] Cold power-up: no relay clicks on before the firmware sets it
