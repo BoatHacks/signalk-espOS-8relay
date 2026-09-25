@@ -51,6 +51,8 @@ typedef void (*relay_listener_t)(uint8_t channel, bool on, relay_source_t src, u
 esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg);
 
 // Apply settings that change live (mode, pulse time, fail-safe policy).
+// Never switches a relay on. A relay that is on and becomes momentary starts
+// its pulse now, so it switches off after the pulse time.
 void relay_ctrl_update_config(const device_config_t *cfg);
 
 // Switch relay `channel` (1-8). The most recent call wins, whatever its

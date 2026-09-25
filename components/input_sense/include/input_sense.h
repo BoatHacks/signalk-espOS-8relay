@@ -30,7 +30,8 @@ typedef void (*input_listener_t)(uint8_t channel, bool on, uint8_t mask, void *a
 
 esp_err_t input_sense_init(const input_sense_hw_t *hw, const device_config_t *cfg, input_override_fn_t override);
 
-// Apply settings that change live (debounce, invert, overrides).
+// Apply settings that change live (debounce, invert, overrides). A changed
+// invert is reported to listeners at once but never switches relays.
 void input_sense_update_config(const device_config_t *cfg);
 
 // Call every few milliseconds, from one task only.

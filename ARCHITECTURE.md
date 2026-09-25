@@ -190,6 +190,12 @@ Runtime state (relay on/off, input readings) belongs to `relay_ctrl` and
   writes to the relay expander; no other component (including the config
   web UI) writes to it directly, keeping the fail-safe/momentary invariants (SPEC.md §2) in one
   place.
+- **Watchdogs**: the I/O task (relay pulses, flash saves, input polling,
+  SignalK-loss timer) is checked every 500 ms by an `esp_timer`; silent
+  for 3 s, the device restarts so relays take their boot state. It is
+  also registered with espOS's health watchdog, and ESP-IDF's task
+  watchdog panics any watched task silent for 30 s, as espOS's own builds
+  configure it.
 - **SignalK auth**: relies entirely on espOS's existing `espos_sk` token
   acquisition flow — this firmware does not implement its own
   authentication and does not accept unauthenticated relay commands

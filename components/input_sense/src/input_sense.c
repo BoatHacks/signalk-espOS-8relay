@@ -69,7 +69,27 @@ esp_err_t input_sense_init(const input_sense_hw_t *hw, const device_config_t *cf
 
 void input_sense_update_config(const device_config_t *cfg)
 {
+    // Flipping `invert` changes what an unchanged pin means, not the pin
+    // itself. Take the new meaning at once and report it, but don't fire
+    // overrides: saving a setting must never switch a relay.
+    uint8_t flipped = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (cfg->inputs[i].invert != s.cfg.inputs[i].invert) {
+            s.candidate[i] = !s.candidate[i];
+            flipped |= 1u << i;
+        }
+    }
     s.cfg = *cfg;
+    if (!flipped || !atomic_load(&s.ready)) {
+        return;
+    }
+    s.stable ^= flipped;
+    atomic_store(&s.published, s.stable);
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (flipped & (1u << i)) {
+            notify(i, s.stable & (1u << i), s.stable);
+        }
+    }
 }
 
 void input_sense_poll(void)

@@ -72,6 +72,15 @@ SignalK switch-bank paths, and the NMEA2000 switch-bank PGNs.
   or N2K command on boot, but a subsequent explicit command from either bus
   overrides the DI-forced state until the DI changes again (see §12 for the
   precedence rule in full).
+- Saving settings never switches a relay on. Changing an input's
+  `invert`, or linking a relay to an input, changes what is reported but
+  fires no override; the relay follows the input from its next real
+  change. A relay that is on when it is made momentary starts its pulse
+  at that moment, so it switches off after the pulse time.
+- If the firmware's relay/input loop stops running for 3 s, the device
+  restarts, and relays take their boot state (§3.2). Otherwise a stalled
+  loop would leave momentary pulses and the SignalK-loss fail-safe
+  without effect.
 - Momentary relays always auto-return to off after their configured pulse
   duration regardless of command source, and cannot be configured with
   `fail-safe: hold` (holding a momentary relay on indefinitely across a

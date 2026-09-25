@@ -161,10 +161,17 @@ void relay_ctrl_update_config(const device_config_t *cfg)
 {
     xSemaphoreTake(s.lock, portMAX_DELAY);
     const uint8_t old_hold = hold_mask();
+    const uint32_t now = s.hw.now_ms();
     s.cfg = *cfg;
     for (int i = 0; i < BOARD_CHANNELS; i++) {
+        const uint8_t bit = 1u << i;
         if (!is_momentary(i)) {
-            s.pulsing &= ~(1u << i);  // now latching: an "on" stays on
+            s.pulsing &= ~bit;  // now latching: an "on" stays on
+        } else if ((s.mask & bit) && !(s.pulsing & bit)) {
+            // Became momentary while on: a momentary relay must never stay
+            // on indefinitely, so its pulse starts now.
+            s.pulse_end[i] = now + s.cfg.relays[i].pulse_ms;
+            s.pulsing |= bit;
         }
     }
     if (hold_mask() != old_hold) {

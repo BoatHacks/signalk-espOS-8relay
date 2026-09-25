@@ -2,10 +2,12 @@
 
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "espos.h"
 #include "espos_config.h"
 #include "espos_event.h"
+#include "espos_health.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "board.h"
@@ -22,8 +24,11 @@
 static const char *TAG = "app";
 
 #define TICK_MS 10
+#define IO_STALL_MS 2000        // raise espOS's taskStalled alarm after this
+#define IO_RESTART_US 3000000LL // restart if the I/O loop is silent this long
 
 static TaskHandle_t s_io_task;
+static volatile int64_t s_io_alive_us;
 
 static uint32_t now_ms(void)
 {
@@ -74,9 +79,15 @@ static void on_config_change(const char *ns, const char *key, void *arg)
 }
 
 // Relay pulses, flash saves, input polling and the SignalK-loss timer.
+// If this loop stalls, pulses stop ending and the fail-safe stops firing, so
+// the device restarts within IO_RESTART_US (io_supervisor) and relays take
+// their boot state. espOS's task watchdog (30 s) is the backstop.
 static void io_task(void *arg)
 {
+    ESP_ERROR_CHECK(espos_health_watch_task("io", IO_STALL_MS));
     for (;;) {
+        espos_health_kick();
+        s_io_alive_us = esp_timer_get_time();
         if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(TICK_MS)) > 0) {
             device_config_t cfg;
             if (device_config_load(&cfg) == ESP_OK) {
@@ -88,6 +99,14 @@ static void io_task(void *arg)
         relay_ctrl_tick();
         input_sense_poll();
         sk_bridge_tick();
+    }
+}
+
+static void io_supervisor(void *arg)
+{
+    if (esp_timer_get_time() - s_io_alive_us > IO_RESTART_US) {
+        ESP_LOGE(TAG, "I/O loop stalled; restarting so relays return to their boot state");
+        esp_restart();
     }
 }
 
@@ -116,7 +135,12 @@ static esp_err_t start_io(void *arg)
     ESP_ERROR_CHECK(input_sense_init(&in_hw, cfg, input_override));
     ESP_ERROR_CHECK(input_sense_add_listener(on_input_change, NULL));
 
+    s_io_alive_us = esp_timer_get_time();
     xTaskCreate(io_task, "io", 4096, NULL, 5, &s_io_task);
+    const esp_timer_create_args_t sup = {.callback = io_supervisor, .name = "io_sup"};
+    esp_timer_handle_t sup_timer;
+    ESP_ERROR_CHECK(esp_timer_create(&sup, &sup_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(sup_timer, 500 * 1000));
     return ESP_OK;
 }
 

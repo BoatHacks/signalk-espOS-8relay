@@ -181,18 +181,54 @@ TEST_CASE("invert flips the reported state", "[input_sense]")
     TEST_ASSERT_EQUAL_HEX8(0x00, input_sense_get_mask());
 }
 
-TEST_CASE("changing invert live goes through the debounce like any change", "[input_sense]")
+TEST_CASE("changing invert reports the new state at once and switches no relay", "[input_sense]")
 {
     fresh();
+    cfg.relays[0].override_di = 3;  // relay 1 follows input 3
     start();
     run_for(60);
-    n_changes = 0;
+    n_changes = n_overrides = 0;
     cfg.inputs[2].invert = true;
     input_sense_update_config(&cfg);
-    run_for(20);
-    TEST_ASSERT_EQUAL(0, n_changes);
-    run_for(40);
     TEST_ASSERT_EQUAL(1, n_changes);
     TEST_ASSERT_EQUAL(3, changes[0].ch);
     TEST_ASSERT_TRUE(changes[0].on);
+    TEST_ASSERT_EQUAL_HEX8(0x04, input_sense_get_mask());
+    run_for(200);
+    TEST_ASSERT_EQUAL(1, n_changes);   // no second report from the debounce
+    TEST_ASSERT_EQUAL(0, n_overrides); // and the relay was never switched
+
+    energise(3, true);  // a real change still drives the relay
+    run_for(60);
+    TEST_ASSERT_EQUAL(1, n_overrides);
+    TEST_ASSERT_FALSE(overrides[0].on);
+}
+
+TEST_CASE("changing invert before inputs settle switches no relay either", "[input_sense]")
+{
+    fresh();
+    cfg.relays[0].override_di = 3;
+    start();
+    run_for(20);
+    cfg.inputs[2].invert = true;
+    input_sense_update_config(&cfg);
+    run_for(60);
+    TEST_ASSERT_TRUE(input_sense_ready());
+    TEST_ASSERT_EQUAL_HEX8(0x04, input_sense_get_mask());
+    // The start-up override applies the settled state, as at any boot.
+    TEST_ASSERT_EQUAL(1, n_overrides);
+    TEST_ASSERT_TRUE(overrides[0].on);
+}
+
+TEST_CASE("linking a relay to an input that is on doesn't switch it", "[input_sense]")
+{
+    fresh();
+    energise(6, true);
+    start();
+    run_for(60);
+    n_overrides = 0;
+    cfg.relays[1].override_di = 6;
+    input_sense_update_config(&cfg);
+    run_for(200);
+    TEST_ASSERT_EQUAL(0, n_overrides);  // it follows the input from its next change
 }

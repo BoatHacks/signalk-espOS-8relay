@@ -22,3 +22,10 @@ CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 # Metadata slots: espOS uses up to 9 for its own device paths; the two
 # switch-bank trees need up to 32 (8 relays + 8 inputs, twice).
 CONFIG_ESPOS_SK_MAX_META=48
+
+# Task watchdog, as espOS's own builds set it (sdkconfig.d/espos.defaults):
+# a watched task silent for 30 s panics, core-dumps and restarts. 30 s, not
+# IDF's 5 s, because espOS tasks may block on a slow HTTP round trip. The
+# relay I/O loop has its own 3 s check in main.c.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=30
+CONFIG_ESP_TASK_WDT_PANIC=y

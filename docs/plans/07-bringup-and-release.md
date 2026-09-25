@@ -23,6 +23,8 @@ goes back to the plan that owns it. Record hardware facts learned here
 - [ ] OTA reboot: `hold` relays stay on without clicking; `default-safe`
       relays turn off
 - [ ] Input polarity; 50 ms debounce against a real float switch
+- [ ] Changing an input's invert, or linking a relay to an input, in the
+      web page doesn't switch the relay
 
 **Relays and inputs**
 - [ ] Momentary relay turns off after its pulse time

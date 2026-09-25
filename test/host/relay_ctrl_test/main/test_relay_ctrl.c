@@ -286,6 +286,38 @@ TEST_CASE("switching a relay to latching stops its pulse", "[relay_ctrl]")
     TEST_ASSERT_TRUE(relay_ctrl_get(1));
 }
 
+TEST_CASE("a relay that is on and becomes momentary switches off after one pulse", "[relay_ctrl]")
+{
+    fresh();
+    start();
+    TEST_ESP_OK(relay_ctrl_set(4, true, RELAY_SRC_SK));
+    clock_ms += 60000;
+    cfg.relays[3].mode = RELAY_MODE_MOMENTARY;
+    relay_ctrl_update_config(&cfg);
+    TEST_ASSERT_TRUE(relay_ctrl_get(4));  // saving didn't switch it
+    clock_ms += 999;
+    relay_ctrl_tick();
+    TEST_ASSERT_TRUE(relay_ctrl_get(4));
+    clock_ms += 1;
+    relay_ctrl_tick();
+    TEST_ASSERT_FALSE(relay_ctrl_get(4));
+}
+
+TEST_CASE("saving settings never switches a relay on", "[relay_ctrl]")
+{
+    fresh();
+    start();
+    n_events = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        cfg.relays[i].mode = RELAY_MODE_MOMENTARY;
+        cfg.relays[i].failsafe = FAILSAFE_HOLD;
+    }
+    relay_ctrl_update_config(&cfg);
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());
+    TEST_ASSERT_EQUAL(0, n_events);
+}
+
 // ------------------------------------------------------------ fail-safe
 
 TEST_CASE("SignalK loss turns off only default-safe relays", "[relay_ctrl]")
