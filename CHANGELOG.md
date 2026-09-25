@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The settings page could fail with `ESP_ERR_NO_MEM`: espOS builds the
+  settings schema in RAM on every page load, and the 0.0.6 settings made
+  it too big. Relays and inputs 2–8 no longer repeat relay 1's and input
+  1's descriptions (the schema shrinks from 52.6 to 47.2 KB).
+
 ### Added
 
 - `GET /api/v1/n2k`: espOS's CAN diagnostics (frames received and
