@@ -42,3 +42,10 @@ CONFIG_ESPOS_SK_MAX_META=48
 # relay I/O loop has its own 3 s check in main.c.
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=30
 CONFIG_ESP_TASK_WDT_PANIC=y
+
+# Sockets for everything at once: espOS's web server (up to 6, plus the
+# browser's keep-alive connections), the SignalK stream and its metadata
+# requests, mDNS, SNTP and OTA. IDF's default of 10 ran out when a browser
+# was on the setup page as SignalK connected ("Failed to create socket"),
+# and espOS's SignalK task then overflowed its stack on the error path.
+CONFIG_LWIP_MAX_SOCKETS=16

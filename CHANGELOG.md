@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bus is now opened by the NMEA 2000 task, which retries until it
   succeeds; the log says `on the bus` once it is open, or reports an
   error after 5 s if it still isn't.
+- A crash (stack overflow in espOS's SignalK task) when SignalK
+  connected while a browser was loading the board's page: the board ran
+  out of network sockets (IDF's default of 10). Raised to 16.
 
 ## [0.0.9] - 2026-09-25
 
