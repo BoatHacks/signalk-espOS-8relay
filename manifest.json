@@ -5,6 +5,15 @@
     {
       "target": "esp32s3",
       "channel": "beta",
+      "version": "v0.0.8",
+      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.0.8/signalk-espOS-8relay-v0.0.8-ota.bin",
+      "size": 1576960,
+      "sha256": "c42ebaa7fba840b3851bbf51b2981ee6f689d8441af9f5cbf4e668dd9777bfb4",
+      "notes": "The settings page could fail with `ESP_ERR_NO_MEM`: espOS builds the"
+    },
+    {
+      "target": "esp32s3",
+      "channel": "beta",
       "version": "v0.0.7",
       "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.0.7/signalk-espOS-8relay-v0.0.7-ota.bin",
       "size": 1576960,
