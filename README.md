@@ -106,7 +106,7 @@ for this board, and are not yet confirmed on real hardware.
 |---|---|---|---|
 | ESP32-S3 dual-core CPU | — | Yes | Everything |
 | 16 MB flash | internal | Yes | Firmware (two OTA slots), settings, web UI |
-| 8 MB PSRAM | internal | **No** | Off until its type (quad or octal) is confirmed; the wrong mode stops boot |
+| 8 MB PSRAM (octal, in the chip) | internal | Yes | Large allocations, e.g. espOS's settings schema (0.0.9 and later) |
 | WiFi 2.4 GHz | internal | Yes | espOS: setup access point, network, SignalK |
 | Bluetooth LE | internal | **No** | espOS could provision over BLE instead of the access point |
 | 8 relays via TCA9554 I²C expander (0x20) | SCL 41, SDA 42 | Yes | `relay_ctrl` |

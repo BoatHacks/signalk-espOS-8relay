@@ -7,6 +7,11 @@
 #include "esp_efuse.h"
 #include "esp_efuse_table.h"
 #include "esp_flash.h"
+#if CONFIG_SPIRAM
+#include "cJSON.h"
+#include "esp_heap_caps.h"
+#include "esp_psram.h"
+#endif
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -181,6 +186,25 @@ static void io_supervisor(void *arg)
     }
 }
 
+#if CONFIG_SPIRAM
+// cJSON builds trees of many small allocations, which the 16 KB PSRAM
+// threshold keeps in internal RAM. espOS parses and re-prints its whole
+// settings schema (~47 KB) that way on every settings page load, which ran
+// internal RAM out (ESP_ERR_NO_MEM). JSON is never touched from interrupts,
+// so all of it can live in PSRAM; internal RAM is the fallback. The hooks
+// are global: they cover espOS's JSON as well as ours.
+static void *json_malloc(size_t size)
+{
+    return heap_caps_malloc_prefer(size, 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+}
+
+static void json_to_psram(void)
+{
+    cJSON_Hooks hooks = {.malloc_fn = json_malloc, .free_fn = heap_caps_free};
+    cJSON_InitHooks(&hooks);
+}
+#endif
+
 // What esptool's chip report says, in the boot log: which PSRAM (if any) is
 // inside the chip package decides the PSRAM mode a build must use, and a
 // wrong mode stops the chip at boot.
@@ -212,14 +236,18 @@ static void log_chip_info(void)
              (chip.features & CHIP_FEATURE_EMB_FLASH) ? " (embedded flash)" : "");
     ESP_LOGI(TAG, "chip: in-package PSRAM %s, vendor %s -> %s",
              psram_cap < 5 ? psram_mb[psram_cap] : "?", vendor[psram_vendor & 3], mode);
-    ESP_LOGI(TAG, "chip: in-package flash %s, flash chip %lu MB; PSRAM in this build: %s",
-             flash_cap < 3 ? flash_mb[flash_cap] : "?", (unsigned long)(flash_bytes >> 20),
 #if CONFIG_SPIRAM
-             "on"
+    char psram[32];
+    if (esp_psram_is_initialized()) {
+        snprintf(psram, sizeof(psram), "on, %u MB in use", (unsigned)(esp_psram_get_size() >> 20));
+    } else {
+        snprintf(psram, sizeof(psram), "on, but not found");
+    }
 #else
-             "off"
+    const char *psram = "off";
 #endif
-    );
+    ESP_LOGI(TAG, "chip: in-package flash %s, flash chip %lu MB; PSRAM in this build: %s",
+             flash_cap < 3 ? flash_mb[flash_cap] : "?", (unsigned long)(flash_bytes >> 20), psram);
 }
 
 // espOS ships with no manifest URL. Fill in this project's, once: an empty
@@ -288,6 +316,9 @@ static esp_err_t start_io(void *arg)
 
 void app_main(void)
 {
+#if CONFIG_SPIRAM
+    json_to_psram();  // before espOS parses anything
+#endif
     log_chip_info();
     static device_config_t cfg;
     espos_start_opts_t opts = ESPOS_START_OPTS_DEFAULT;

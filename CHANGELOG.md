@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- The settings page still failed with `ESP_ERR_NO_MEM` in 0.0.8. The
+  board's 8 MB PSRAM (octal, in the ESP32-S3R8) is now enabled, and all
+  JSON work — espOS's settings schema included — uses it, keeping
+  internal RAM for WiFi and the rest. If PSRAM ever fails to start, the
+  firmware runs without it. The boot log's chip report shows how much
+  PSRAM is in use.
+
 ## [0.0.8] - 2026-09-25
 
 ### Fixed

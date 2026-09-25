@@ -19,8 +19,17 @@ CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
-# The board's module: 16 MB flash, 8 MB PSRAM. PSRAM stays off until its
-# type (quad or octal) is confirmed on hardware; the wrong mode stops boot.
+# The board's chip: ESP32-S3R8, 8 MB octal PSRAM at 3.3 V inside the
+# package (from the boot log's chip report, 2026-09-25), 16 MB flash.
+# Allocations above 16 KB (CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL's default),
+# like espOS's settings schema, go to PSRAM; small ones, and everything an
+# interrupt touches, stay in internal RAM. If PSRAM ever fails to start,
+# the firmware boots without it rather than stopping. Octal PSRAM uses
+# GPIO 33-37, which nothing on this board is wired to.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 
 # Metadata slots: espOS uses up to 9 for its own device paths; the two
