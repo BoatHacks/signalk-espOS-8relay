@@ -20,6 +20,10 @@ on:
         description: "The release tag to build, sign and attach assets to"
         type: string
         required: true
+      prerelease:
+        description: "Create the release as a pre-release (when it doesn't exist yet)"
+        type: boolean
+        default: true
   workflow_dispatch:
 
 # A publishing run is never cancelled: killing an upload half-way leaves a
@@ -176,13 +180,15 @@ jobs:
 
       # A pushed tag, or a tag from cut-release.yml, has no release yet.
       # Only after a successful build, so a failed build never leaves an
-      # empty release behind. A pre-release until someone promotes it on
-      # GitHub.
+      # empty release behind. A pre-release unless cut-release.yml was run
+      # with "Publish as a pre-release" unticked.
       - name: Create the release if it doesn't exist
         if: github.event_name != 'release'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ env.RELEASE_TAG }}
+          # Empty for a pushed tag (inputs don't exist there): pre-release.
+          PRERELEASE: ${{ inputs.prerelease }}
         run: |
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             exit 0
@@ -201,8 +207,13 @@ jobs:
             echo "::warning::CHANGELOG.md has no entry for $TAG; using generated notes"
             notes=(--generate-notes)
           fi
+          # A pushed tag is always a pre-release; a called run says.
+          pre=(--prerelease)
+          if [ "$PRERELEASE" = "false" ]; then
+            pre=()
+          fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --prerelease --title "$TAG" "${notes[@]}"
+            "${pre[@]}" --title "$TAG" "${notes[@]}"
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
