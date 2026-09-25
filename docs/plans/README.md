@@ -38,13 +38,15 @@ Checked against the espOS repository and the Waveshare wiki on
   all of that (plan 06).
 - **SignalK PUT** is supported: `espos_sk_put_handler_register(path, cb,
   arg)`, and a path must be published before it can accept PUTs.
-- **No documented SignalK connected/disconnected callback.** The
-  fail-safe grace period (SPEC.md §3.2) needs another way to detect a lost
-  server (plan 00 checks).
-- **W5500 support is unclear.** The espOS README lists "W5500 over SPI",
-  but the `espos_eth` Kconfig depends on the internal Ethernet MAC, which
-  the ESP32-S3 doesn't have (plan 00 checks).
-- **espOS examples build only for esp32c6 and esp32p4**, although ESP32-S3
-  is a supported target (plan 00 checks it builds).
-- **Registry packages** are per component (e.g.
-  `signalk-espos/espos_sk^0.9.0`) and released in lockstep.
+- **SignalK connection events** exist: `ESPOS_EVENT_SK_STREAM_CONNECTED`
+  / `_DISCONNECTED`.
+- **No W5500 support in espOS**, despite its README. A transport of our
+  own can plug into espOS's network layer (plan 00 item 2; decision
+  pending).
+- **espOS 0.10.3 builds for the ESP32-S3** from the component registry.
+- **Registry packages** are per component (`signalk-espos/espos_*`),
+  released in lockstep; pin all to 0.10.3.
+- **At most 16 SignalK PUT handlers**, exactly what 8 relays × 2 trees
+  need.
+
+Full results: [plan 00](00-espos-fit-check.md#results-2026-09-25-espos-0103-esp-idf-v603).

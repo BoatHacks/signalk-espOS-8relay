@@ -106,6 +106,7 @@ overrides.
 |---|---|---|
 | Input debounce | 50 ms | How long an input must be steady before a change counts |
 | SignalK-loss grace period | 30 s | How long SignalK may be unreachable before relays set to *switch off* do so |
+| Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
 
 ## 7. Everyday use
 

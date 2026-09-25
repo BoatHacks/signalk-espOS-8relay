@@ -109,21 +109,30 @@ existing config REST/web UI renders and persists them.
 - `espos_sk` — SignalK discovery, token, delta stream, meta
   (`espos_sk_declare_meta`), PUT handlers (`espos_sk_put_handler_register`;
   a path must be published before it accepts PUTs).
+  At most 16 PUT handlers (`ESPOS_SK_MAX_PUT_HANDLERS`), which 8 relays ×
+  2 trees fills exactly. Stream connect/disconnect events
+  (`ESPOS_EVENT_SK_STREAM_CONNECTED` / `_DISCONNECTED`) drive the
+  SignalK-loss fail-safe.
 - `espos_n2k` — raw CAN frames over TWAI (C++ `TwaiReceiver` /
-  `TwaiTransmitter`) and a candump TCP server. No PGN support.
-- `espos_net` / `espos_wifi` / `espos_eth` — network management and
-  captive-portal provisioning. espOS always prefers Ethernet over WiFi
-  when both are up. Whether `espos_eth` supports this board's W5500 (SPI)
-  is not yet confirmed: its Kconfig depends on the internal Ethernet MAC,
-  which the ESP32-S3 lacks.
-- `espos_config` — NVS-backed config store with JSON descriptors.
+  `TwaiTransmitter`) and a candump TCP server. No PGN support. The
+  receiver has a single frame callback, so our NMEA2000 code and the
+  candump server can't both receive (plan 06).
+- `espos_net` / `espos_wifi` — network management and captive-portal
+  provisioning. espOS always prefers Ethernet over WiFi when both are up;
+  `wifi.sta_enabled` turns the WiFi station off. espOS's `espos_eth`
+  doesn't support the W5500 (internal Ethernet MAC only), so Ethernet
+  needs a transport of our own: ESP-IDF's `espressif/w5500` driver,
+  reported into espOS via `espos_net_register_if()` / `espos_net_report()`
+  (decision pending, see plan 00).
+- `espos_config` — NVS-backed config store with JSON descriptors. Validates
+  each key on its own; no hook for cross-setting rules.
 - `espos_health` — warnings/alarms (used for I2C failures and config
   errors).
+- `espos_httpd` — web UI + config REST server.
+- `espos_ota` — signed OTA + rollback.
 
 espOS has no GPIO component; pins are driven with ESP-IDF drivers
 directly.
-- `espos_httpd` — web UI + config REST server.
-- `espos_ota` — signed OTA + rollback.
 
 ## 3. Data Models
 
@@ -157,7 +166,7 @@ typedef struct {
     uint16_t sk_loss_grace_s; // default 30
     bool publish_switches_tree; // default true
     bool publish_controls_tree; // default false
-    net_pref_t network_pref;  // ETH_PREFERRED_WIFI_FALLBACK | WIFI_ONLY | ETH_ONLY
+    bool eth_enabled;         // default true; WiFi station on/off is espOS's own setting
     relay_channel_t relays[8];
     input_channel_t inputs[8];
 } device_config_t;

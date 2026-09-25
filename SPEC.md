@@ -136,7 +136,7 @@ control regardless of SignalK connectivity).
 - `debounceMs`: digital input debounce time (default `50`)
 - `skLossGraceS`: seconds without SignalK before `default-safe` relays
   turn off (default `30`)
-- `network`: interface preference (see §9)
+- `ethEnabled`: bool, default `true` — use the W5500 Ethernet port (see §9)
 - `publishSwitchesTree`: bool, default `true` — publish and accept PUTs on
   `electrical.switches.bank.*` (§6.1)
 - `publishControlsTree`: bool, default `false` — publish and accept PUTs on
@@ -240,13 +240,17 @@ switches the same relay, and both paths then report the new state.
 ### 6.3 Local Config REST (via espOS web UI)
 
 - Extends espOS's existing JSON-Schema-described config store with this
-  firmware's schema: `bankId`, `inputBankId`, `debounceMs`, `network`
-  preference, `publishSwitchesTree`, `publishControlsTree`, and per-channel relay (`name`, `mode`,
-  `pulseMs`, `failSafe`, `overrideDI`) / input (`name`, `invert`)
-  settings. The firmware rejects a config save where `inputBankId ==
-  bankId` (JSON Schema can't compare two fields, so this is checked in
-  code on save). No new REST surface or UI framework — same
-  config store, same generated web UI form.
+  firmware's settings: `bankId`, `inputBankId`, `debounceMs`,
+  `skLossGraceS`, `ethEnabled`, `publishSwitchesTree`,
+  `publishControlsTree`, and per-channel relay (`name`, `mode`, `pulseMs`,
+  `failSafe`, `overrideDI`) / input (`name`, `invert`) settings. No new
+  REST surface or UI framework — same config store, same generated web UI
+  form.
+- espOS validates each setting on its own and has no way to reject a save
+  that breaks a rule spanning two settings. So if `inputBankId == bankId`,
+  the save is accepted, the device raises an `espos_health` warning naming
+  the problem, and the input bank is not published (SignalK or NMEA2000)
+  until the ids differ.
 
 ## 7. User Interface
 
@@ -273,9 +277,13 @@ User-tunable (via config store, §6.3):
   8 inputs
 - SignalK-loss grace period `skLossGraceS` (default `30` s), after which
   `default-safe` relays turn off (§3.2)
-- Network interface preference: Ethernet-preferred-with-WiFi-fallback, or
-  fixed WiFi-only / Ethernet-only (WiFi captive-portal provisioning is
-  always available regardless of this setting, per espOS)
+- Network: Ethernet is preferred whenever it has an address, with WiFi as
+  fallback (espOS's fixed rule). Two switches select the other modes:
+  espOS's own "Station enabled" WiFi setting (off = Ethernet only), and
+  this firmware's `ethEnabled` (off = WiFi only). WiFi's setup access
+  point stays available either way. `ethEnabled` depends on this firmware
+  providing its own W5500 driver, since espOS doesn't support the W5500
+  (see docs/plans/00-espos-fit-check.md).
 - Per-relay: name, mode (latching/momentary), pulse duration, fail-safe
   policy, optional DI override source
 - Per-input: name, invert (NC vs NO sensor)

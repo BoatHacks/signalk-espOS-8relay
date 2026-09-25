@@ -42,13 +42,15 @@ The full requirements are in [SPEC.md](SPEC.md).
 |---|---|
 | Specification ([SPEC.md](SPEC.md)) | Done |
 | Architecture ([ARCHITECTURE.md](ARCHITECTURE.md)) | Done, being corrected against espOS as findings come in |
-| 00 — espOS fit check | In progress: questions answered from the espOS source; test build for the ESP32-S3 under way |
+| 00 — espOS fit check | Software checks done; espOS 0.10.3 builds for the ESP32-S3. Boot test waiting for the board |
 | 01–06 — firmware | Not started |
 | 07 — hardware bring-up and first release | Not started; waiting for the board |
 
 Known issues found so far:
 - espOS does not support this board's W5500 Ethernet chip. A driver of our
   own can plug into espOS's network layer; not yet decided.
+- espOS's NMEA 2000 debug server (candump) can't run alongside our NMEA 2000
+  code, so it's left out.
 - espOS's NMEA 2000 component only passes raw CAN frames, so the NMEA 2000
   protocol layer comes from a separate library.
 

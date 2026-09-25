@@ -22,8 +22,10 @@ boot and subscribes to changes with `espos_config_subscribe`. Other
 components read the struct, never NVS directly.
 
 Cross-field rules the descriptor can't express are checked in code:
-- `inputBankId` must differ from `bankId`. How a bad save is handled
-  depends on plan 00 item 4.
+- `inputBankId` must differ from `bankId`. A bad save can't be rejected
+  (plan 00 item 4), so the device raises an
+  `espos_health` warning and the input bank isn't published until fixed
+  (SPEC.md §6.3).
 - A `momentary` relay is always treated as `default-safe`, whatever its
   stored fail-safe value (SPEC.md §2).
 - `overrideDI` must be 0 (none) or 1–8.
@@ -46,12 +48,10 @@ right keys. Manual: all settings appear and save in the web UI.
 ## Implementation Steps
 - [ ] `components/device_config/config/relay.json` descriptor
 - [ ] `device_config.h/.c`: load, typed accessors, change subscription
-- [ ] Cross-field validation, per plan 00 item 4
+- [ ] Cross-field checks: health warning, input bank suppressed
 - [ ] Separate NVS namespace and coalesced writer for `hold` relay state
 - [ ] Host tests
-- [ ] Update SPEC.md §6.3 if save-time rejection turned out impossible
 
 ## Files to Create/Modify
 - `components/device_config/` (descriptor, source, header, CMakeLists)
 - `test/host/test_device_config.c`
-- `SPEC.md` (only if §6.3 changes)

@@ -42,8 +42,9 @@ returns `ESP_ERR_INVALID_ARG` (400).
 `electrical.switches.bank.*.state` (boolean or 0/1 number) and publish
 the same type, so SignalK clients see one format regardless of source.
 
-**SignalK loss.** Implement detection per plan 00 item 3, and call
-`relay_ctrl_sk_lost()` after the grace period from plan 03.
+**SignalK loss.** Subscribe to `ESPOS_EVENT_SK_STREAM_DISCONNECTED` /
+`_CONNECTED`; when disconnected for longer than `skLossGraceS` (default
+30 s), call `relay_ctrl_sk_lost()`.
 
 **Risk to raise before building.** If the SignalK server also receives
 the NMEA2000 bus through a gateway, it will convert this device's own

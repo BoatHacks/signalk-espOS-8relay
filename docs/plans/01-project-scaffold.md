@@ -29,12 +29,14 @@ expander, GPIO reads, clock) that tests replace with fakes.
 
 ## Implementation Steps
 - [ ] Root `CMakeLists.txt`, `main/idf_component.yml` with pinned espOS
-      packages (`espos_sk`, `espos_n2k`, `espos_config`, `espos_httpd`,
-      `espos_ota`, `espos_health`, `espos_eth` if plan 00 confirmed W5500)
-- [ ] `partitions.csv` from espOS's reference table, sized for this
-      board's flash (plan 00 item 8)
-- [ ] `sdkconfig.defaults`: target esp32s3, flash size, C++ enabled, pins
-      from plan 00 item 7
+      packages pinned to exactly 0.10.3 (`espos_core`, `espos_sk`,
+      `espos_n2k`, `espos_config`, `espos_httpd`, `espos_ota`,
+      `espos_health`); `espressif/w5500` if the W5500 transport is chosen.
+      Start from espOS's `from_registry` example, which plan 00 built.
+- [ ] `partitions.csv` copied from espOS's `16mb.csv`
+- [ ] `sdkconfig.defaults`: target esp32s3, 16 MB flash, espOS's required
+      lines from `from_registry`, C++ enabled; PSRAM off until its type is
+      confirmed on hardware
 - [ ] Development signing key, kept out of git (`.gitignore`), with
       README instructions to generate one
 - [ ] `main/app_main.c` calling `espos_start(NULL)`
