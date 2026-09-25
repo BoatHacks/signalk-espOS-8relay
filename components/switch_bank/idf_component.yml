@@ -4,3 +4,13 @@ dependencies:
     version: "0.10.3"
     rules:
       - if: "target != linux"
+  signalk-espos/espos_n2k:
+    version: "0.10.3"
+    rules:
+      - if: "target != linux"
+  # NMEA 2000 protocol layer (MIT). No releases are tagged, so pin a commit.
+  ttlappalainen/nmea2000:
+    git: https://github.com/ttlappalainen/NMEA2000.git
+    version: 5b7b9fc3ccc18e30ebfba92da6486cffc6251595
+    rules:
+      - if: "target != linux"

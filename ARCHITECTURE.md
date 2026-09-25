@@ -226,7 +226,7 @@ signalk-espOS-8relay/
 │   │   └── CMakeLists.txt
 │   ├── switch_bank/
 │   │   ├── sk_bridge.c/.h, sk_espos.c/.h     # SignalK side
-│   │   ├── n2k_bridge.cpp/.h, n2k_espos_driver.cpp/.h, switch_bank_pgn.c/.h  # NMEA2000 side
+│   │   ├── n2k_bridge.cpp/.h, switch_bank_pgn.c/.h  # NMEA2000 side
 │   │   └── CMakeLists.txt
 │   └── device_config/
 │       ├── config/swbank.json  # espOS config descriptor

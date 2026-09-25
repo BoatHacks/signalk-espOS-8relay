@@ -48,7 +48,7 @@ The full requirements are in [SPEC.md](SPEC.md).
 | 03 — relay control | Done except the on-board check: safe boot sequence, momentary pulses, fail-safe, hold-state storage; host-tested |
 | 04 — digital inputs | Done except the on-board check: debounce, invert, input-to-relay overrides; host-tested |
 | 05 — SignalK | Done except the on-board check: both path trees, relay PUTs, names, SignalK-loss fail-safe; host-tested |
-| 06 — NMEA 2000 | Not started |
+| 06 — NMEA 2000 | Done except the bus test: joins the bus as a load controller, 127501 status, 127502 control; payloads host-tested |
 | 07 — hardware bring-up and first release | Not started; waiting for the board |
 
 Known issues found so far:

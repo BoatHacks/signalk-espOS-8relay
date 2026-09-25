@@ -246,13 +246,22 @@ switches the same relay, and both paths then report the new state.
 
 ### 6.2 NMEA2000 PGNs
 
-- **127501 Binary Switch Bank Status** — transmitted periodically (and
-  on-change) for both the relay bank and the input bank, via `espos_n2k`.
-- **127502 Switch Bank Control** — received for the relay bank; individual
-  channel commands are applied identically to a SignalK PUT.
-- **60928 ISO Address Claim** / standard product info — device declares
-  itself as a switch bank device class so it enumerates correctly on
-  MFDs/keypads.
+- **127501 Binary Switch Bank Status** — sent on every change and every
+  2 s, for the relay bank and (unless its id clashes) the input bank.
+  canboat gives no interval for this PGN; 2 s is common practice for
+  switch banks. Channels 9–28 are sent as unavailable (3).
+- **127502 Switch Bank Control** — acted on for the relay bank's instance
+  only. Fields 0/1 switch the channel, like a SignalK PUT; 3 ("take no
+  action") and 2 (reserved) are ignored. Control messages for the input
+  bank are ignored.
+- **Network management**, from the NMEA2000 library: address claim
+  (60928) with conflict handling, ISO request (59904), product
+  information (126996), heartbeat (126993), PGN lists (126464). The last
+  claimed source address is kept in NVS so the device returns to it.
+- **NAME:** device class 30 "Electrical Distribution", device function 140
+  "Load Controller" (canboat), industry group 4 (marine), manufacturer
+  code 2046 (unassigned; used by the NMEA2000 library's examples for
+  non-certified devices), unique number from the chip's MAC.
 
 ### 6.3 Local Config REST (via espOS web UI)
 

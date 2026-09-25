@@ -13,6 +13,7 @@
 #include "eth_w5500.h"
 #include "input_hw.h"
 #include "input_sense.h"
+#include "n2k_bridge.h"
 #include "relay_ctrl.h"
 #include "relay_hw.h"
 #include "sk_bridge.h"
@@ -41,14 +42,21 @@ static esp_err_t sk_set_relay(uint8_t relay, bool on)
     return relay_ctrl_set(relay, on, RELAY_SRC_SK);
 }
 
+static esp_err_t n2k_set_relay(uint8_t relay, bool on)
+{
+    return relay_ctrl_set(relay, on, RELAY_SRC_N2K);
+}
+
 static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_t mask, void *arg)
 {
     sk_bridge_relay_changed(channel, on);
+    n2k_bridge_state_changed();
 }
 
 static void on_input_change(uint8_t channel, bool on, uint8_t mask, void *arg)
 {
     sk_bridge_input_changed(channel, on);
+    n2k_bridge_state_changed();
 }
 
 static void on_sk_stream(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -137,6 +145,17 @@ void app_main(void)
     ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_CONNECTED, on_sk_stream, NULL));
     ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_DISCONNECTED, on_sk_stream, NULL));
     ESP_ERROR_CHECK(sk_bridge_start(&sk_espos_api, &sk_io, &cfg));
+
+    static const n2k_bridge_io_t n2k_io = {
+        .set_relay = n2k_set_relay,
+        .relay_mask = relay_ctrl_get_mask,
+        .inputs_ready = input_sense_ready,
+        .input_mask = input_sense_get_mask,
+    };
+    // NMEA 2000 failing must not stop SignalK control.
+    if (n2k_bridge_start(&n2k_io, &cfg) != ESP_OK) {
+        ESP_LOGE(TAG, "NMEA 2000 unavailable");
+    }
 
     if (cfg.eth_enabled) {
         // Ethernet failing must not stop the device: it still works over WiFi.

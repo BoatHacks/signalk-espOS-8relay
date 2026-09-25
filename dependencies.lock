@@ -185,6 +185,22 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 0.10.3
+  signalk-espos/espos_n2k:
+    component_hash: 366c7aa242d7f72f706ce8dd6cf022a06c65199d35ac0374ce01a3f0a71ba9e7
+    dependencies:
+    - name: espressif/mdns
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: target != linux
+      version: ==1.11.3
+    - name: idf
+      require: private
+      version: '>=6.0.0,<6.1.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.10.3
   signalk-espos/espos_net:
     component_hash: 789e3ab1e255d1034ecdacd0445496dbbec639c0b391278714cd358d33ebf6b3
     dependencies:
@@ -319,14 +335,24 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 0.10.3
+  ttlappalainen/nmea2000:
+    component_hash: 24102e8d790203e5c50164580d991826b055298fc9d27ceff369635dc4678401
+    dependencies: []
+    source:
+      git: https://github.com/ttlappalainen/NMEA2000.git
+      path: .
+      type: git
+    version: 5b7b9fc3ccc18e30ebfba92da6486cffc6251595
 direct_dependencies:
 - espressif/w5500
 - idf
 - signalk-espos/espos_config
 - signalk-espos/espos_core
 - signalk-espos/espos_health
+- signalk-espos/espos_n2k
 - signalk-espos/espos_net
 - signalk-espos/espos_sk
-manifest_hash: 2572f592a9a6ea71c6548ec2ed9cb68b979356f43f6fbb4682e59cffc6d9a301
+- ttlappalainen/nmea2000
+manifest_hash: ecf016b34b3ca4a1a2dc5b2520394c4ebffcd545a2e9c6ee35d2c01eb87a50d6
 target: esp32s3
 version: 3.0.0

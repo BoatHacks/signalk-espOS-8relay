@@ -60,19 +60,26 @@ unavailable/no change):
 - In plan 07: an MFD lists the device and shows both banks.
 
 ## Implementation Steps
-- [ ] Add the NMEA2000 library as an ESP-IDF component (pinned version)
-- [ ] Driver class over `espos_n2k` receive/transmit
-- [ ] NAME, product info and address persistence
-- [ ] 127501 encode + send on change and periodically
-- [ ] 127502 decode + dispatch to `relay_ctrl`
-- [ ] Host tests for the bitfield encoding
-- [ ] Bench test with canboat `analyzer`
-- [ ] Update SPEC.md §6.2 with the full PGN list and the chosen NAME
-      values
+- [x] NMEA2000 library added through the component manager straight from
+      git, pinned to commit `5b7b9fc` (no releases are tagged); it
+      registers itself as an ESP-IDF component and uses `esp_timer`
+- [x] Driver class over `espos_n2k` receive/transmit (candump server not
+      started, as plan 00 found)
+- [x] NAME from canboat (class 30, function 140), manufacturer code 2046,
+      unique number and serial from the MAC; product info; address kept
+      in NVS
+- [x] 127501 encode (plain C, `switch_bank_pgn.c`), sent on change and
+      every 2 s (canboat has no interval; common practice)
+- [x] 127502 decode and dispatch to `relay_ctrl` with `RELAY_SRC_N2K`
+- [x] Host tests for the payloads (`test/host/switch_bank_pgn_test`,
+      5 tests, including a round-trip over all 256 relay states)
+- [ ] Bench test: USB-CAN adapter and canboat `analyzer` (address claim,
+      product info, heartbeat, 127501; 127502 switching relays)
+- [x] SPEC.md §6.2 updated with the full PGN list and NAME values
 
 ## Files to Create/Modify
-- `components/switch_bank/` (`n2k_bridge.cpp/.h`,
-  `n2k_espos_driver.cpp/.h`, `switch_bank_pgn.c/.h`)
-- `main/idf_component.yml` or `components/` (NMEA2000 library)
-- `test/host/test_switch_bank_pgn.c`
+- `components/switch_bank/` (`n2k_bridge.cpp/.h` with the driver class
+  inside, `switch_bank_pgn.c/.h`, `idf_component.yml` for the library)
+- `main/main.c`
+- `test/host/switch_bank_pgn_test/`
 - `SPEC.md` §6.2
