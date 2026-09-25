@@ -4,3 +4,4 @@ dependencies:
   # exact version.
   signalk-espos/espos_core: "0.10.3"
   signalk-espos/espos_sk: "0.10.3"
+  signalk-espos/espos_ota: "0.10.3"

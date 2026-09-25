@@ -33,6 +33,11 @@ typedef struct {
     uint32_t (*now_ms)(void);
 } sk_bridge_io_t;
 
+// Create the bridge's lock. Call before anything that can call into the
+// bridge runs (the I/O task, relay and input listeners); until then every
+// call is ignored. Until sk_bridge_start() they only update local state.
+esp_err_t sk_bridge_init(void);
+
 // Declare metadata, publish current state and register PUT handlers for
 // every relay on each enabled tree. Tree toggles and bank ids take effect
 // here only (they need a restart).

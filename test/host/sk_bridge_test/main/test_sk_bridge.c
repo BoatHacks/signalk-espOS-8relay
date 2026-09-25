@@ -165,6 +165,30 @@ TEST_CASE("default: switches tree only, a PUT handler per relay", "[sk_bridge]")
     }
 }
 
+// Boot order: the I/O task and relay/input listeners run before the network
+// is up and sk_bridge_start() is called. v0.0.1 took a lock that didn't exist
+// yet there and boot-looped.
+static void call_everything_early(void)
+{
+    sk_bridge_tick();
+    sk_bridge_relay_changed(1, true);
+    sk_bridge_input_changed(2, true);
+    sk_bridge_update_config(&cfg);
+    sk_bridge_stream_changed(false);
+}
+
+TEST_CASE("calls before init or start are ignored, and start still works", "[sk_bridge]")
+{
+    fresh();
+    call_everything_early();  // no lock yet
+    TEST_ESP_OK(sk_bridge_init());
+    call_everything_early();  // lock, not started
+    TEST_ASSERT_EQUAL(0, n_calls);
+    TEST_ASSERT_EQUAL(0, sk_lost_calls);
+    start();
+    TEST_ASSERT_EQUAL(8, count(CALL_PUT_REG));
+}
+
 TEST_CASE("every PUT path is published before its handler is registered", "[sk_bridge]")
 {
     fresh();

@@ -243,6 +243,36 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 0.10.3
+  signalk-espos/espos_ota:
+    component_hash: a8558b332092f2dcf4986cb583fba490977074a43fb685a6fb8dd7f9c9a0072d
+    dependencies:
+    - name: espressif/cjson
+      registry_url: https://components.espressif.com
+      require: private
+      version: ==1.7.19~2
+    - name: idf
+      require: private
+      version: '>=6.0.0,<6.1.0'
+    - name: signalk-espos/espos_config
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^0.10.3
+    - name: signalk-espos/espos_event
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^0.10.3
+    - name: signalk-espos/espos_httpd
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^0.10.3
+    - name: signalk-espos/espos_net
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^0.10.3
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.10.3
   signalk-espos/espos_sk:
     component_hash: b8403bcbc947675310d85431e260e55e998d3cbf26c421529f0acf6c0381c290
     dependencies:
@@ -362,8 +392,9 @@ direct_dependencies:
 - signalk-espos/espos_health
 - signalk-espos/espos_n2k
 - signalk-espos/espos_net
+- signalk-espos/espos_ota
 - signalk-espos/espos_sk
 - ttlappalainen/nmea2000
-manifest_hash: 65f3f3cc727df7adf7251d8e269c35d92df0fc39f0cdecc30b1354800d4bd927
+manifest_hash: 95c5cd18bde46e72a8e10f4908a22204705f0d3559a9b096ad0b6a578ddba588
 target: esp32s3
 version: 3.0.0

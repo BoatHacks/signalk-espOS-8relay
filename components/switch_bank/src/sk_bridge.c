@@ -181,13 +181,22 @@ static esp_err_t on_put(const char *path, const char *value_json, void *arg)
 
 // ---------------------------------------------------------------- public
 
-esp_err_t sk_bridge_start(const sk_api_t *api, const sk_bridge_io_t *io, const device_config_t *cfg)
+esp_err_t sk_bridge_init(void)
 {
     if (!s.lock) {
         s.lock = xSemaphoreCreateMutex();
         if (!s.lock) {
             return ESP_ERR_NO_MEM;
         }
+    }
+    return ESP_OK;
+}
+
+esp_err_t sk_bridge_start(const sk_api_t *api, const sk_bridge_io_t *io, const device_config_t *cfg)
+{
+    esp_err_t init = sk_bridge_init();
+    if (init != ESP_OK) {
+        return init;
     }
     xSemaphoreTake(s.lock, portMAX_DELAY);
     s.api = *api;
@@ -221,6 +230,9 @@ esp_err_t sk_bridge_start(const sk_api_t *api, const sk_bridge_io_t *io, const d
 
 void sk_bridge_update_config(const device_config_t *cfg)
 {
+    if (!s.lock) {
+        return;  // before sk_bridge_init(): nothing to publish yet
+    }
     xSemaphoreTake(s.lock, portMAX_DELAY);
     // Names and the grace period apply live. Bank ids and tree toggles need
     // a restart, so the running copy keeps its own.
@@ -247,6 +259,9 @@ void sk_bridge_update_config(const device_config_t *cfg)
 
 void sk_bridge_relay_changed(uint8_t channel, bool on)
 {
+    if (!s.lock) {
+        return;  // before sk_bridge_init(): nothing to publish yet
+    }
     xSemaphoreTake(s.lock, portMAX_DELAY);
     for (tree_t t = TREE_SWITCHES; s.started && t <= TREE_CONTROLS; t++) {
         if (tree_on(t)) {
@@ -258,6 +273,9 @@ void sk_bridge_relay_changed(uint8_t channel, bool on)
 
 void sk_bridge_input_changed(uint8_t channel, bool on)
 {
+    if (!s.lock) {
+        return;  // before sk_bridge_init(): nothing to publish yet
+    }
     xSemaphoreTake(s.lock, portMAX_DELAY);
     for (tree_t t = TREE_SWITCHES; s.started && inputs_on() && t <= TREE_CONTROLS; t++) {
         if (tree_on(t)) {
@@ -270,6 +288,9 @@ void sk_bridge_input_changed(uint8_t channel, bool on)
 
 void sk_bridge_stream_changed(bool connected)
 {
+    if (!s.lock) {
+        return;  // before sk_bridge_init(): nothing to publish yet
+    }
     xSemaphoreTake(s.lock, portMAX_DELAY);
     if (connected) {
         s.connected_once = true;
@@ -287,6 +308,9 @@ void sk_bridge_stream_changed(bool connected)
 
 void sk_bridge_tick(void)
 {
+    if (!s.lock) {
+        return;  // before sk_bridge_init(): nothing to publish yet
+    }
     xSemaphoreTake(s.lock, portMAX_DELAY);
     bool fire = s.down && !s.lost_fired && (s.cfg.publish_switches_tree || s.cfg.publish_controls_tree) &&
                 s.io.now_ms() - s.down_since >= (uint32_t)s.cfg.sk_loss_grace_s * 1000;
@@ -301,7 +325,9 @@ void sk_bridge_tick(void)
 
 void sk_bridge_reset(void)
 {
-    SemaphoreHandle_t lock = s.lock;
+    // Back to before sk_bridge_init(), so each test also covers boot order.
+    if (s.lock) {
+        vSemaphoreDelete(s.lock);
+    }
     memset(&s, 0, sizeof(s));
-    s.lock = lock;
 }

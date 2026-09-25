@@ -30,7 +30,11 @@ Each GitHub release carries two files:
   (bootloader, partition table, firmware, web UI). Use it for the first
   install over USB-C.
 - `signalk-espOS-8relay-<version>-ota.bin`: the firmware alone, for
-  over-the-air updates of a board that already runs this firmware.
+  over-the-air updates of a board that already runs this firmware
+  (v0.0.2 or later; v0.0.1 has no OTA support). It keeps all settings
+  but doesn't update the web page itself. A new image must reach the
+  network within the rollback timeout (10 minutes by default), or the
+  board goes back to the previous firmware.
 
 There are no releases yet; until then, build from source (3.1).
 

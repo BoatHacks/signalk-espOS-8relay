@@ -121,6 +121,10 @@ static esp_err_t start_io(void *arg)
     device_config_t *cfg = arg;
     ESP_ERROR_CHECK(device_config_load(cfg));
 
+    // The I/O task and the relay/input listeners below call into the
+    // SignalK bridge long before sk_bridge_start(), which needs the network.
+    ESP_ERROR_CHECK(sk_bridge_init());
+
     relay_ctrl_hw_t hw;
     ESP_ERROR_CHECK(relay_hw_create(&hw));
     // A dead expander is reported through espOS health; keep booting so the
