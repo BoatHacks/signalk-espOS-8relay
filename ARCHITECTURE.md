@@ -6,21 +6,27 @@ signalk-espos-8relay is an ESP-IDF 6 application built on top of the
 [espOS](https://github.com/signalk-espOS/espOS) runtime. espOS owns
 networking, SignalK transport, config storage, web UI, and OTA; this
 project owns board I/O (relays/DI) and the switch-bank domain logic that
-bridges GPIO state to SignalK and NMEA2000.
+bridges relay and input state to SignalK and NMEA2000.
+
+Facts about espOS and the board below were checked against the espOS
+repository and the Waveshare wiki; items still to be confirmed are listed
+in [docs/plans/00-espos-fit-check.md](docs/plans/00-espos-fit-check.md).
 
 ```
                         +-----------------------------+
                         |   signalk-espos-8relay app   |
                         |  (this repo, main/ + comps)  |
                         |                               |
-   GPIO (RO1-8, DI1-8)  |  relay_ctrl / input_sense      |
-   <------------------->|  switch_bank (SK + N2K bridge)|
-                        |         |         |            |
+   TCA9554 (I2C) RO1-8  |  relay_ctrl / input_sense      |
+   GPIO4-11 DI1-8       |  switch_bank (SK + N2K bridge)|
+   <------------------->|         |         |            |
+                        |         |    NMEA2000 library   |
+                        |         |    (PGNs, addr claim) |
                         +---------|---------|------------+
                                   |         |
                     espos_sk------+         +------espos_n2k
-                    (SK deltas/PUT/meta)    (PGN 127501/127502,
-                                              TWAI/CAN driver)
+                    (SK deltas/PUT/meta)    (raw CAN frames over
+                                              TWAI, candump server)
                                   |
                     espos_config, espos_net/wifi/eth,
                     espos_httpd (web UI + config REST),
@@ -36,18 +42,22 @@ being present.
 
 ### 2.1 `relay_ctrl` (this repo)
 
-Owns the 8 relay GPIOs. Applies commands (on/off), enforces momentary
-pulse timing (via an ESP-IDF timer per momentary-mode relay), and applies
-fail-safe policy on boot and on SignalK-disconnect events. Depends on
-espOS's `espos_gpio` for the actual pin driving and on `espos_config` for
-persisted per-relay settings and `hold` state. Nothing else in this repo
-talks to relay GPIOs directly — all relay state changes go through this
-component so `switch_bank` (§2.3) always has one place to ask for/command
-state.
+Owns the 8 relays. They are not on ESP32 GPIOs: they are pins EXIO1–8 of
+a TCA9554 I2C expander (address 0x20, I2C SCL GPIO41 / SDA GPIO42, shared
+with the board's PCF85063 RTC), driven with ESP-IDF's `i2c_master`
+driver. Applies commands (on/off), enforces momentary pulse timing (an
+`esp_timer` per momentary relay), and applies fail-safe policy on boot and
+on SignalK loss. The expander keeps its outputs through an ESP32 reset,
+which lets `hold` relays survive an OTA reboot without switching; see
+[plan 03](docs/plans/03-relay-control.md) for the boot sequence this
+requires. Nothing else in this repo talks to the expander — all relay
+state changes go through this component so `switch_bank` (§2.3) always
+has one place to ask for/command state.
 
 ### 2.2 `input_sense` (this repo)
 
-Owns the 8 digital input GPIOs. Polls/debounces raw input state and
+Owns the 8 digital inputs (GPIO4–GPIO11, opto-isolated), read with
+ESP-IDF's GPIO driver. Polls/debounces raw input state and
 exposes a simple state-change callback. Applies the configured DI→relay
 override mapping by calling into `relay_ctrl` directly on a DI edge (this
 is the only cross-component write path outside of `switch_bank`, since the
@@ -64,15 +74,22 @@ The bridge component. Translates `relay_ctrl`/`input_sense` state into:
   SignalK/specification#441 — see RFC-441-DIGITAL-SWITCHING.md). Both
   trees are rendered from the same relay/input state, so no separate
   component is needed.
-- NMEA2000 PGN 127501 transmissions, via `espos_n2k` (always, regardless
-  of the SignalK tree toggles).
+- NMEA2000 PGN 127501 transmissions (always, regardless of the SignalK
+  tree toggles).
 
 And translates incoming commands back into `relay_ctrl` calls:
 - SignalK PUT handler registration (`espos_sk` PUT callback API) for
   relay paths on each enabled tree. Handlers on both trees resolve to the
   same `relay_ctrl` call; `controls.*` identifiers are parsed back to bank
   id + channel.
-- PGN 127502 reception (`espos_n2k` callback API).
+- PGN 127502 reception.
+
+`espos_n2k` only sends and receives raw CAN frames, so the NMEA2000 side
+uses Timo Lappalainen's NMEA2000 library for address claim, ISO requests,
+product info, fast packets and heartbeat, with a small driver class that
+sends and receives through `espos_n2k` (see
+[plan 06](docs/plans/06-n2k-switch-bank.md)). `switch_bank` itself only
+encodes 127501 and decodes 127502.
 
 This is the only component that needs to know both "SignalK shape" and
 "N2K shape" of a relay/input — `relay_ctrl` and `input_sense` stay
@@ -80,20 +97,31 @@ transport-agnostic.
 
 ### 2.4 `device_config` schema (this repo)
 
-Not a runtime component but a JSON-Schema document registered with
-espOS's `espos_config`, describing this firmware's config fields (bank id,
-network preference, per-channel settings — SPEC.md §9). espOS's existing
-config REST/web UI renders and persists it; this repo owns only the
-schema and the typed accessors generated/hand-written around it.
+An espOS config descriptor (a JSON file added from CMake with
+`espos_config_add_descriptor`) declaring this firmware's settings
+(SPEC.md §9), plus typed accessors and the cross-field checks the
+descriptor can't express. Descriptors are flat key lists, so per-channel
+settings are numbered keys (`relay1_name` … `input8_invert`). espOS's
+existing config REST/web UI renders and persists them.
 
 ### 2.5 espOS components consumed (not modified)
 
-- `espos_gpio` — relay/DI pin access.
-- `espos_sk` — SignalK discovery, token, delta stream, PUT registration.
-- `espos_n2k` — NMEA2000 over TWAI, PGN encode/decode, candump TCP server.
-- `espos_net` / `espos_wifi` / (Ethernet transport) — network interface
-  management, captive portal provisioning.
-- `espos_config` — NVS-backed config store, JSON-Schema-described fields.
+- `espos_sk` — SignalK discovery, token, delta stream, meta
+  (`espos_sk_declare_meta`), PUT handlers (`espos_sk_put_handler_register`;
+  a path must be published before it accepts PUTs).
+- `espos_n2k` — raw CAN frames over TWAI (C++ `TwaiReceiver` /
+  `TwaiTransmitter`) and a candump TCP server. No PGN support.
+- `espos_net` / `espos_wifi` / `espos_eth` — network management and
+  captive-portal provisioning. espOS always prefers Ethernet over WiFi
+  when both are up. Whether `espos_eth` supports this board's W5500 (SPI)
+  is not yet confirmed: its Kconfig depends on the internal Ethernet MAC,
+  which the ESP32-S3 lacks.
+- `espos_config` — NVS-backed config store with JSON descriptors.
+- `espos_health` — warnings/alarms (used for I2C failures and config
+  errors).
+
+espOS has no GPIO component; pins are driven with ESP-IDF drivers
+directly.
 - `espos_httpd` — web UI + config REST server.
 - `espos_ota` — signed OTA + rollback.
 
@@ -142,12 +170,13 @@ than hitting NVS directly.
 
 | Layer | Choice | Why |
 |---|---|---|
-| Language | C (ESP-IDF 6) | Required by espOS and ESP-IDF; no C++ needed for this scope. |
+| Language | C (ESP-IDF 6), C++ for the NMEA2000 side | Relay/input logic in C; `espos_n2k` and the NMEA2000 library are C++. |
 | Framework | ESP-IDF 6 + espOS component | espOS is the agreed base runtime; avoids reimplementing WiFi/SK/OTA plumbing. |
 | SignalK transport | `espos_sk` (espOS) | Handles discovery/token/delta already; no separate SK client library needed. |
-| NMEA2000/CAN | `espos_n2k` (espOS), TWAI driver | Board's onboard CAN transceiver is wired to the ESP32-S3's TWAI peripheral; espOS already exposes PGN encode/decode over it. |
-| Config storage | `espos_config` (NVS + JSON Schema) | Reuses espOS's existing config store/UI instead of a bespoke one, per SPEC.md §7/§9. |
-| Build | ESP-IDF CMake, component registry | This firmware is a top-level ESP-IDF project depending on `signalk-espos/espos` via the component registry (managed_components), per espOS's documented integration path. |
+| NMEA2000/CAN | `espos_n2k` (espOS) + NMEA2000 library (Timo Lappalainen, MIT) | CAN transceiver is on TWAI TX GPIO17 / RX GPIO18. `espos_n2k` moves frames; the library provides the N2K protocol layer espOS lacks. |
+| Relay driver | TCA9554 over ESP-IDF `i2c_master` | Relays sit behind the I2C expander, not on GPIOs. |
+| Config storage | `espos_config` (NVS + JSON descriptors) | Reuses espOS's existing config store/UI instead of a bespoke one, per SPEC.md §7/§9. |
+| Build | ESP-IDF CMake, component registry | This firmware is a top-level ESP-IDF project depending on the `signalk-espos/espos_*` component-registry packages (released in lockstep, pinned to one exact version), per espOS's documented integration path. |
 | Testing | ESP-IDF host tests (Linux target) for `relay_ctrl`/`switch_bank` logic; on-target smoke tests for GPIO/CAN | espOS's own `test/host` pattern makes bank/state-machine logic (fail-safe transitions, momentary timing, DI override precedence) unit-testable without hardware. |
 
 ## 5. Integration Points
@@ -159,7 +188,8 @@ than hitting NVS directly.
 - **SignalK server** — via `espos_sk`'s mDNS discovery + token flow; no
   direct HTTP/WS code in this repo.
 - **NMEA2000 bus** — via the board's onboard isolated CAN transceiver into
-  the ESP32-S3 TWAI peripheral, driven by `espos_n2k`. Other N2K devices
+  the ESP32-S3 TWAI peripheral, with frames moved by `espos_n2k` and the
+  protocol handled by the NMEA2000 library. Other N2K devices
   (MFDs, physical switch keypads) interact through standard PGNs only.
 - **espOS web UI** — this firmware's only UI surface is the config schema
   it registers; no separate HTTP routes are added.
@@ -167,9 +197,9 @@ than hitting NVS directly.
 ## 6. Security Considerations
 
 - **Physical/electrical trust boundary**: relay outputs can switch
-  real 250VAC/30VDC loads. `relay_ctrl` is the sole gatekeeper for GPIO
-  writes; no other component (including the config web UI) writes GPIO
-  directly, keeping the fail-safe/momentary invariants (SPEC.md §2) in one
+  real 250VAC/30VDC loads. `relay_ctrl` is the sole gatekeeper for
+  writes to the relay expander; no other component (including the config
+  web UI) writes to it directly, keeping the fail-safe/momentary invariants (SPEC.md §2) in one
   place.
 - **SignalK auth**: relies entirely on espOS's existing `espos_sk` token
   acquisition flow — this firmware does not implement its own
@@ -196,25 +226,30 @@ signalk-espos-8relay/
 ├── main/
 │   └── app_main.c              # espos_start() + component init/wiring
 ├── components/
+│   ├── board/                  # pin map, shared I2C bus
 │   ├── relay_ctrl/
 │   │   ├── relay_ctrl.c/.h
+│   │   ├── tca9554.c/.h        # I2C expander driver
 │   │   └── CMakeLists.txt
 │   ├── input_sense/
 │   │   ├── input_sense.c/.h
 │   │   └── CMakeLists.txt
 │   ├── switch_bank/
-│   │   ├── switch_bank.c/.h    # SK + N2K bridging
+│   │   ├── sk_bridge.c/.h, paths.c/.h        # SignalK side
+│   │   ├── n2k_bridge.cpp/.h, n2k_espos_driver.cpp/.h, switch_bank_pgn.c/.h  # NMEA2000 side
 │   │   └── CMakeLists.txt
 │   └── device_config/
-│       ├── schema.json         # JSON Schema registered with espos_config
+│       ├── config/relay.json   # espOS config descriptor
 │       ├── device_config.c/.h  # typed accessors
 │       └── CMakeLists.txt
 ├── test/
 │   └── host/                   # ESP-IDF Linux-target unit tests (fail-safe, momentary, override precedence)
 ├── docs/
-│   └── (SPEC.md / ARCHITECTURE.md live at repo root, per this skill's convention)
+│   └── plans/                  # per-stage implementation plans
 ├── SPEC.md
-└── ARCHITECTURE.md
+├── ARCHITECTURE.md
+├── RFC-441-DIGITAL-SWITCHING.md
+└── IMPLEMENTATION_CHECKLIST.md
 ```
 
 ## 8. Deployment

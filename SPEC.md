@@ -143,7 +143,8 @@ control regardless of SignalK connectivity).
 ## 5. Sources / Inputs
 
 - **GPIO** — 8 relay driver outputs, 8 opto-isolated digital inputs, read
-  via espOS's `espos_gpio` component; this is the ground truth for actual
+  (relays through the board's I2C expander, inputs directly); this is the
+  ground truth for actual
   hardware state.
 - **SignalK server** — delta stream (subscribe not required for control,
   but consumed for reflecting external state changes) and PUT requests via

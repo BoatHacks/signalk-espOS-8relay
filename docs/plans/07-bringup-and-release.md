@@ -1,0 +1,67 @@
+# Implementation Plan: 07 — Bring-up and first release
+
+## Overview
+Run the whole firmware on the real board, on a real NMEA2000 bus and
+SignalK server, check every behaviour in SPEC.md's MVP list, and publish
+a first signed release.
+
+## Relevant SPEC/ARCHITECTURE Sections
+- SPEC.md §10.1 (MVP features), §2, §3
+- ARCHITECTURE.md §8 (deployment)
+
+## Approach
+Work through the checklist below with the board wired to test loads
+(lamps are fine; don't test on boat systems first). Anything that fails
+goes back to the plan that owns it. Record hardware facts learned here
+(relay polarity, input polarity, debounce result) in ARCHITECTURE.md.
+
+## Test Strategy
+
+**Hardware basics**
+- [ ] Relay polarity: which expander level turns a relay on
+- [ ] Cold power-up: no relay clicks on before the firmware sets it
+- [ ] OTA reboot: `hold` relays stay on without clicking; `default-safe`
+      relays turn off
+- [ ] Input polarity; 50 ms debounce against a real float switch
+
+**Relays and inputs**
+- [ ] Momentary relay turns off after its pulse time
+- [ ] Input override: turns its relay on/off; a later SignalK or N2K
+      command stands until the input changes; override applies at boot
+- [ ] Losing the SignalK server turns off `default-safe` relays after the
+      grace period; `hold` relays stay
+
+**SignalK**
+- [ ] Toggle relays from an instrument panel on
+      `electrical.switches.bank.*`
+- [ ] With `controls.*` enabled: toggle via either tree, both show the
+      same state; input paths reject PUT
+- [ ] Both trees off: nothing published, N2K control still works
+- [ ] Names show as display names; renaming updates them
+
+**NMEA2000**
+- [ ] An MFD lists the device with the right product info
+- [ ] Both banks show on the MFD/keypad; keypad switches relays
+- [ ] Two devices with conflicting addresses: address claim resolves it
+
+**Network**
+- [ ] Ethernet used when plugged in; unplugging falls back to WiFi;
+      replugging returns to Ethernet
+- [ ] Captive-portal provisioning on a fresh board
+
+**Release**
+- [ ] Production signing key created and stored outside the repo
+- [ ] Version tag, signed build, release notes
+- [ ] Published where `signalk-espos-manager` can find and install it
+
+## Implementation Steps
+- [ ] Wire the board to test loads, a CAN bus and a SignalK server
+- [ ] Run the checklist; fix failures in their owning plan
+- [ ] Update ARCHITECTURE.md with hardware facts and SPEC.md with any
+      behaviour that changed
+- [ ] Cut the first release
+
+## Files to Create/Modify
+- `ARCHITECTURE.md`, `SPEC.md` (findings)
+- `CHANGELOG.md`
+- Release workflow under `.github/workflows/`
