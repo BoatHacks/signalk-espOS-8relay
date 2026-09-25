@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.10] - 2026-09-25
 
 ### Fixed
 
@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A crash (stack overflow in espOS's SignalK task) when SignalK
   connected while a browser was loading the board's page: the board ran
   out of network sockets (IDF's default of 10). Raised to 16.
+
+### Added
+
+- Releases carry the firmware's ELF file, so a crash backtrace or core
+  dump can be decoded.
 
 ## [0.0.9] - 2026-09-25
 
@@ -172,6 +177,7 @@ First build for hardware bring-up. Not usable: it boot-loops (fixed in
 - All settings in espOS's web UI.
 - Signed release builds with a merged image for USB and an image for OTA.
 
+[0.0.10]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.9...v0.0.10
 [0.0.9]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.8...v0.0.9
 [0.0.8]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.7...v0.0.8
 [0.0.7]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.6...v0.0.7
