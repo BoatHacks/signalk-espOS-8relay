@@ -40,9 +40,10 @@ SignalK switch-bank paths, and the NMEA2000 switch-bank PGNs.
 
 - **Relay / RO (relay output)** — one of the 8 switched outputs (RO1–RO8).
 - **DI (digital input)** — one of the 8 isolated digital inputs (DI1–DI8).
-- **Bank** — the set of 16 addressable switch-bank channels (8 relay + 8
-  input) this device instance exposes, identified by a single bank
-  instance id, per the SignalK/N2K switch-bank convention.
+- **Bank** — a set of up to 8 addressable switch-bank channels, identified
+  by a bank instance id, per the SignalK/N2K switch-bank convention. This
+  device exposes two banks: the **relay bank** (`bankId`, 8 outputs) and
+  the **input bank** (`inputBankId`, 8 inputs).
 - **Momentary/pulse relay** — a relay configured to auto-return to off N
   milliseconds after being switched on, rather than latching.
 - **Fail-safe mode** — a relay's configured behavior (`hold` or
@@ -55,9 +56,10 @@ SignalK switch-bank paths, and the NMEA2000 switch-bank PGNs.
 
 - Each relay and each digital input occupies one channel number (1–8)
   within its own bank; relay channels and DI channels are reported as two
-  separate switch banks (a relay bank and an input bank) sharing one bank
-  instance id space, per NMEA2000/SignalK convention (a bank is either
-  outputs or inputs, not mixed).
+  separate switch banks (relay bank `bankId`, input bank `inputBankId`),
+  per NMEA2000/SignalK convention (a bank is either outputs or inputs, not
+  mixed). The two ids must differ, and must not collide with any other
+  switch bank on the same N2K bus or SignalK server.
 - A relay's live state must always be observable from SignalK (delta) and
   from NMEA2000 (PGN 127501), and must be consistent between the two within
   normal transmission latency — this device is the single source of truth
@@ -80,7 +82,7 @@ SignalK switch-bank paths, and the NMEA2000 switch-bank PGNs.
 ### 3.1 State Definitions
 
 Each relay has:
-- **Output state**: `on` / `off` (boolean, mirrors `electrical.switches.bank.<id>.<n>.state`).
+- **Output state**: `on` / `off` (boolean; published as `electrical.switches.bank.<bankId>.<n>.state` and/or its `electrical.controls.*` equivalent).
 - **Mode**: `latching` / `momentary` (config).
 - **Fail-safe policy**: `hold` / `default-safe` (config; momentary relays
   are implicitly `default-safe`/off).
@@ -127,10 +129,15 @@ control regardless of SignalK connectivity).
 - `state`: `on` | `off` (runtime, not persisted — always read live)
 
 **DeviceConfig**
-- `bankId`: NMEA2000/SignalK switch bank instance id (default derived from
-  device serial, overridable)
+- `bankId`: relay bank instance id, 0–252 (default `0`)
+- `inputBankId`: input bank instance id, 0–252 (default `1`); must differ
+  from `bankId`
+- `debounceMs`: digital input debounce time (default `50`)
 - `network`: interface preference (see §9)
-- `publishControlsTree`: bool, default `false` — see §6.1/§12 (RFC 0009 mirror)
+- `publishSwitchesTree`: bool, default `true` — publish and accept PUTs on
+  `electrical.switches.bank.*` (§6.1)
+- `publishControlsTree`: bool, default `false` — publish and accept PUTs on
+  `electrical.controls.*` (§6.1a, RFC 0009)
 - `relays[8]`, `inputs[8]`: the arrays above
 
 ## 5. Sources / Inputs
@@ -153,15 +160,31 @@ control is unaffected. The two sources do not depend on each other.
 
 ### 6.1 SignalK Paths
 
+The firmware can publish relay/input state under two path trees, each
+with its own on/off setting: `electrical.switches.bank.*` (this section,
+`publishSwitchesTree`, default on) and `electrical.controls.*` (§6.1a,
+`publishControlsTree`, default off). Rules that apply to both:
+
+- Every enabled tree accepts SignalK PUTs for relay channels. With both
+  on, a relay can be commanded on either path; both land in the same
+  relay, so the usual last-write-wins rule (§2) applies and both trees
+  always report the same state.
+- Input channels are read-only on every tree (PUT rejected).
+- Both trees may be off. The device then publishes nothing to SignalK
+  and is controlled only over NMEA2000 (§6.2) and by input overrides;
+  espOS's SignalK connection, web UI and OTA keep working.
+
+**`electrical.switches.bank.*`**:
+
 - `electrical.switches.bank.<bankId>.<n>.state` — relay output state
   (n = 1–8), writable via standard SignalK v1 PUT (no v2 switches API
   exists as of SignalK server v2 — confirmed against server docs, see
   §11). Meta delta includes `displayName` from the relay's configured
   `name`.
-- `electrical.switches.bank.<bankId>.<n>.state` (separate bank id for
-  inputs, or a documented offset/suffix convention — see Open Questions
-  §13) — digital input state, read-only (PUT rejected).
-- Firmware registers a SignalK PUT handler per relay path via espOS's
+- `electrical.switches.bank.<inputBankId>.<n>.state` — digital input
+  state (n = 1–8), read-only (PUT rejected).
+- Firmware registers a SignalK PUT handler per relay path, on each
+  enabled tree, via espOS's
   `espos_sk_subscribe`/PUT-registration API; it does not implement a
   custom v2-style REST resource, since no such SignalK server API exists
   for switches.
@@ -169,39 +192,36 @@ control is unaffected. The two sources do not depend on each other.
   `manufacturer.model` (`ESP32-S3-ETH-8DI-8RO-C`) meta, per RFC 0009 —
   see RFC-441-DIGITAL-SWITCHING.md.
 
-### 6.1a `electrical.controls.*` mirror (RFC 0009, opt-in)
+### 6.1a `electrical.controls.*` tree (RFC 0009, opt-in)
 
 When `publishControlsTree` is enabled (default off — see §9, §12, and
-RFC-441-DIGITAL-SWITCHING.md), the same relay/input state is additionally
-published under `electrical.controls.<identifier>`, matching the path
+RFC-441-DIGITAL-SWITCHING.md), relay/input state is published under
+`electrical.controls.<identifier>`, matching the path
 shape proposed in [SignalK/specification#441](https://github.com/SignalK/specification/issues/441).
 
 Internally, and on `electrical.switches.bank.*`, identity stays the
-numeric `bankId`+channel pair (§4). Only the `controls.*` tree uses RFC
+numeric bank id + channel pair (§4). Only the `controls.*` tree uses RFC
 0009's string-identifier convention, built as:
 
 - Relay channel `n`: `espOS-instance<bankId>-relay<n>`
-- Digital input channel `n`: `espOS-instance<bankId>-input<n>`
+- Digital input channel `n`: `espOS-instance<inputBankId>-input<n>`
 
-The firmware maintains this as a fixed, always-derivable 1:1 mapping
-(`bankId`+channel+kind ↔ the string identifier) — never a separately
-configured value — so the two trees can never drift apart or collide.
+Each identifier uses the id of the bank the channel actually lives in, so
+`electrical.switches.bank.<X>.<n>` and `espOS-instance<X>-…<n>` always
+name the same channel. The firmware derives this 1:1 mapping (bank
+id + channel + kind ↔ string identifier); it is never separately
+configured, so the two trees can never drift apart or collide.
 
-- `electrical.controls.<identifier>.state` (on/off, mirrors the switches-bank value)
+- `electrical.controls.<identifier>.state` (on/off; writable via PUT for
+  relay identifiers, read-only for input identifiers)
 - `electrical.controls.<identifier>.type` = `"switch"` (this board has no dimmers)
 - `electrical.controls.<identifier>.name`
 - `electrical.controls.<identifier>.meta.displayName`
 - `electrical.controls.<identifier>.manufacturer.name` / `.manufacturer.model`
 
 Example: relay channel 3 on bank 12 is `electrical.switches.bank.12.3`
-internally/canonically, and mirrors to
-`electrical.controls.espOS-instance12-relay3` when the mirror is enabled.
-
-This mirror does **not** accept PUT independently — commands always go
-through the canonical `electrical.switches.bank.*` PUT handler (§6.1); the
-`controls.*` tree is read-only, publish-side compatibility only, to avoid
-two independently-writable representations of the same relay going out of
-sync.
+and `electrical.controls.espOS-instance12-relay3`. A PUT to either path
+switches the same relay, and both paths then report the new state.
 
 ### 6.2 NMEA2000 PGNs
 
@@ -216,9 +236,12 @@ sync.
 ### 6.3 Local Config REST (via espOS web UI)
 
 - Extends espOS's existing JSON-Schema-described config store with this
-  firmware's schema: `bankId`, `network` preference, and per-channel relay
-  (`name`, `mode`, `pulseMs`, `failSafe`, `overrideDI`) / input (`name`,
-  `invert`) settings. No new REST surface or UI framework — same
+  firmware's schema: `bankId`, `inputBankId`, `debounceMs`, `network`
+  preference, `publishSwitchesTree`, `publishControlsTree`, and per-channel relay (`name`, `mode`,
+  `pulseMs`, `failSafe`, `overrideDI`) / input (`name`, `invert`)
+  settings. The firmware rejects a config save where `inputBankId ==
+  bankId` (JSON Schema can't compare two fields, so this is checked in
+  code on save). No new REST surface or UI framework — same
   config store, same generated web UI form.
 
 ## 7. User Interface
@@ -240,16 +263,22 @@ firmware does not ship its own control UI.
 ## 9. Configuration
 
 User-tunable (via config store, §6.3):
-- Bank instance id
+- Relay bank id `bankId` (default `0`) and input bank id `inputBankId`
+  (default `1`); must differ from each other
+- Digital input debounce `debounceMs` (default `50`), one value for all
+  8 inputs
 - Network interface preference: Ethernet-preferred-with-WiFi-fallback, or
   fixed WiFi-only / Ethernet-only (WiFi captive-portal provisioning is
   always available regardless of this setting, per espOS)
 - Per-relay: name, mode (latching/momentary), pulse duration, fail-safe
   policy, optional DI override source
 - Per-input: name, invert (NC vs NO sensor)
-- `publishControlsTree`: bool, default `false` — enables the read-only
-  `electrical.controls.*` mirror described in §6.1a (RFC 0009
-  compatibility; see RFC-441-DIGITAL-SWITCHING.md)
+- `publishSwitchesTree`: bool, default `true` — the
+  `electrical.switches.bank.*` tree (§6.1)
+- `publishControlsTree`: bool, default `false` — the
+  `electrical.controls.*` tree (§6.1a, RFC 0009 compatibility; see
+  RFC-441-DIGITAL-SWITCHING.md). Any combination is valid, including both
+  off (NMEA2000-only operation).
 
 Fixed (not user-tunable, board/firmware constants):
 - Channel count (8 relays, 8 inputs)
@@ -319,39 +348,37 @@ Fixed (not user-tunable, board/firmware constants):
   special-cased to apply only on boot / DI edge, not continuously, so an
   explicit SK/N2K command can still control the relay afterward — this
   avoids a DI override silently fighting every subsequent remote command.
-- **`electrical.controls.*` mirror, opt-in and read-only**: SignalK/specification#441
-  ("RFC 0009: Digital Switching") proposes a separate `electrical.controls.*`
-  path tree for digital switching devices, which this firmware's chosen
-  `electrical.switches.bank.*` convention doesn't share. The RFC is an
-  open, unmerged, undiscussed issue, so `electrical.switches.bank.*`
-  (already-accepted convention, and required anyway for the N2K PGN
-  mapping) remains canonical and always-on. The `controls.*` tree is
-  published only when explicitly enabled (default off), and only ever as
-  a read-only mirror — accepting PUTs on both trees would create two
-  independently-writable representations of the same relay that could
-  disagree. Internal identity stays numeric `bankId`+channel; the
+- **Two independently switchable path trees, both writable**:
+  SignalK/specification#441 ("RFC 0009: Digital Switching") proposes a
+  separate `electrical.controls.*` tree for digital switching devices,
+  which the accepted `electrical.switches.bank.*` convention doesn't
+  share. The RFC is open, unmerged and undiscussed, so `switches.bank.*`
+  is on by default and `controls.*` is off by default, but each has its
+  own toggle. Every enabled tree accepts relay PUTs. This does not create
+  two sources of truth: both trees are views of the one relay state held
+  in `relay_ctrl`, so a PUT on either path updates both. Both trees off is
+  allowed, for installs that want NMEA2000-only control but still use
+  espOS for OTA and the web UI. Internal identity stays numeric bank id + channel; the
   `controls.*` tree alone is addressed with RFC 0009's string-identifier
-  shape (`espOS-instance<bankId>-relay<n>` / `-input<n>`), derived
-  deterministically from `bankId`+channel+kind so the mapping between the
-  two trees can never drift or collide. Full comparison and rationale in
+  shape (`espOS-instance<bankId>-relay<n>` /
+  `espOS-instance<inputBankId>-input<n>`), derived deterministically from
+  bank id + channel + kind so the mapping between the two trees can never
+  drift or collide. Full comparison and rationale in
   RFC-441-DIGITAL-SWITCHING.md.
+- **Separately configurable input bank id**: inputs get their own
+  `inputBankId` (default `1`) rather than a derived `bankId + 1`. A
+  derived id would force boards on the same boat to keep bank ids at least
+  2 apart; a separate setting lets each bank be placed freely.
+- **Fixed default bank ids (`0` / `1`), not MAC-derived**: predictable
+  and easy to document. The cost is that a second board on the same boat
+  collides with the first until someone reconfigures it; reconfiguring
+  bank ids is a required setup step when installing more than one board.
+- **Single global debounce (50 ms default)**: one configurable value for
+  all 8 inputs is enough for MVP; per-input debounce can be added later
+  if a mix of fast and slow/noisy sensors needs it. The default should be
+  checked against a real float switch once hardware is available.
 - **Momentary relays can't be `hold`**: holding a pulsed/momentary output
   on indefinitely across a fail-safe "hold last state" reboot would mean a
   horn or pump-test relay could stick on for an unbounded time with no
   bus activity — treated as unsafe by construction rather than a
   configuration a user could accidentally select.
-
-## 13. Open Questions
-
-- Exact bank-id convention for the separate input bank: whether digital
-  inputs get their own bank instance id (e.g. `bankId + 1` or a fixed
-  offset) or a documented sub-path — needs a decision before implementing
-  §6.1, but doesn't affect anything else in this spec.
-- Debounce timing for digital inputs is unspecified — needs a sensible
-  default (likely tens of ms) validated against real float-switch/sensor
-  behavior once hardware is in hand.
-- Whether `bankId` should default from the ESP32's factory MAC/serial (to
-  avoid collisions with zero config) or default to a fixed value the user
-  must change when running multiple boards — leaning toward MAC-derived
-  default per the earlier answer, but needs to be finalized in
-  ARCHITECTURE.md against what espOS's device-id APIs actually expose.

@@ -80,7 +80,7 @@ RFC 0009's identifier embeds the source system name and device address in
 the path segment itself (`empirBusNxt-instance2-switch3`). This project's
 convention uses a numeric bank id + numeric channel, per the existing
 switch-bank spec. Adopting RFC 0009's identifier shape *only* on the
-`controls.*` mirror (not internally, not on `switches.bank.*`) resolves
+`controls.*` tree (not internally, not on `switches.bank.*`) resolves
 this without a structural change to SPEC.md §4 — see resolution below.
 
 ### 3.3 Metadata richness gap (non-blocking, additive)
@@ -101,20 +101,27 @@ apply to this hardware. No conflict, just out of scope.
 
 **§3.1 Path convention** — Publish under **both** trees, each independently
 toggleable in the config UI:
-- `electrical.switches.bank.*` — **on by default**. Remains the primary,
-  N2K-aligned representation.
-- `electrical.controls.*` — **off by default**. Opt-in mirror for RFC 0009
-  compatibility, for installations that want it ahead of (or regardless
-  of) the RFC being merged. SPEC.md/ARCHITECTURE.md updated accordingly
-  (see §5 below).
+- `electrical.switches.bank.*` (`publishSwitchesTree`) — **on by
+  default**. The N2K-aligned representation.
+- `electrical.controls.*` (`publishControlsTree`) — **off by default**.
+  Opt-in for RFC 0009 compatibility, for installations that want it ahead
+  of (or regardless of) the RFC being merged.
 
-**§3.2 Identifier scheme** — Amended 2026-09-25 (superseding the "no
-change" note above): internally, and on `electrical.switches.bank.*`,
-identity stays numeric `bankId` + channel, unchanged. On
-`electrical.controls.*` specifically, use RFC 0009's string-identifier
-shape, built deterministically from that same numeric identity:
+Every enabled tree accepts relay PUTs; both write to the same relay, so
+they cannot disagree. Input channels are read-only on both. Both trees
+off is allowed (NMEA2000-only control). SPEC.md/ARCHITECTURE.md updated
+accordingly (see §5 below).
+
+**§3.2 Identifier scheme** — Internally, and on `electrical.switches.bank.*`,
+identity stays numeric bank id + channel. On `electrical.controls.*`
+only, use RFC 0009's string-identifier shape, built deterministically
+from that same numeric identity:
 - Relay channel `n`: `espOS-instance<bankId>-relay<n>`
-- Digital input channel `n`: `espOS-instance<bankId>-input<n>`
+- Digital input channel `n`: `espOS-instance<inputBankId>-input<n>`
+
+Each identifier embeds the id of the bank the channel lives in (relays
+in `bankId`, inputs in the separately configured `inputBankId` — see
+SPEC.md §4).
 
 The two identifiers (numeric on `switches.bank.*`, string on
 `controls.*`) always describe the same channel — the mapping is derived,
@@ -133,18 +140,17 @@ this single-board firmware doesn't have.
 ## 5. Consequences for SPEC.md / ARCHITECTURE.md
 
 Applied in the same change as this resolution:
-- SPEC.md §4 (Data Model): `RelayChannel`/`DigitalInputChannel` gain a
-  `controlsEnabled` flag is unnecessary — control is global per §9, not
-  per-channel; SPEC.md §9 (Configuration) gains `publishControlsTree: bool`
-  (default `false`) alongside the always-on switches-bank publishing.
+- SPEC.md §4 (Data Model) and §9 (Configuration): `DeviceConfig` gains
+  device-wide `publishSwitchesTree` (default `true`) and
+  `publishControlsTree` (default `false`). There is no per-channel toggle.
 - SPEC.md §6.1a (API): documents the `electrical.controls.<identifier>`
-  mirror path (identifier = `espOS-instance<bankId>-relay<n>` /
-  `-input<n>`, derived from `bankId`+channel, never separately
-  configured) and its fields (`state`, `name`, `meta.displayName`,
+  tree path (identifier = `espOS-instance<bankId>-relay<n>` /
+  `espOS-instance<inputBankId>-input<n>`, derived from bank id + channel,
+  never separately configured) and its fields (`state`, `name`, `meta.displayName`,
   `manufacturer.name`, `manufacturer.model`, `type: "switch"`), gated by
   `publishControlsTree`.
 - SPEC.md §12 (Design Decisions): records this resolution and its
   rationale.
 - ARCHITECTURE.md §2.3 (`switch_bank`): now also owns emitting the
-  `electrical.controls.*` mirror when enabled, from the same relay/input
+  `electrical.controls.*` tree when enabled, from the same relay/input
   state — no new component, since it's the same bridge responsibility.

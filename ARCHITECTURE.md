@@ -56,18 +56,22 @@ override is a hardware-local behavior independent of SK/N2K availability).
 ### 2.3 `switch_bank` (this repo)
 
 The bridge component. Translates `relay_ctrl`/`input_sense` state into:
-- SignalK deltas on `electrical.switches.bank.*` paths, plus meta deltas
-  for `displayName`/`manufacturer.name`/`manufacturer.model`, via `espos_sk`.
-- NMEA2000 PGN 127501 transmissions, via `espos_n2k`.
-- When `publishControlsTree` is enabled (SPEC.md §6.1a/§9, tracking
-  SignalK/specification#441 — see RFC-441-DIGITAL-SWITCHING.md), a
-  read-only mirror of the same state under `electrical.controls.*`. No
-  separate component: it's the same relay/input state, the same bridge
-  responsibility, just an additional delta path emitted alongside the
-  canonical one.
+- SignalK deltas, plus meta deltas for
+  `displayName`/`manufacturer.name`/`manufacturer.model`, via `espos_sk`,
+  on each enabled tree: `electrical.switches.bank.*` when
+  `publishSwitchesTree` is on, `electrical.controls.*` when
+  `publishControlsTree` is on (SPEC.md §6.1/§6.1a; the latter tracks
+  SignalK/specification#441 — see RFC-441-DIGITAL-SWITCHING.md). Both
+  trees are rendered from the same relay/input state, so no separate
+  component is needed.
+- NMEA2000 PGN 127501 transmissions, via `espos_n2k` (always, regardless
+  of the SignalK tree toggles).
 
 And translates incoming commands back into `relay_ctrl` calls:
-- SignalK PUT handler registration (`espos_sk` PUT callback API).
+- SignalK PUT handler registration (`espos_sk` PUT callback API) for
+  relay paths on each enabled tree. Handlers on both trees resolve to the
+  same `relay_ctrl` call; `controls.*` identifiers are parsed back to bank
+  id + channel.
 - PGN 127502 reception (`espos_n2k` callback API).
 
 This is the only component that needs to know both "SignalK shape" and
@@ -119,7 +123,11 @@ typedef struct {
 } input_channel_t;
 
 typedef struct {
-    uint32_t bank_id;
+    uint8_t bank_id;          // relay bank, default 0
+    uint8_t input_bank_id;    // input bank, default 1, must differ from bank_id
+    uint16_t debounce_ms;     // default 50
+    bool publish_switches_tree; // default true
+    bool publish_controls_tree; // default false
     net_pref_t network_pref;  // ETH_PREFERRED_WIFI_FALLBACK | WIFI_ONLY | ETH_ONLY
     relay_channel_t relays[8];
     input_channel_t inputs[8];
