@@ -44,7 +44,7 @@ expander, GPIO reads, clock) that tests replace with fakes.
 - [ ] `.gitignore` for `build/`, `managed_components/`, `sdkconfig`, keys
 - [ ] CI workflow that builds the firmware and runs host tests (espOS
       provides a reusable firmware workflow; use it if it fits)
-- [ ] README: what this is, how to build, flash and provision
+- [ ] USER_MANUAL.md §3: how to build, flash and update; update README.md status
 
 ## Files to Create/Modify
 - `CMakeLists.txt`, `partitions.csv`, `sdkconfig.defaults`, `.gitignore`
@@ -52,4 +52,4 @@ expander, GPIO reads, clock) that tests replace with fakes.
 - `components/{board,relay_ctrl,input_sense,switch_bank,device_config}/`
 - `test/host/`
 - `.github/workflows/build.yml`
-- `README.md`
+- `README.md`, `USER_MANUAL.md`
