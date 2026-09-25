@@ -257,6 +257,7 @@ void app_main(void)
         .inputs_ready = input_sense_ready,
         .input_mask = input_sense_get_mask,
         .get_status = web_status,
+        .test_buzzer = indicator_test_buzzer,
     };
     // The relay page is a convenience; SignalK and NMEA 2000 don't need it.
     if (web_ui_start(&web_io, &cfg) != ESP_OK) {

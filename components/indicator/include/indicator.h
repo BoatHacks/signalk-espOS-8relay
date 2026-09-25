@@ -13,8 +13,14 @@ extern "C" {
 
 esp_err_t indicator_start(const device_config_t *cfg);
 
-// Brightness, buzzer switch and tree toggles; callable from any task.
+// Brightness, buzzer switch and frequency, tree toggles; callable from any
+// task.
 void indicator_update_config(const device_config_t *cfg);
+
+// Play the alarm pattern once, whether or not the buzzer is enabled for
+// alarms. ESP_ERR_INVALID_STATE while an alarm or another test is sounding,
+// or before indicator_start().
+esp_err_t indicator_test_buzzer(void);
 
 #ifdef __cplusplus
 }

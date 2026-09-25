@@ -1,7 +1,8 @@
 // The relay page on the device's own web server: GET /relays (the page),
 // GET /api/v1/relays (live state), PUT /api/v1/relays/<n> and
 // PUT /api/v1/relays (all) with {"on": true|false}, and
-// GET /api/v1/relays/status for the page's status line. Endpoints are
+// GET /api/v1/relays/status for the page's status line, and
+// POST /api/v1/buzzer/test. Endpoints are
 // protected by espOS's API key like its own; the page is public and shows
 // a login hint when the API refuses it.
 #pragma once
@@ -24,6 +25,9 @@ typedef struct {
     uint8_t (*input_mask)(void);
     // Fill in the status line: network, SignalK, NMEA 2000, version.
     void (*get_status)(web_ui_status_t *out);
+    // Play the buzzer's alarm pattern once; ESP_ERR_INVALID_STATE while it
+    // is already sounding.
+    esp_err_t (*test_buzzer)(void);
 } web_ui_io_t;
 
 // Register the page and endpoints. Call after espos_start(), which starts

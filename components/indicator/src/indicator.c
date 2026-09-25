@@ -22,7 +22,6 @@ static const char *TAG = "indicator";
 #define MORSE_PAUSE_MS 5000
 #define MAX_SEGS 64
 
-#define BUZZER_FREQ_HZ 2700  // near a typical piezo's resonance
 #define BUZZER_TIMER LEDC_TIMER_0
 #define BUZZER_CHANNEL LEDC_CHANNEL_0
 #define BUZZER_RES LEDC_TIMER_10_BIT
@@ -33,6 +32,10 @@ static struct {
     atomic_uchar brightness;
     atomic_bool buzzer_enabled;
     atomic_bool sk_relevant;
+    atomic_ushort freq_hz;       // buzzer_freq_hz; applied by the task
+    atomic_bool test_requested;  // indicator_test_buzzer() -> task
+    atomic_bool busy;            // an alarm or a test is sounding
+    atomic_bool started;
 } s;
 
 static void set_tone(bool on)
@@ -55,6 +58,10 @@ static void indicator_task(void *arg)
     int64_t alarm_start_us = 0;
     morse_seg_t segs[MAX_SEGS];
     size_t n_segs = 0;
+    bool testing = false;
+    int64_t test_start_us = 0;
+    uint32_t test_len_ms = 0;
+    uint16_t applied_freq = atomic_load(&s.freq_hz);
 
     for (;;) {
         const espos_health_state_t health = espos_health_worst();
@@ -69,7 +76,27 @@ static void indicator_task(void *arg)
             shown = c;
         }
 
+        // A frequency change is applied here, between frames, never in the
+        // middle of another task's call.
+        const uint16_t freq = atomic_load(&s.freq_hz);
+        if (freq != applied_freq && ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freq) == ESP_OK) {
+            applied_freq = freq;
+        }
+
         const bool alarm = state == INDICATOR_ALARM && atomic_load(&s.buzzer_enabled);
+        if (alarm) {
+            testing = false;  // a real alarm takes over from a test
+        } else if (!testing && atomic_exchange(&s.test_requested, false)) {
+            espos_net_status_t net = {0};
+            char text[16];
+            espos_net_get_status(&net);
+            indicator_alarm_text(net.up ? net.ip : NULL, text, sizeof(text));
+            n_segs = morse_encode(text, segs, MAX_SEGS);
+            test_start_us = esp_timer_get_time();
+            test_len_ms = morse_duration_ms(segs, n_segs, MORSE_UNIT_MS);
+            testing = true;
+            ESP_LOGI(TAG, "buzzer test: \"%s\" at %u Hz", text, (unsigned)applied_freq);
+        }
         if (alarm && !alarm_was) {
             // The address is read when the alarm starts, so the message stays
             // the same for the whole alarm.
@@ -82,8 +109,19 @@ static void indicator_task(void *arg)
             ESP_LOGW(TAG, "alarm: buzzing \"%s\"", text);
         }
         alarm_was = alarm;
-        const uint32_t t_ms = (uint32_t)((esp_timer_get_time() - alarm_start_us) / 1000);
-        const bool tone = alarm && morse_tone_at(segs, n_segs, MORSE_UNIT_MS, MORSE_PAUSE_MS, t_ms);
+        bool tone = false;
+        if (alarm) {
+            const uint32_t t_ms = (uint32_t)((esp_timer_get_time() - alarm_start_us) / 1000);
+            tone = morse_tone_at(segs, n_segs, MORSE_UNIT_MS, MORSE_PAUSE_MS, t_ms);
+        } else if (testing) {
+            const uint32_t t_ms = (uint32_t)((esp_timer_get_time() - test_start_us) / 1000);
+            if (t_ms >= test_len_ms) {
+                testing = false;  // one pass only
+            } else {
+                tone = morse_tone_at(segs, n_segs, MORSE_UNIT_MS, 0, t_ms);
+            }
+        }
+        atomic_store(&s.busy, alarm || testing);
         if (tone != tone_was) {
             set_tone(tone);
             tone_was = tone;
@@ -97,6 +135,16 @@ void indicator_update_config(const device_config_t *cfg)
     atomic_store(&s.brightness, cfg->led_brightness);
     atomic_store(&s.buzzer_enabled, cfg->buzzer_on_alarm);
     atomic_store(&s.sk_relevant, cfg->publish_switches_tree || cfg->publish_controls_tree);
+    atomic_store(&s.freq_hz, cfg->buzzer_freq_hz);
+}
+
+esp_err_t indicator_test_buzzer(void)
+{
+    if (!atomic_load(&s.started) || atomic_load(&s.busy) || atomic_load(&s.test_requested)) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    atomic_store(&s.test_requested, true);
+    return ESP_OK;
 }
 
 esp_err_t indicator_start(const device_config_t *cfg)
@@ -123,7 +171,7 @@ esp_err_t indicator_start(const device_config_t *cfg)
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .duty_resolution = BUZZER_RES,
         .timer_num = BUZZER_TIMER,
-        .freq_hz = BUZZER_FREQ_HZ,
+        .freq_hz = atomic_load(&s.freq_hz),
         .clk_cfg = LEDC_AUTO_CLK,
     };
     const ledc_channel_config_t channel = {
@@ -146,5 +194,6 @@ esp_err_t indicator_start(const device_config_t *cfg)
     if (xTaskCreate(indicator_task, "indicator", 3072, NULL, 2, NULL) != pdPASS) {
         return ESP_ERR_NO_MEM;
     }
+    atomic_store(&s.started, true);
     return ESP_OK;
 }

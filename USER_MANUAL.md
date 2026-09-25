@@ -167,6 +167,7 @@ overrides.
 | SignalK republish interval | 10 s | Resend every relay and input state this often even when nothing changed, so SignalK apps don't show them as stale. 0 = send changes only. |
 | Status LED brightness | 10 % | 0 turns the LED off (section 7.6) |
 | Buzzer on alarm | Off | Beep in Morse while an alarm is active (section 7.6) |
+| Buzzer frequency | 2700 Hz | Tone of the buzzer, 1000–5000 Hz. Applies at once; try it with *Test buzzer* on the relay page. |
 | Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
 
 ## 7. Everyday use
@@ -301,6 +302,12 @@ complaining: `. ... .--.  ....- ..---` is "ESP 42", the board at
 192.168.x.42. Without a network address (for example when WiFi is down)
 it beeps "ESP AP" (`. ... .--.  .- .--.`): join the board's setup access
 point, `espOS-xxxx`, to reconfigure it.
+
+To hear the buzzer without waiting for an alarm, press *Test buzzer* on
+the relay page (section 7.2). It plays the same pattern once, whether or
+not *Buzzer on alarm* is on, and does nothing while an alarm is already
+sounding. Passive buzzers differ: if the tone is quiet or shrill, change
+*Buzzer frequency* (section 6.5) and test again.
 
 ## 8. Troubleshooting
 

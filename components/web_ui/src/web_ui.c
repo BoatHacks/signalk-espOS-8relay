@@ -135,6 +135,23 @@ static esp_err_t get_status(httpd_req_t *req)
     return err;
 }
 
+static esp_err_t post_buzzer_test(httpd_req_t *req)
+{
+    // No body needed, but the JSON content type is the CSRF guard.
+    if (!espos_httpd_require_json(req)) {
+        return ESP_OK;
+    }
+    esp_err_t err = s_io->test_buzzer();
+    if (err == ESP_ERR_INVALID_STATE) {
+        return espos_httpd_send_error(req, "409 Conflict", "buzzer_busy",
+                                      "the buzzer is already sounding (an alarm or another test)");
+    }
+    if (err != ESP_OK) {
+        return espos_httpd_send_error(req, "503 Service Unavailable", "buzzer_failed", esp_err_to_name(err));
+    }
+    return espos_httpd_send_json(req, "202 Accepted", "{\"started\":true}");
+}
+
 static esp_err_t put_one(httpd_req_t *req)
 {
     const uint8_t ch = web_ui_parse_channel(req->uri, API_PATH);
@@ -185,6 +202,7 @@ esp_err_t web_ui_start(const web_ui_io_t *io, const device_config_t *cfg)
         {{.uri = "/relays", .method = HTTP_GET, .handler = get_page}, ESPOS_HTTPD_PUBLIC},
         {{.uri = API_PATH, .method = HTTP_GET, .handler = get_state}, ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH "/status", .method = HTTP_GET, .handler = get_status}, ESPOS_HTTPD_PROTECTED},
+        {{.uri = "/api/v1/buzzer/test", .method = HTTP_POST, .handler = post_buzzer_test}, ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH, .method = HTTP_PUT, .handler = put_all}, ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH "/*", .method = HTTP_PUT, .handler = put_one}, ESPOS_HTTPD_PROTECTED},
     };

@@ -50,6 +50,7 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
     TEST_ASSERT_FALSE(c.publish_controls_tree);
     TEST_ASSERT_EQUAL(10, c.led_brightness);
     TEST_ASSERT_FALSE(c.buzzer_on_alarm);
+    TEST_ASSERT_EQUAL(2700, c.buzzer_freq_hz);
     TEST_ASSERT_EQUAL_STRING("Relay 1", c.relays[0].name);
     TEST_ASSERT_EQUAL_STRING("Relay 8", c.relays[7].name);
     TEST_ASSERT_EQUAL_STRING("Input 8", c.inputs[7].name);
@@ -77,6 +78,7 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ESP_OK(espos_config_set_bool("swbank", "input2_invert", true));
     TEST_ESP_OK(espos_config_set_str("swbank", "relay5_link", "toggle"));
     TEST_ESP_OK(espos_config_set_i32("swbank", "relay6_max_on_s", 1800));
+    TEST_ESP_OK(espos_config_set_i32("swbank", "buzzer_freq_hz", 4000));
 
     device_config_t c;
     TEST_ESP_OK(device_config_load(&c));
@@ -91,6 +93,7 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ASSERT_EQUAL(INPUT_LINK_TOGGLE, c.relays[4].link);
     TEST_ASSERT_EQUAL(INPUT_LINK_FOLLOW, c.relays[5].link);
     TEST_ASSERT_EQUAL(1800, c.relays[5].max_on_s);
+    TEST_ASSERT_EQUAL(4000, c.buzzer_freq_hz);
     store_down();
 }
 
@@ -102,6 +105,8 @@ TEST_CASE("the store rejects out-of-range values", "[device_config]")
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_str("swbank", "relay1_mode", "toggle"));
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_str("swbank", "relay1_link", "latch"));
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "relay1_max_on_s", 86401));
+    TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "buzzer_freq_hz", 999));
+    TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "buzzer_freq_hz", 5001));
     store_down();
 }
 

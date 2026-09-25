@@ -106,6 +106,17 @@
       "description": "Beep while a health alarm is active: \"ESP\" and the last number of the device's IP address, in Morse."
     },
     {
+      "name": "buzzer_freq_hz",
+      "type": "int",
+      "default": 2700,
+      "min": 1000,
+      "max": 5000,
+      "unit": "Hz",
+      "group": "General",
+      "title": "Buzzer frequency",
+      "description": "Tone of the alarm buzzer. Passive buzzers are loudest near their resonance; use the relay page's Test buzzer button to try a value."
+    },
+    {
       "name": "relay1_name",
       "type": "string",
       "default": "Relay 1",

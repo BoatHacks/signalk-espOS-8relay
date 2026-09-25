@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   NMEA 2000 address, warning when the bus has been silent for 10 s
   (`GET /api/v1/relays/status`); *Pulse* and *Stop* buttons for momentary
   relays.
+- Buzzer test and frequency (#10): a *Test buzzer* button on the relay
+  page (`POST /api/v1/buzzer/test`) plays the alarm pattern once, even
+  with *Buzzer on alarm* off, and not while an alarm is sounding. New
+  *Buzzer frequency* setting (default 2700 Hz, 1000–5000 Hz), applied
+  live.
 
 ## [0.0.5] - 2026-09-25
 

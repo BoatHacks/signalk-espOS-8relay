@@ -66,6 +66,7 @@ h1 small { font-size: 13px; font-weight: 400; color: var(--muted); }
       <button id="all-on" class="on" type="button">All on</button>
       <button id="all-off" class="off" type="button">All off</button>
     </div>
+    <button id="buzz" class="off" type="button">Test buzzer</button>
     <a href="/">Settings</a>
   </header>
   <div id="banner" class="banner" hidden></div>
@@ -260,6 +261,20 @@ async function pollStatus() {
   } catch (e) { /* the relay poll reports reachability */ }
   if (!document.hidden) statusTimer = setTimeout(pollStatus, STATUS_MS);
 }
+
+document.getElementById("buzz").onclick = async () => {
+  showStatus("Buzzer test…");
+  try {
+    await handle(await fetch("/api/v1/buzzer/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }));
+    showStatus("Buzzer: playing the alarm pattern once");
+  } catch (e) {
+    showStatus("Buzzer test: " + e.message, true);
+  }
+};
 
 allOn.onclick = () => {
   if (confirm("Switch ALL relays on?")) send(API, true);

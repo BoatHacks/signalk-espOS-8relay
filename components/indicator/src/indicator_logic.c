@@ -92,12 +92,18 @@ void indicator_alarm_text(const char *ip, char *out, size_t size)
     }
 }
 
-bool morse_tone_at(const morse_seg_t *segs, size_t n, uint32_t unit_ms, uint32_t pause_ms, uint32_t t_ms)
+uint32_t morse_duration_ms(const morse_seg_t *segs, size_t n, uint32_t unit_ms)
 {
     uint32_t total = 0;
     for (size_t i = 0; i < n; i++) {
         total += segs[i].units * unit_ms;
     }
+    return total;
+}
+
+bool morse_tone_at(const morse_seg_t *segs, size_t n, uint32_t unit_ms, uint32_t pause_ms, uint32_t t_ms)
+{
+    const uint32_t total = morse_duration_ms(segs, n, unit_ms);
     if (total == 0) {
         return false;
     }

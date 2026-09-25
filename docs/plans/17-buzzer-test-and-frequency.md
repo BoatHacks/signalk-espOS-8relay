@@ -42,9 +42,9 @@ On the board: test with the setting off, during an alarm (refused),
 frequencies at both ends of the range audible.
 
 ## Implementation Steps
-- [ ] `buzzer_freq_hz` setting; live `ledc_set_freq()`
-- [ ] Play-once request and `morse_duration_ms`
-- [ ] `POST /api/v1/buzzer/test` and page button
+- [x] `buzzer_freq_hz` setting; live `ledc_set_freq()`
+- [x] Play-once request and `morse_duration_ms`
+- [x] `POST /api/v1/buzzer/test` and page button
 - [ ] Host tests; browser check
 - [ ] USER_MANUAL §6.5, §7.6; CHANGELOG
 

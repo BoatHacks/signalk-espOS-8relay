@@ -121,3 +121,18 @@ TEST_CASE("the tone follows the segments, then pauses, then repeats", "[indicato
     TEST_ASSERT_TRUE(morse_tone_at(s, n, u, pause, 1500));   // again
     TEST_ASSERT_FALSE(morse_tone_at(s, 0, u, pause, 0));
 }
+
+TEST_CASE("one pass of the message lasts the sum of its segments", "[indicator]")
+{
+    morse_seg_t segs[64];
+    // "E": a dot (1 unit).
+    size_t n = morse_encode("E", segs, 64);
+    TEST_ASSERT_EQUAL(80, morse_duration_ms(segs, n, 80));
+    // "ESP": E . | gap 3 | S ... (5) | gap 3 | P .--. (11) = 23 units.
+    n = morse_encode("ESP", segs, 64);
+    TEST_ASSERT_EQUAL(23 * 80, morse_duration_ms(segs, n, 80));
+    TEST_ASSERT_EQUAL(0, morse_duration_ms(segs, 0, 80));
+    // The last segment is tone, so a single pass ends on the tone's end.
+    const uint32_t len = morse_duration_ms(segs, n, 80);
+    TEST_ASSERT_TRUE(morse_tone_at(segs, n, 80, 0, len - 1));
+}

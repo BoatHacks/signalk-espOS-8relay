@@ -46,6 +46,9 @@ size_t morse_encode(const char *text, morse_seg_t *out, size_t max);
 // setup access point.
 void indicator_alarm_text(const char *ip, char *out, size_t size);
 
+// Length of one pass of the message, without the pause.
+uint32_t morse_duration_ms(const morse_seg_t *segs, size_t n, uint32_t unit_ms);
+
 // Whether the tone is on at `t_ms` into a message that repeats with
 // `pause_ms` of silence after each round.
 bool morse_tone_at(const morse_seg_t *segs, size_t n, uint32_t unit_ms, uint32_t pause_ms, uint32_t t_ms);

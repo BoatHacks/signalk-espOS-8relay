@@ -48,6 +48,7 @@ typedef struct {
     bool publish_controls_tree;
     uint8_t led_brightness;  // percent, 0 = off
     bool buzzer_on_alarm;
+    uint16_t buzzer_freq_hz;
     relay_cfg_t relays[BOARD_CHANNELS];  // index 0 = relay 1
     input_cfg_t inputs[BOARD_CHANNELS];  // index 0 = input 1
 } device_config_t;
