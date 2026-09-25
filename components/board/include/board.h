@@ -16,6 +16,9 @@
 
 // Digital inputs DI1-DI8, in channel order.
 #define BOARD_DI_PINS {4, 5, 6, 7, 8, 9, 10, 11}
+// Input GPIO level when a DI terminal is energised. Assumed low (typical for
+// the optocoupler pulling the pin down); confirm on the board.
+#define BOARD_DI_ACTIVE_LOW 1
 
 // CAN transceiver (TWAI).
 #define BOARD_CAN_TX 17

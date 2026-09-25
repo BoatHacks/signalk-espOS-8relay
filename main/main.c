@@ -9,34 +9,44 @@
 #include "board.h"
 #include "device_config.h"
 #include "eth_w5500.h"
+#include "input_hw.h"
+#include "input_sense.h"
 #include "relay_ctrl.h"
 #include "relay_hw.h"
 
 static const char *TAG = "app";
 
-#define RELAY_TICK_MS 10
+#define TICK_MS 10
 
-static TaskHandle_t s_relay_task;
+static TaskHandle_t s_io_task;
 
-// Per changed key, on the writer's task: just wake the relay task, which
+// Per changed key, on the writer's task: just wake the I/O task, which
 // reloads once however many keys changed.
 static void on_config_change(const char *ns, const char *key, void *arg)
 {
-    if (s_relay_task && strcmp(ns, DEVICE_CONFIG_NS) == 0) {
-        xTaskNotifyGive(s_relay_task);
+    if (s_io_task && strcmp(ns, DEVICE_CONFIG_NS) == 0) {
+        xTaskNotifyGive(s_io_task);
     }
 }
 
-static void relay_task(void *arg)
+static esp_err_t input_override(uint8_t relay, bool on)
+{
+    return relay_ctrl_set(relay, on, RELAY_SRC_INPUT);
+}
+
+// Relay pulses, flash saves and input polling, every TICK_MS.
+static void io_task(void *arg)
 {
     for (;;) {
-        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(RELAY_TICK_MS)) > 0) {
+        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(TICK_MS)) > 0) {
             device_config_t cfg;
             if (device_config_load(&cfg) == ESP_OK) {
                 relay_ctrl_update_config(&cfg);
+                input_sense_update_config(&cfg);
             }
         }
         relay_ctrl_tick();
+        input_sense_poll();
     }
 }
 
@@ -55,7 +65,12 @@ static esp_err_t start_relays(void *arg)
     if (relay_ctrl_init(&hw, cfg) != ESP_OK) {
         ESP_LOGE(TAG, "relay expander did not respond; relays unavailable");
     }
-    xTaskCreate(relay_task, "relays", 4096, NULL, 5, &s_relay_task);
+    input_sense_hw_t in_hw;
+    ESP_ERROR_CHECK(input_hw_create(&in_hw));
+    // Overrides are applied on the first settled reading, after the relays'
+    // own boot state above.
+    ESP_ERROR_CHECK(input_sense_init(&in_hw, cfg, input_override));
+    xTaskCreate(io_task, "io", 4096, NULL, 5, &s_io_task);
     return ESP_OK;
 }
 

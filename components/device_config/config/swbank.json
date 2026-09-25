@@ -30,12 +30,12 @@
       "name": "debounce_ms",
       "type": "int",
       "default": 50,
-      "min": 5,
+      "min": 10,
       "max": 1000,
       "unit": "ms",
       "group": "General",
       "title": "Input debounce",
-      "description": "How long an input must be steady before a change counts."
+      "description": "How long an input must be steady before a change counts. Inputs are read every 10 ms."
     },
     {
       "name": "sk_grace_s",

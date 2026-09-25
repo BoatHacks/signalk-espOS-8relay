@@ -41,13 +41,20 @@ Host tests with fake GPIO and clock:
 On hardware (plan 07): check 50 ms against a real float switch.
 
 ## Implementation Steps
-- [ ] Input pins in `board`, behind a read interface with a host fake
-- [ ] Debounce and invert logic
-- [ ] Listener API for `switch_bank`
-- [ ] Override application, including boot
-- [ ] Host tests
+- [x] Input pins and polarity in `board` (`BOARD_DI_ACTIVE_LOW`, assumed
+      1), read through an interface with a host fake
+- [x] Debounce and invert; polled every 10 ms from the same I/O task as
+      relay control (not a separate 5 ms timer), so the debounce setting's
+      minimum is 10 ms
+- [x] Listener API for the SignalK/NMEA 2000 bridges; listeners also get
+      one report per input when start-up readings settle
+- [x] Overrides, applied through a callback (`relay_ctrl_set(...,
+      RELAY_SRC_INPUT)` on the device) so input logic is tested alone
+- [x] Host tests (`test/host/input_sense_test`, 7 tests)
+- [ ] On the board: input polarity; 50 ms against a real float switch
 
 ## Files to Create/Modify
 - `components/board/` (input pins)
-- `components/input_sense/` (`input_sense.c/.h`)
-- `test/host/test_input_sense.c`
+- `components/input_sense/` (`input_sense`, `input_hw`)
+- `main/main.c`
+- `test/host/input_sense_test/`

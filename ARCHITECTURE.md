@@ -60,9 +60,11 @@ has one place to ask for/command state.
 ### 2.2 `input_sense` (this repo)
 
 Owns the 8 digital inputs (GPIO4–GPIO11, opto-isolated), read with
-ESP-IDF's GPIO driver. Polls/debounces raw input state and
+ESP-IDF's GPIO driver and polled every 10 ms by the same I/O task that
+ticks `relay_ctrl`. Debounces raw input state and
 exposes a simple state-change callback. Applies the configured DI→relay
-override mapping by calling into `relay_ctrl` directly on a DI edge (this
+override mapping on a DI edge, through a callback that `main` points at
+`relay_ctrl_set()` (this
 is the only cross-component write path outside of `switch_bank`, since the
 override is a hardware-local behavior independent of SK/N2K availability).
 
