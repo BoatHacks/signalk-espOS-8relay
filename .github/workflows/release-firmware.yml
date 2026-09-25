@@ -157,6 +157,9 @@ jobs:
           mkdir -p dist
           cp merged.bin    "dist/signalk-espOS-8relay-${VERSION}-merged.bin"
           cp "build/$APP"  "dist/signalk-espOS-8relay-${VERSION}-ota.bin"
+          # Debug symbols: the only way to decode a crash backtrace or core
+          # dump from this exact build.
+          cp "build/${APP%.bin}.elf" "dist/signalk-espOS-8relay-${VERSION}.elf"
           ls -l dist/
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -253,7 +256,9 @@ jobs:
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           fail_on_unmatched_files: true
-          files: dist/*.bin
+          files: |
+            dist/*.bin
+            dist/*.elf
           body: ${{ steps.notes.outputs.body }}
 
   # Publish the build in the OTA manifest espOS boards check for updates
