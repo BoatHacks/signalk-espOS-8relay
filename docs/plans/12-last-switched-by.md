@@ -36,12 +36,12 @@ by NMEA 2000 · 3 min ago", on the relay page and in its REST API.
 On the board: switch from each source and read the page.
 
 ## Implementation Steps
-- [ ] Source/time table in `web_ui`, fed from `on_relay_change()` and
+- [x] Source/time table in `web_ui`, fed from `on_relay_change()` and
       after `relay_ctrl_init()`
-- [ ] JSON fields in `web_ui_state_json()`; source names
-- [ ] Page rendering
-- [ ] INFO log line per change
-- [ ] Tests; USER_MANUAL §7.2; CHANGELOG
+- [x] JSON fields in `web_ui_state_json()`; source names
+- [x] Page rendering
+- [x] INFO log line per change
+- [x] Tests; USER_MANUAL §7.2; CHANGELOG
 
 ## Files to Create/Modify
 - `components/web_ui/` (`web_ui.c/.h`, `web_ui_logic.c/.h`,

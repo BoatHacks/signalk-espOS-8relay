@@ -214,6 +214,11 @@ next to each relay the state of the input with the same number. *All on*
 (which asks first) and *All off* switch every relay. The page updates
 every second.
 
+Under each relay's name the page shows what switched it last and how long
+ago: SignalK, NMEA 2000, this page, an input, the end of a pulse, the
+SignalK-loss fail-safe, the maximum on-time, or start-up. The serial log
+prints the same for every change, e.g. `relay 3 on by nmea2000`.
+
 The page switches relays the same way SignalK and NMEA 2000 do: a
 momentary relay switched on turns itself off after its pulse time, and a
 relay that follows an input keeps the page's command until that input

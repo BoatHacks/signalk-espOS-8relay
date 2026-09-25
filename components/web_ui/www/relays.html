@@ -81,6 +81,21 @@ let busy = false;
 let timer = null;
 const rows = [];
 
+// What last switched a relay, as the firmware names it.
+const SOURCES = {
+  signalk: "SignalK", nmea2000: "NMEA 2000", web: "this page", input: "input",
+  pulse: "pulse end", failsafe: "SignalK-loss fail-safe", maxOn: "maximum on-time",
+  boot: "start-up",
+};
+
+function fmtAgo(s) {
+  if (s < 5) return "just now";
+  if (s < 60) return s + " s ago";
+  if (s < 3600) return Math.floor(s / 60) + " min ago";
+  if (s < 86400) return Math.floor(s / 3600) + " h ago";
+  return Math.floor(s / 86400) + " d ago";
+}
+
 function fmtDuration(s) {
   if (s % 3600 === 0) return (s / 3600) + " h";
   if (s % 60 === 0) return (s / 60) + " min";
@@ -100,7 +115,8 @@ function build(n) {
   const info = el("div");
   const name = el("div", "name");
   const meta = el("div", "meta");
-  info.append(name, meta);
+  const last = el("div", "meta");
+  info.append(name, meta, last);
   const ctl = el("div", "ctl");
   const pill = el("span", "pill", "–");
   const on = el("button", "on", "On");
@@ -115,7 +131,7 @@ function build(n) {
   input.append(dot, inText);
   row.append(info, ctl, input);
   list.append(row);
-  return { name, meta, pill, on, off, dot, inText };
+  return { name, meta, last, pill, on, off, dot, inText };
 }
 
 function render(s) {
@@ -127,6 +143,9 @@ function render(s) {
     if (r.input) notes.push((r.inputToggle ? "toggled by input " : "follows input ") + r.input);
     if (r.maxOnS) notes.push("off after " + fmtDuration(r.maxOnS));
     row.meta.textContent = notes.join(" · ");
+    row.last.textContent = r.lastSource
+      ? "by " + (SOURCES[r.lastSource] || r.lastSource) + " · " + fmtAgo(r.lastChangeAgoS)
+      : "";
     row.pill.textContent = r.on ? "ON" : "OFF";
     row.pill.classList.toggle("is-on", r.on);
     const input = s.inputs[i];

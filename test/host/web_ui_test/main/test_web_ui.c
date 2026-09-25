@@ -115,3 +115,26 @@ TEST_CASE("body: only a boolean \"on\" is accepted", "[web_ui]")
     TEST_ASSERT_FALSE(web_ui_parse_on("", &on));
     TEST_ASSERT_TRUE(on);  // untouched by the failures
 }
+
+TEST_CASE("state: last source and age per relay, null until known", "[web_ui]")
+{
+    fresh();
+    web_ui_view_t v = {.cfg = &cfg, .inputs_ready = true};
+    v.last_source[0] = "boot";
+    v.last_change_ago_s[0] = 12;
+    v.last_source[4] = "nmea2000";
+    v.last_change_ago_s[4] = 180;
+    char *json = web_ui_state_json(&v);
+    cJSON *root = cJSON_Parse(json);
+    free(json);
+    cJSON *r = item(root, "relays", 0);
+    TEST_ASSERT_EQUAL_STRING("boot", cJSON_GetObjectItem(r, "lastSource")->valuestring);
+    TEST_ASSERT_EQUAL(12, cJSON_GetObjectItem(r, "lastChangeAgoS")->valueint);
+    r = item(root, "relays", 4);
+    TEST_ASSERT_EQUAL_STRING("nmea2000", cJSON_GetObjectItem(r, "lastSource")->valuestring);
+    TEST_ASSERT_EQUAL(180, cJSON_GetObjectItem(r, "lastChangeAgoS")->valueint);
+    r = item(root, "relays", 1);
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(r, "lastSource")));
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(r, "lastChangeAgoS")));
+    cJSON_Delete(root);
+}

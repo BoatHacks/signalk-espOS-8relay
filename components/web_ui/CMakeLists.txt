@@ -5,7 +5,7 @@ set(priv_reqs "")
 set(embed "")
 if(NOT target STREQUAL "linux")
     list(APPEND srcs src/web_ui.c)
-    list(APPEND priv_reqs espos_httpd esp_http_server freertos)
+    list(APPEND priv_reqs espos_httpd esp_http_server esp_timer freertos)
     set(embed www/relays.html)
 endif()
 

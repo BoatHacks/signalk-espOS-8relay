@@ -62,8 +62,25 @@ static esp_err_t web_set_relay(uint8_t relay, bool on)
     return relay_ctrl_set(relay, on, RELAY_SRC_WEB);
 }
 
+// Short, stable names: the relay page shows them and the log prints them.
+static const char *source_name(relay_source_t src)
+{
+    switch (src) {
+    case RELAY_SRC_SK: return "signalk";
+    case RELAY_SRC_N2K: return "nmea2000";
+    case RELAY_SRC_INPUT: return "input";
+    case RELAY_SRC_PULSE_END: return "pulse";
+    case RELAY_SRC_FAILSAFE: return "failsafe";
+    case RELAY_SRC_WEB: return "web";
+    case RELAY_SRC_MAX_ON: return "maxOn";
+    }
+    return "unknown";
+}
+
 static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_t mask, void *arg)
 {
+    ESP_LOGI(TAG, "relay %u %s by %s", channel, on ? "on" : "off", source_name(src));
+    web_ui_relay_changed(channel, source_name(src));
     sk_bridge_relay_changed(channel, on);
     n2k_bridge_state_changed();
 }
@@ -141,6 +158,10 @@ static esp_err_t start_io(void *arg)
     // device stays reachable for diagnosis and updates.
     if (relay_ctrl_init(&hw, cfg) != ESP_OK) {
         ESP_LOGE(TAG, "relay expander did not respond; relays unavailable");
+    }
+    // Every relay's state now is its start-up state (off, or held).
+    for (uint8_t ch = 1; ch <= BOARD_CHANNELS; ch++) {
+        web_ui_relay_changed(ch, "boot");
     }
     ESP_ERROR_CHECK(relay_ctrl_add_listener(on_relay_change, NULL));
 

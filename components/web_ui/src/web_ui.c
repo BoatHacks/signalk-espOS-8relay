@@ -5,6 +5,7 @@
 
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "espos_httpd.h"
 #include "freertos/FreeRTOS.h"
 #include "web_ui_logic.h"
@@ -21,6 +22,20 @@ static const web_ui_io_t *s_io;
 // that valid from any task, including before web_ui_start().
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 static device_config_t s_cfg;
+static const char *s_last_source[BOARD_CHANNELS];
+static int64_t s_last_change_us[BOARD_CHANNELS];
+
+void web_ui_relay_changed(uint8_t channel, const char *source)
+{
+    if (channel < 1 || channel > BOARD_CHANNELS) {
+        return;
+    }
+    const int64_t now = esp_timer_get_time();
+    taskENTER_CRITICAL(&s_mux);
+    s_last_source[channel - 1] = source;
+    s_last_change_us[channel - 1] = now;
+    taskEXIT_CRITICAL(&s_mux);
+}
 
 void web_ui_update_config(const device_config_t *cfg)
 {
@@ -35,15 +50,20 @@ static esp_err_t send_state(httpd_req_t *req)
     if (!cfg) {
         return espos_httpd_send_error(req, "500 Internal Server Error", "no_memory", "out of memory");
     }
-    taskENTER_CRITICAL(&s_mux);
-    *cfg = s_cfg;
-    taskEXIT_CRITICAL(&s_mux);
-    const web_ui_view_t view = {
+    web_ui_view_t view = {
         .cfg = cfg,
         .relay_mask = s_io->relay_mask(),
         .input_mask = s_io->input_mask(),
         .inputs_ready = s_io->inputs_ready(),
     };
+    const int64_t now = esp_timer_get_time();
+    taskENTER_CRITICAL(&s_mux);
+    *cfg = s_cfg;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        view.last_source[i] = s_last_source[i];
+        view.last_change_ago_s[i] = (uint32_t)((now - s_last_change_us[i]) / 1000000);
+    }
+    taskEXIT_CRITICAL(&s_mux);
     char *json = web_ui_state_json(&view);
     free(cfg);
     if (!json) {
@@ -112,7 +132,6 @@ static esp_err_t put_one(httpd_req_t *req)
     if (err != ESP_OK) {
         return set_failed(req, err);
     }
-    ESP_LOGI(TAG, "relay %u %s from the web page", ch, on ? "on" : "off");
     return send_state(req);
 }
 
@@ -134,7 +153,6 @@ static esp_err_t put_all(httpd_req_t *req)
     if (first != ESP_OK) {
         return set_failed(req, first);
     }
-    ESP_LOGI(TAG, "all relays %s from the web page", on ? "on" : "off");
     return send_state(req);
 }
 

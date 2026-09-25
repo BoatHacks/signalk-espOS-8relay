@@ -25,6 +25,13 @@ char *web_ui_state_json(const web_ui_view_t *view)
         cJSON_AddNumberToObject(o, "input", r->override_di);
         cJSON_AddBoolToObject(o, "inputToggle", r->link == INPUT_LINK_TOGGLE);
         cJSON_AddNumberToObject(o, "maxOnS", r->mode == RELAY_MODE_MOMENTARY ? 0 : r->max_on_s);
+        if (view->last_source[i]) {
+            cJSON_AddStringToObject(o, "lastSource", view->last_source[i]);
+            cJSON_AddNumberToObject(o, "lastChangeAgoS", view->last_change_ago_s[i]);
+        } else {
+            cJSON_AddNullToObject(o, "lastSource");
+            cJSON_AddNullToObject(o, "lastChangeAgoS");
+        }
 
         cJSON *in = cJSON_CreateObject();
         cJSON_AddItemToArray(inputs, in);

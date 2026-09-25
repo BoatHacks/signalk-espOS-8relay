@@ -18,10 +18,15 @@ typedef struct {
     uint8_t relay_mask;          // bit n-1 = relay n on
     uint8_t input_mask;          // bit n-1 = input n on (debounced, inverted)
     bool inputs_ready;           // false until inputs have settled after boot
+    // What last switched each relay ("signalk", "boot", ...; NULL = not
+    // known yet) and how many seconds ago.
+    const char *last_source[BOARD_CHANNELS];
+    uint32_t last_change_ago_s[BOARD_CHANNELS];
 } web_ui_view_t;
 
 // {"relays":[{"channel":1,"name":"…","on":false,"momentary":false,
-//   "input":0},…],"inputs":[{"channel":1,"name":"…","on":false},…],
+//   "input":0,"inputToggle":false,"maxOnS":0,"lastSource":"boot",
+//   "lastChangeAgoS":12},…],"inputs":[{"channel":1,"name":"…","on":false},…],
 //  "inputsReady":true}; an input's "on" is null until inputs_ready.
 // Returns a malloc'ed string, or NULL when out of memory.
 char *web_ui_state_json(const web_ui_view_t *view);

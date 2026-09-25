@@ -26,6 +26,12 @@ typedef struct {
 // the web server. `io` must stay valid.
 esp_err_t web_ui_start(const web_ui_io_t *io, const device_config_t *cfg);
 
+// Record what switched a relay: `source` is a short static name
+// ("signalk", "nmea2000", "web", "input", "pulse", "failsafe", "maxOn",
+// "boot") shown on the page. Safe from any task, before or after
+// web_ui_start().
+void web_ui_relay_changed(uint8_t channel, const char *source);
+
 // Names, modes and input links change live. Safe from any task, before or
 // after web_ui_start().
 void web_ui_update_config(const device_config_t *cfg);

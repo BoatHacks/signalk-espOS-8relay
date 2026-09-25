@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *Maximum on-time* setting per relay (#2): a latching relay switches
   itself off after that long, whatever switched it on; another "on"
   restarts the time. 0 (the default) means no limit.
+- The relay page shows what last switched each relay and how long ago
+  (#5): SignalK, NMEA 2000, the page, an input, pulse end, fail-safe,
+  maximum on-time or start-up. `GET /api/v1/relays` reports it as
+  `lastSource` and `lastChangeAgoS`, and the log prints one line per
+  relay change with its source.
 
 ## [0.0.5] - 2026-09-25
 
