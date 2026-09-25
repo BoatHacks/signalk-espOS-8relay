@@ -36,11 +36,11 @@ On the board: status matches reality when unplugging Ethernet, stopping
 the SignalK server, disconnecting the CAN bus.
 
 ## Implementation Steps
-- [ ] `n2k_bridge_get_status()`
-- [ ] Status struct + JSON builder in `web_ui_logic`, handler in
+- [x] `n2k_bridge_get_status()`
+- [x] Status struct + JSON builder in `web_ui_logic`, handler in
       `web_ui.c`
-- [ ] Page: Pulse button, status line, header
-- [ ] Tests; USER_MANUAL §7.2; CHANGELOG
+- [x] Page: Pulse button, status line, header
+- [x] Tests; USER_MANUAL §7.2; CHANGELOG
 
 ## Files to Create/Modify
 - `components/web_ui/`

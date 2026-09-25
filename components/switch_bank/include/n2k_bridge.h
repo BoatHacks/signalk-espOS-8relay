@@ -28,6 +28,15 @@ esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_config_t *cfg
 // periodic broadcast. Callable from any task.
 void n2k_bridge_state_changed(void);
 
+typedef struct {
+    bool started;    // CAN open and the NMEA 2000 task running
+    uint8_t address; // our current source address (after address claim)
+    bool traffic;    // a frame from the bus arrived in the last 10 s
+} n2k_bridge_status_t;
+
+// For the relay page. Callable from any task.
+void n2k_bridge_get_status(n2k_bridge_status_t *out);
+
 #ifdef __cplusplus
 }
 #endif

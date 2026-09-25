@@ -214,6 +214,13 @@ next to each relay the state of the input with the same number. *All on*
 (which asks first) and *All off* switch every relay. The page updates
 every second.
 
+The header shows the board's name and firmware version, and a status line
+below it shows the network (Ethernet or WiFi, and the address), whether
+SignalK is connected and to which server, and the board's NMEA 2000
+address, with a warning when no traffic has been seen on the bus for 10
+seconds. A momentary relay has *Pulse* and *Stop* buttons instead of *On*
+and *Off*; *Stop* ends a pulse early.
+
 Under each relay's name the page shows what switched it last and how long
 ago: SignalK, NMEA 2000, this page, an input, the end of a pulse, the
 SignalK-loss fail-safe, the maximum on-time, or start-up. The serial log
@@ -229,7 +236,8 @@ device's main page first. Without a key, anyone on the network can switch
 the relays from this page, so set one on a shared network.
 
 The same actions are available to scripts: `GET /api/v1/relays` returns
-the state, and `PUT /api/v1/relays/<n>` (one relay) or `PUT
+the state, `GET /api/v1/relays/status` the status line, and
+`PUT /api/v1/relays/<n>` (one relay) or `PUT
 /api/v1/relays` (all) with the body `{"on": true}` or `{"on": false}` and
 `Content-Type: application/json` switch them.
 

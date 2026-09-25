@@ -117,6 +117,24 @@ static esp_err_t get_state(httpd_req_t *req)
     return send_state(req);
 }
 
+static esp_err_t get_status(httpd_req_t *req)
+{
+    web_ui_status_t *st = calloc(1, sizeof(*st));
+    if (!st) {
+        return espos_httpd_send_error(req, "500 Internal Server Error", "no_memory", "out of memory");
+    }
+    s_io->get_status(st);
+    char *json = web_ui_status_json(st);
+    free(st);
+    if (!json) {
+        return espos_httpd_send_error(req, "500 Internal Server Error", "no_memory", "out of memory");
+    }
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    esp_err_t err = espos_httpd_send_json(req, NULL, json);
+    free(json);
+    return err;
+}
+
 static esp_err_t put_one(httpd_req_t *req)
 {
     const uint8_t ch = web_ui_parse_channel(req->uri, API_PATH);
@@ -166,6 +184,7 @@ esp_err_t web_ui_start(const web_ui_io_t *io, const device_config_t *cfg)
     } routes[] = {
         {{.uri = "/relays", .method = HTTP_GET, .handler = get_page}, ESPOS_HTTPD_PUBLIC},
         {{.uri = API_PATH, .method = HTTP_GET, .handler = get_state}, ESPOS_HTTPD_PROTECTED},
+        {{.uri = API_PATH "/status", .method = HTTP_GET, .handler = get_status}, ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH, .method = HTTP_PUT, .handler = put_all}, ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH "/*", .method = HTTP_PUT, .handler = put_one}, ESPOS_HTTPD_PROTECTED},
     };

@@ -1,5 +1,8 @@
 #include <string.h>
 
+#include <stdio.h>
+
+#include "esp_app_desc.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -8,6 +11,8 @@
 #include "espos_config.h"
 #include "espos_event.h"
 #include "espos_health.h"
+#include "espos_net.h"
+#include "espos_sk.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "board.h"
@@ -75,6 +80,34 @@ static const char *source_name(relay_source_t src)
     case RELAY_SRC_MAX_ON: return "maxOn";
     }
     return "unknown";
+}
+
+// The relay page's status line.
+static void web_status(web_ui_status_t *out)
+{
+    snprintf(out->version, sizeof(out->version), "%s", esp_app_get_description()->version);
+
+    espos_net_status_t net = {0};
+    espos_net_get_status(&net);
+    snprintf(out->hostname, sizeof(out->hostname), "%s", net.hostname);
+    out->net_up = net.up;
+    snprintf(out->net_iface, sizeof(out->net_iface), "%s", espos_net_if_str(net.iface));
+    snprintf(out->ip, sizeof(out->ip), "%s", net.ip);
+
+    espos_sk_ws_status_t sk = {0};
+    espos_sk_ws_get_status(&sk);
+    out->sk_enabled = sk.enabled;
+    out->sk_connected = sk.connected;
+    espos_sk_server_t srv = {0};
+    if (espos_sk_get_server(&srv) == ESP_OK && srv.host[0]) {
+        snprintf(out->sk_server, sizeof(out->sk_server), "%s:%u", srv.host, srv.port);
+    }
+
+    n2k_bridge_status_t n2k = {0};
+    n2k_bridge_get_status(&n2k);
+    out->n2k_started = n2k.started;
+    out->n2k_address = n2k.address;
+    out->n2k_traffic = n2k.traffic;
 }
 
 static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_t mask, void *arg)
@@ -223,6 +256,7 @@ void app_main(void)
         .relay_mask = relay_ctrl_get_mask,
         .inputs_ready = input_sense_ready,
         .input_mask = input_sense_get_mask,
+        .get_status = web_status,
     };
     // The relay page is a convenience; SignalK and NMEA 2000 don't need it.
     if (web_ui_start(&web_io, &cfg) != ESP_OK) {

@@ -73,3 +73,42 @@ bool web_ui_parse_on(const char *body, bool *on)
     cJSON_Delete(root);
     return ok;
 }
+
+static void add_str_or_null(cJSON *o, const char *key, const char *v)
+{
+    if (v[0]) {
+        cJSON_AddStringToObject(o, key, v);
+    } else {
+        cJSON_AddNullToObject(o, key);
+    }
+}
+
+char *web_ui_status_json(const web_ui_status_t *st)
+{
+    cJSON *root = cJSON_CreateObject();
+    add_str_or_null(root, "version", st->version);
+    add_str_or_null(root, "hostname", st->hostname);
+    cJSON *net = cJSON_AddObjectToObject(root, "network");
+    cJSON *sk = cJSON_AddObjectToObject(root, "signalk");
+    cJSON *n2k = cJSON_AddObjectToObject(root, "nmea2000");
+    if (!net || !sk || !n2k) {
+        cJSON_Delete(root);
+        return NULL;
+    }
+    cJSON_AddBoolToObject(net, "up", st->net_up);
+    add_str_or_null(net, "interface", st->net_up ? st->net_iface : "");
+    add_str_or_null(net, "ip", st->net_up ? st->ip : "");
+    cJSON_AddBoolToObject(sk, "enabled", st->sk_enabled);
+    cJSON_AddBoolToObject(sk, "connected", st->sk_connected);
+    add_str_or_null(sk, "server", st->sk_server);
+    cJSON_AddBoolToObject(n2k, "started", st->n2k_started);
+    if (st->n2k_started) {
+        cJSON_AddNumberToObject(n2k, "address", st->n2k_address);
+    } else {
+        cJSON_AddNullToObject(n2k, "address");
+    }
+    cJSON_AddBoolToObject(n2k, "traffic", st->n2k_started && st->n2k_traffic);
+    char *out = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    return out;
+}

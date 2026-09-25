@@ -1,6 +1,7 @@
 // The relay page on the device's own web server: GET /relays (the page),
 // GET /api/v1/relays (live state), PUT /api/v1/relays/<n> and
-// PUT /api/v1/relays (all) with {"on": true|false}. Endpoints are
+// PUT /api/v1/relays (all) with {"on": true|false}, and
+// GET /api/v1/relays/status for the page's status line. Endpoints are
 // protected by espOS's API key like its own; the page is public and shows
 // a login hint when the API refuses it.
 #pragma once
@@ -10,6 +11,7 @@
 
 #include "device_config.h"
 #include "esp_err.h"
+#include "web_ui_logic.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,6 +22,8 @@ typedef struct {
     uint8_t (*relay_mask)(void);
     bool (*inputs_ready)(void);
     uint8_t (*input_mask)(void);
+    // Fill in the status line: network, SignalK, NMEA 2000, version.
+    void (*get_status)(web_ui_status_t *out);
 } web_ui_io_t;
 
 // Register the page and endpoints. Call after espos_start(), which starts

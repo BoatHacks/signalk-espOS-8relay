@@ -138,3 +138,54 @@ TEST_CASE("state: last source and age per relay, null until known", "[web_ui]")
     TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(r, "lastChangeAgoS")));
     cJSON_Delete(root);
 }
+
+TEST_CASE("status: network, SignalK and NMEA 2000 as reported", "[web_ui]")
+{
+    web_ui_status_t st = {.net_up = true, .sk_enabled = true, .sk_connected = true,
+                          .n2k_started = true, .n2k_address = 35, .n2k_traffic = true};
+    strcpy(st.version, "v0.0.6");
+    strcpy(st.hostname, "espos-cf28");
+    strcpy(st.net_iface, "eth");
+    strcpy(st.ip, "10.42.23.50");
+    strcpy(st.sk_server, "10.42.23.1:80");
+    char *json = web_ui_status_json(&st);
+    cJSON *root = cJSON_Parse(json);
+    free(json);
+    TEST_ASSERT_NOT_NULL(root);
+    TEST_ASSERT_EQUAL_STRING("v0.0.6", cJSON_GetObjectItem(root, "version")->valuestring);
+    TEST_ASSERT_EQUAL_STRING("espos-cf28", cJSON_GetObjectItem(root, "hostname")->valuestring);
+    cJSON *net = cJSON_GetObjectItem(root, "network");
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(net, "up")));
+    TEST_ASSERT_EQUAL_STRING("eth", cJSON_GetObjectItem(net, "interface")->valuestring);
+    TEST_ASSERT_EQUAL_STRING("10.42.23.50", cJSON_GetObjectItem(net, "ip")->valuestring);
+    cJSON *sk = cJSON_GetObjectItem(root, "signalk");
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(sk, "connected")));
+    TEST_ASSERT_EQUAL_STRING("10.42.23.1:80", cJSON_GetObjectItem(sk, "server")->valuestring);
+    cJSON *n2k = cJSON_GetObjectItem(root, "nmea2000");
+    TEST_ASSERT_EQUAL(35, cJSON_GetObjectItem(n2k, "address")->valueint);
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(n2k, "traffic")));
+    cJSON_Delete(root);
+}
+
+TEST_CASE("status: down, unknown and not started become false or null", "[web_ui]")
+{
+    web_ui_status_t st = {.n2k_address = 35, .n2k_traffic = true};  // stale values
+    strcpy(st.net_iface, "none");
+    strcpy(st.ip, "0.0.0.0");
+    char *json = web_ui_status_json(&st);
+    cJSON *root = cJSON_Parse(json);
+    free(json);
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(root, "version")));
+    cJSON *net = cJSON_GetObjectItem(root, "network");
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(net, "up")));
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(net, "interface")));
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(net, "ip")));
+    cJSON *sk = cJSON_GetObjectItem(root, "signalk");
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(sk, "connected")));
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(sk, "server")));
+    cJSON *n2k = cJSON_GetObjectItem(root, "nmea2000");
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(n2k, "started")));
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(n2k, "address")));
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(n2k, "traffic")));
+    cJSON_Delete(root);
+}

@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   maximum on-time or start-up. `GET /api/v1/relays` reports it as
   `lastSource` and `lastChangeAgoS`, and the log prints one line per
   relay change with its source.
+- Relay page extras (#6): the board's name and firmware version in the
+  header; a status line for the network, the SignalK connection and the
+  NMEA 2000 address, warning when the bus has been silent for 10 s
+  (`GET /api/v1/relays/status`); *Pulse* and *Stop* buttons for momentary
+  relays.
 
 ## [0.0.5] - 2026-09-25
 

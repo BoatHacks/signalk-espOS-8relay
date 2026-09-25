@@ -30,6 +30,10 @@ button { font: inherit; font-weight: 600; padding: 8px 14px; min-height: 40px; b
 button:disabled { opacity: .45; cursor: default; }
 button.on { border-color: var(--on); color: var(--on); }
 button.off { color: var(--muted); }
+h1 small { font-size: 13px; font-weight: 400; color: var(--muted); }
+#links { font-size: 13px; color: var(--muted); margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+#links .ok { color: var(--on); }
+#links .bad { color: var(--warn); }
 #status { font-size: 13px; color: var(--muted); margin: 0 0 12px; min-height: 18px; }
 #status.err { color: var(--err); }
 .banner { background: var(--err-bg); color: var(--err); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
@@ -57,7 +61,7 @@ button.off { color: var(--muted); }
 <body>
 <main>
   <header>
-    <h1>Relays</h1>
+    <h1>Relays <small id="device"></small></h1>
     <div class="all">
       <button id="all-on" class="on" type="button">All on</button>
       <button id="all-off" class="off" type="button">All off</button>
@@ -65,6 +69,7 @@ button.off { color: var(--muted); }
     <a href="/">Settings</a>
   </header>
   <div id="banner" class="banner" hidden></div>
+  <p id="links"></p>
   <p id="status">Loading…</p>
   <div id="list" class="list"></div>
 </main>
@@ -146,6 +151,10 @@ function render(s) {
     row.last.textContent = r.lastSource
       ? "by " + (SOURCES[r.lastSource] || r.lastSource) + " · " + fmtAgo(r.lastChangeAgoS)
       : "";
+    // A momentary relay is pulsed, not switched: its off button only ends
+    // a pulse early.
+    row.on.textContent = r.momentary ? "Pulse" : "On";
+    row.off.textContent = r.momentary ? "Stop" : "Off";
     row.pill.textContent = r.on ? "ON" : "OFF";
     row.pill.classList.toggle("is-on", r.on);
     const input = s.inputs[i];
@@ -214,12 +223,53 @@ async function send(url, on) {
   setBusy(false);
 }
 
+const STATUS_MS = 5000;
+const linksEl = document.getElementById("links");
+const deviceEl = document.getElementById("device");
+let statusTimer = null;
+
+function part(text, ok) {
+  const s = el("span", ok ? "ok" : "bad", text);
+  return s;
+}
+
+function renderStatus(st) {
+  deviceEl.textContent = [st.hostname, st.version].filter(Boolean).join(" · ");
+  if (st.hostname) document.title = "Relays · " + st.hostname;
+  const net = st.network, sk = st.signalk, n2k = st.nmea2000;
+  const IFACES = { eth: "Ethernet", wifi_sta: "WiFi", sta: "WiFi" };
+  const parts = [];
+  parts.push(net.up
+    ? part((IFACES[net.interface] || net.interface || "network") + " " + net.ip, true)
+    : part("No network", false));
+  if (sk.enabled) {
+    parts.push(sk.connected
+      ? part("SignalK: connected" + (sk.server ? " to " + sk.server : ""), true)
+      : part("SignalK: not connected", false));
+  }
+  parts.push(!n2k.started ? part("NMEA 2000: off", false)
+    : part("NMEA 2000: address " + n2k.address + (n2k.traffic ? "" : ", no bus traffic"), n2k.traffic));
+  linksEl.replaceChildren(...parts);
+}
+
+async function pollStatus() {
+  clearTimeout(statusTimer);
+  try {
+    const res = await fetch(API + "/status", { cache: "no-store" });
+    if (res.ok) renderStatus(await res.json());
+  } catch (e) { /* the relay poll reports reachability */ }
+  if (!document.hidden) statusTimer = setTimeout(pollStatus, STATUS_MS);
+}
+
 allOn.onclick = () => {
   if (confirm("Switch ALL relays on?")) send(API, true);
 };
 allOff.onclick = () => send(API, false);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) { poll(); pollStatus(); }
+});
 poll();
+pollStatus();
 </script>
 </body>
 </html>

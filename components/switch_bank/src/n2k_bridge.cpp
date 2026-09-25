@@ -40,6 +40,12 @@ constexpr unsigned char kPriority = 3;
 const unsigned long kTransmitPgns[] = {SWITCH_BANK_PGN_STATUS, 0};
 const unsigned long kReceivePgns[] = {SWITCH_BANK_PGN_CONTROL, 0};
 
+// Status for the relay page, written by the NMEA 2000 task, read anywhere.
+std::atomic<TickType_t> g_last_rx_tick{0};
+std::atomic<bool> g_rx_seen{false};
+std::atomic<bool> g_started{false};
+std::atomic<uint8_t> g_address{0};
+
 // tNMEA2000 over espOS's TWAI receiver and transmitter. espOS owns the CAN
 // peripheral; its candump server is not started because the receiver has a
 // single frame callback, which this class takes.
@@ -73,6 +79,8 @@ class EsposN2k : public tNMEA2000 {
   bool CANGetFrame(unsigned long &id, unsigned char &len, unsigned char *buf) override {
     espos_n2k::CanFrame f;
     if (!queue_ || xQueueReceive(queue_, &f, 0) != pdTRUE) return false;
+    g_last_rx_tick.store(xTaskGetTickCount());
+    g_rx_seen.store(true);
     id = f.id;
     len = f.dlc;
     memcpy(buf, f.data, f.dlc);
@@ -127,6 +135,7 @@ void n2k_task(void *) {
   TickType_t last_status = 0;
   for (;;) {
     s.bus->ParseMessages();
+    g_address.store(s.bus->GetN2kSource());
     if (s.bus->ReadResetAddressChanged()) {
       // Come back on the same address next boot, as the standard expects.
       nvs_set_u8(s.nvs, "addr", s.bus->GetN2kSource());
@@ -175,9 +184,17 @@ extern "C" esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_co
     return ESP_FAIL;
   }
   if (xTaskCreate(n2k_task, "n2k", 4096, nullptr, 4, nullptr) != pdPASS) return ESP_ERR_NO_MEM;
+  g_address.store(address);
+  g_started.store(true);
   ESP_LOGI(TAG, "on the bus: relay bank %u, input bank %u%s", s.relay_bank, s.input_bank,
            s.inputs_on ? "" : " (not sent: same id as relays)");
   return ESP_OK;
 }
 
 extern "C" void n2k_bridge_state_changed(void) { s.changed.store(true); }
+
+extern "C" void n2k_bridge_get_status(n2k_bridge_status_t *out) {
+  out->started = g_started.load();
+  out->address = g_address.load();
+  out->traffic = g_rx_seen.load() && xTaskGetTickCount() - g_last_rx_tick.load() < pdMS_TO_TICKS(10000);
+}
