@@ -47,6 +47,8 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
     TEST_ASSERT_TRUE(c.eth_enabled);
     TEST_ASSERT_TRUE(c.publish_switches_tree);
     TEST_ASSERT_FALSE(c.publish_controls_tree);
+    TEST_ASSERT_EQUAL(10, c.led_brightness);
+    TEST_ASSERT_FALSE(c.buzzer_on_alarm);
     TEST_ASSERT_EQUAL_STRING("Relay 1", c.relays[0].name);
     TEST_ASSERT_EQUAL_STRING("Relay 8", c.relays[7].name);
     TEST_ASSERT_EQUAL_STRING("Input 8", c.inputs[7].name);

@@ -104,6 +104,16 @@ This is the only component that needs to know both "SignalK shape" and
 "N2K shape" of a relay/input — `relay_ctrl` and `input_sense` stay
 transport-agnostic.
 
+### 2.3a `indicator` (this repo)
+
+Status LED (one WS2812 on GPIO38, RGB order, via Espressif's `led_strip`)
+and passive buzzer (GPIO46, LEDC PWM tone). A low-priority task reads
+espOS's worst health state and SignalK stream status every 10 ms and
+drives both (SPEC.md §9). What to show and the Morse timing live in
+`indicator_logic.c`, which is hardware-free and host-tested. Report only:
+nothing else depends on it, and a failure to start it is logged, not
+fatal.
+
 ### 2.4 `device_config` schema (this repo)
 
 An espOS config descriptor (a JSON file added from CMake with
@@ -223,6 +233,7 @@ signalk-espOS-8relay/
 ├── components/
 │   ├── board/                  # pin map
 │   ├── eth_w5500/              # W5500 Ethernet transport into espos_net
+│   ├── indicator/              # status LED and alarm buzzer
 │   ├── relay_ctrl/
 │   │   ├── relay_ctrl.c/.h
 │   │   ├── tca9554.c/.h        # I2C expander driver

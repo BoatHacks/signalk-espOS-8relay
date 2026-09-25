@@ -26,6 +26,11 @@ goes back to the plan that owns it. Record hardware facts learned here
 - [ ] Changing an input's invert, or linking a relay to an input, in the
       web page doesn't switch the relay
 
+- [ ] Status LED: colour order right (green shows green), brightness
+      setting works, blue until SignalK connects
+- [ ] Buzzer: tone audible; with "Buzzer on alarm" on, pulling the relay
+      chip's I²C (or another way to raise an alarm) beeps "ESP" + octet
+
 **Relays and inputs**
 - [ ] Momentary relay turns off after its pulse time
 - [ ] Input override: turns its relay on/off; a later SignalK or N2K

@@ -327,6 +327,15 @@ User-tunable (via config store, §6.3):
   `electrical.controls.*` tree (§6.1a, RFC 0009 compatibility; see
   RFC-441-DIGITAL-SWITCHING.md). Any combination is valid, including both
   off (NMEA2000-only operation).
+- `ledBrightness`: status LED brightness, 0–100 % (default `10`; 0 = off).
+  The LED shows red for a health alarm, amber for a warning, blue while
+  not connected to SignalK (only when a SignalK tree is published), green
+  otherwise.
+- `buzzerOnAlarm`: bool, default `false`. While a health alarm is active,
+  the buzzer repeats "ESP" and the last octet of the device's IP address
+  in Morse (80 ms unit, 5 s between rounds), so the complaining board can
+  be told apart from others; "ESP" alone without an address. Off by
+  default so a new board never beeps unannounced.
 
 Fixed (not user-tunable, board/firmware constants):
 - Channel count (8 relays, 8 inputs)

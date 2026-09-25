@@ -10,14 +10,15 @@
 #define BOARD_I2C_SCL 41
 #define BOARD_I2C_SDA 42
 #define BOARD_TCA9554_ADDR 0x20  // EXIO1-8 = relay 1-8
-// Expander output level that energises a relay. Assumed high; confirm on
-// the board (docs/plans/07-bringup-and-release.md).
+// Expander output level that energises a relay. High, per the community
+// ESPHome config for this board (relays not inverted); confirm on the board
+// (docs/plans/07-bringup-and-release.md).
 #define BOARD_RELAY_ACTIVE_HIGH 1
 
 // Digital inputs DI1-DI8, in channel order.
 #define BOARD_DI_PINS {4, 5, 6, 7, 8, 9, 10, 11}
-// Input GPIO level when a DI terminal is energised. Assumed low (typical for
-// the optocoupler pulling the pin down); confirm on the board.
+// Input GPIO level when a DI terminal is energised. Low, with pull-ups, per
+// the community ESPHome config for this board; confirm on the board.
 #define BOARD_DI_ACTIVE_LOW 1
 
 // CAN transceiver (TWAI).
@@ -32,6 +33,9 @@
 #define BOARD_ETH_CS 16
 #define BOARD_ETH_RST (-1)
 
+// One WS2812 RGB LED, colour order RGB (not the usual GRB).
 #define BOARD_RGB_LED 38
+// Passive piezo buzzer, driven with a PWM tone. GPIO46 is a strapping pin:
+// leave it alone until after boot.
 #define BOARD_BUZZER 46
 #define BOARD_BOOT_BUTTON 0

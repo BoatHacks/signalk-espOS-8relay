@@ -1,0 +1,21 @@
+// Status LED and alarm buzzer (device builds only). The LED shows espOS
+// health and the SignalK connection; the buzzer, if enabled, sounds "ESP"
+// and the last octet of the device's IP address in Morse while a health
+// alarm is active.
+#pragma once
+
+#include "device_config.h"
+#include "esp_err.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+esp_err_t indicator_start(const device_config_t *cfg);
+
+// Brightness, buzzer switch and tree toggles; callable from any task.
+void indicator_update_config(const device_config_t *cfg);
+
+#ifdef __cplusplus
+}
+#endif

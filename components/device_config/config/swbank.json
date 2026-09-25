@@ -76,6 +76,25 @@
       "description": "Paths in the style of SignalK RFC 0009. Relays can be switched through them."
     },
     {
+      "name": "led_brightness",
+      "type": "int",
+      "default": 10,
+      "min": 0,
+      "max": 100,
+      "unit": "%",
+      "group": "General",
+      "title": "Status LED brightness",
+      "description": "Green = fine, blue = no SignalK connection, amber = warning, red = alarm. 0 turns the LED off."
+    },
+    {
+      "name": "buzzer_alarm",
+      "type": "bool",
+      "default": false,
+      "group": "General",
+      "title": "Buzzer on alarm",
+      "description": "Beep while a health alarm is active: \"ESP\" and the last number of the device's IP address, in Morse."
+    },
+    {
       "name": "relay1_name",
       "type": "string",
       "default": "Relay 1",

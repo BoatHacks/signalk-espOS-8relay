@@ -13,6 +13,7 @@
 #include "board.h"
 #include "device_config.h"
 #include "eth_w5500.h"
+#include "indicator.h"
 #include "input_hw.h"
 #include "input_sense.h"
 #include "n2k_bridge.h"
@@ -94,6 +95,7 @@ static void io_task(void *arg)
                 relay_ctrl_update_config(&cfg);
                 input_sense_update_config(&cfg);
                 sk_bridge_update_config(&cfg);
+                indicator_update_config(&cfg);
             }
         }
         relay_ctrl_tick();
@@ -179,6 +181,11 @@ void app_main(void)
     // NMEA 2000 failing must not stop SignalK control.
     if (n2k_bridge_start(&n2k_io, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "NMEA 2000 unavailable");
+    }
+
+    // The LED and buzzer only report; the device works without them.
+    if (indicator_start(&cfg) != ESP_OK) {
+        ESP_LOGE(TAG, "status LED/buzzer unavailable");
     }
 
     if (cfg.eth_enabled) {

@@ -138,6 +138,8 @@ overrides.
 |---|---|---|
 | Input debounce | 50 ms | How long an input must be steady before a change counts (10 ms minimum) |
 | SignalK-loss grace period | 30 s | How long SignalK may be unreachable before relays set to *switch off* do so |
+| Status LED brightness | 10 % | 0 turns the LED off (section 7.5) |
+| Buzzer on alarm | Off | Beep in Morse while an alarm is active (section 7.5) |
 | Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
 
 ## 7. Everyday use
@@ -192,6 +194,23 @@ state.
   stay as they were, without switching; the rest switch off.
 - **Power loss:** all relays drop out. When power returns, relays set to
   *keep last state* switch back on to their last state.
+
+### 7.5 Status LED and buzzer
+
+| LED | Meaning |
+|---|---|
+| Green | Everything is fine |
+| Blue | Not connected to a SignalK server (not shown when both SignalK path settings are off) |
+| Amber | A warning, e.g. relay and input bank ids are the same |
+| Red | An alarm, e.g. the relay chip isn't responding |
+
+The web page's health section says what the warning or alarm is.
+
+With *Buzzer on alarm* turned on, the board beeps while an alarm is
+active: "ESP" and then the last number of its IP address, in Morse, every
+few seconds. On a boat with several boards, that tells you which one is
+complaining: `. ... .--.  ....- ..---` is "ESP 42", the board at
+192.168.x.42. Without a network address it beeps just "ESP".
 
 ## 8. Troubleshooting
 

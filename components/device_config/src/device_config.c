@@ -41,6 +41,8 @@ esp_err_t device_config_load(device_config_t *out)
     out->eth_enabled = get_bool("eth_enabled");
     out->publish_switches_tree = get_bool("pub_switches");
     out->publish_controls_tree = get_bool("pub_controls");
+    out->led_brightness = (uint8_t)get_int("led_brightness");
+    out->buzzer_on_alarm = get_bool("buzzer_alarm");
 
     char key[16];
     char val[16];

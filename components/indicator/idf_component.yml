@@ -1,0 +1,18 @@
+dependencies:
+  idf: ">=6.0.0,<6.1.0"
+  espressif/led_strip:
+    version: "3.0.3"
+    rules:
+      - if: "target != linux"
+  signalk-espos/espos_health:
+    version: "0.10.3"
+    rules:
+      - if: "target != linux"
+  signalk-espos/espos_net:
+    version: "0.10.3"
+    rules:
+      - if: "target != linux"
+  signalk-espos/espos_sk:
+    version: "0.10.3"
+    rules:
+      - if: "target != linux"

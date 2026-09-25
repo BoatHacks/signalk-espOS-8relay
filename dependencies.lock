@@ -9,6 +9,16 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 1.7.19~2
+  espressif/led_strip:
+    component_hash: 28621486f77229aaf81c71f5e15d6fbf36c2949cf11094e07090593e659e7639
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 3.0.3
   espressif/mdns:
     component_hash: e81ca7a7f53ea34e78274df054da692c272e1315572876b237b1748e267c013b
     dependencies:
@@ -344,6 +354,7 @@ dependencies:
       type: git
     version: 5b7b9fc3ccc18e30ebfba92da6486cffc6251595
 direct_dependencies:
+- espressif/led_strip
 - espressif/w5500
 - idf
 - signalk-espos/espos_config
@@ -353,6 +364,6 @@ direct_dependencies:
 - signalk-espos/espos_net
 - signalk-espos/espos_sk
 - ttlappalainen/nmea2000
-manifest_hash: ecf016b34b3ca4a1a2dc5b2520394c4ebffcd545a2e9c6ee35d2c01eb87a50d6
+manifest_hash: 65f3f3cc727df7adf7251d8e269c35d92df0fc39f0cdecc30b1354800d4bd927
 target: esp32s3
 version: 3.0.0
