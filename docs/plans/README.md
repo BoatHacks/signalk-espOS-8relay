@@ -18,6 +18,25 @@ stage.
 
 05 and 06 are independent of each other and can be built in either order.
 
+### Feature plans (after the first release)
+
+One per GitHub issue. Suggested order: 08, 09, 12, 13 (one small
+release), then 10, 11, 17; 14 once the espOS portal question is answered;
+15 and 16 need a scope decision first (SPEC.md §10.2).
+
+| # | Plan | Issue | Depends on | Size |
+|---|---|---|---|---|
+| 08 | [Push-button toggle for inputs](08-input-toggle-mode.md) | [#1](https://github.com/BoatHacks/signalk-espOS-8relay/issues/1) | 04 | Small |
+| 09 | [Maximum on-time per relay](09-max-on-time.md) | [#2](https://github.com/BoatHacks/signalk-espOS-8relay/issues/2) | 03 | Small |
+| 10 | [Input alarms as SignalK notifications](10-input-alarms.md) | [#3](https://github.com/BoatHacks/signalk-espOS-8relay/issues/3) | 05 | Small–medium |
+| 11 | [Cycle counters and runtime hours](11-counters-and-runtime.md) | [#4](https://github.com/BoatHacks/signalk-espOS-8relay/issues/4) | 05, relay page | Medium |
+| 12 | ["Last switched by" on the relay page](12-last-switched-by.md) | [#5](https://github.com/BoatHacks/signalk-espOS-8relay/issues/5) | relay page | Small |
+| 13 | [Relay page: Pulse, status, version](13-relay-page-extras.md) | [#6](https://github.com/BoatHacks/signalk-espOS-8relay/issues/6) | relay page, 06 | Small |
+| 14 | [BOOT button: access point and factory reset](14-boot-button.md) | [#7](https://github.com/BoatHacks/signalk-espOS-8relay/issues/7) | espOS portal API | Small–medium |
+| 15 | [Interlocked relay pairs](15-interlocked-pairs.md) | [#8](https://github.com/BoatHacks/signalk-espOS-8relay/issues/8) | 03; scope decision | Medium, safety-relevant |
+| 16 | [Schedules with the real-time clock](16-schedules.md) | [#9](https://github.com/BoatHacks/signalk-espOS-8relay/issues/9) | scope decision | Large |
+| 17 | [Buzzer test button and frequency](17-buzzer-test-and-frequency.md) | [#10](https://github.com/BoatHacks/signalk-espOS-8relay/issues/10) | relay page | Small |
+
 ## Facts established while writing these plans
 
 Checked against the espOS repository and the Waveshare wiki on
