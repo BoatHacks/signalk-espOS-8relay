@@ -173,22 +173,35 @@ control is unaffected. The two sources do not depend on each other.
 
 When `publishControlsTree` is enabled (default off — see §9, §12, and
 RFC-441-DIGITAL-SWITCHING.md), the same relay/input state is additionally
-published under `electrical.controls.<bankId>.<n>`, matching the path
-shape proposed in [SignalK/specification#441](https://github.com/SignalK/specification/issues/441):
+published under `electrical.controls.<identifier>`, matching the path
+shape proposed in [SignalK/specification#441](https://github.com/SignalK/specification/issues/441).
 
-- `electrical.controls.<bankId>.<n>.state` (on/off, mirrors the switches-bank value)
-- `electrical.controls.<bankId>.<n>.type` = `"switch"` (this board has no dimmers)
-- `electrical.controls.<bankId>.<n>.name`
-- `electrical.controls.<bankId>.<n>.meta.displayName`
-- `electrical.controls.<bankId>.<n>.manufacturer.name` / `.manufacturer.model`
+Internally, and on `electrical.switches.bank.*`, identity stays the
+numeric `bankId`+channel pair (§4). Only the `controls.*` tree uses RFC
+0009's string-identifier convention, built as:
+
+- Relay channel `n`: `espOS-instance<bankId>-relay<n>`
+- Digital input channel `n`: `espOS-instance<bankId>-input<n>`
+
+The firmware maintains this as a fixed, always-derivable 1:1 mapping
+(`bankId`+channel+kind ↔ the string identifier) — never a separately
+configured value — so the two trees can never drift apart or collide.
+
+- `electrical.controls.<identifier>.state` (on/off, mirrors the switches-bank value)
+- `electrical.controls.<identifier>.type` = `"switch"` (this board has no dimmers)
+- `electrical.controls.<identifier>.name`
+- `electrical.controls.<identifier>.meta.displayName`
+- `electrical.controls.<identifier>.manufacturer.name` / `.manufacturer.model`
+
+Example: relay channel 3 on bank 12 is `electrical.switches.bank.12.3`
+internally/canonically, and mirrors to
+`electrical.controls.espOS-instance12-relay3` when the mirror is enabled.
 
 This mirror does **not** accept PUT independently — commands always go
 through the canonical `electrical.switches.bank.*` PUT handler (§6.1); the
 `controls.*` tree is read-only, publish-side compatibility only, to avoid
 two independently-writable representations of the same relay going out of
-sync. This firmware's numeric `bankId`/channel identifier is reused as-is
-under `controls.*` rather than adopting RFC 0009's proposed
-`systemname-deviceaddress` string identifier (see RFC-441-DIGITAL-SWITCHING.md §4).
+sync.
 
 ### 6.2 NMEA2000 PGNs
 
@@ -316,7 +329,12 @@ Fixed (not user-tunable, board/firmware constants):
   published only when explicitly enabled (default off), and only ever as
   a read-only mirror — accepting PUTs on both trees would create two
   independently-writable representations of the same relay that could
-  disagree. Full comparison and rationale in RFC-441-DIGITAL-SWITCHING.md.
+  disagree. Internal identity stays numeric `bankId`+channel; the
+  `controls.*` tree alone is addressed with RFC 0009's string-identifier
+  shape (`espOS-instance<bankId>-relay<n>` / `-input<n>`), derived
+  deterministically from `bankId`+channel+kind so the mapping between the
+  two trees can never drift or collide. Full comparison and rationale in
+  RFC-441-DIGITAL-SWITCHING.md.
 - **Momentary relays can't be `hold`**: holding a pulsed/momentary output
   on indefinitely across a fail-safe "hold last state" reboot would mean a
   horn or pump-test relay could stick on for an unbounded time with no

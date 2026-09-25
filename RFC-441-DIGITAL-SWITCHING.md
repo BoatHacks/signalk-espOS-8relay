@@ -79,8 +79,9 @@ picking one.
 RFC 0009's identifier embeds the source system name and device address in
 the path segment itself (`empirBusNxt-instance2-switch3`). This project's
 convention uses a numeric bank id + numeric channel, per the existing
-switch-bank spec. Adopting RFC 0009's identifier shape would be a
-structural change to SPEC.md §4/§6.1, not just an additive one.
+switch-bank spec. Adopting RFC 0009's identifier shape *only* on the
+`controls.*` mirror (not internally, not on `switches.bank.*`) resolves
+this without a structural change to SPEC.md §4 — see resolution below.
 
 ### 3.3 Metadata richness gap (non-blocking, additive)
 
@@ -107,13 +108,21 @@ toggleable in the config UI:
   of) the RFC being merged. SPEC.md/ARCHITECTURE.md updated accordingly
   (see §5 below).
 
-**§3.2 Identifier scheme** — No change. Numeric `bankId` + channel stays
-the canonical identifier even under `electrical.controls.*`; the
-`controls.*` mirror reuses the same numeric identifier rather than
-adopting RFC 0009's `systemname-deviceaddress` string form, since this
-firmware isn't a multi-brand digital-switching gateway (unlike the
-EmpirBus case the RFC targets) — there's no "system name" ambiguity to
-disambiguate.
+**§3.2 Identifier scheme** — Amended 2026-09-25 (superseding the "no
+change" note above): internally, and on `electrical.switches.bank.*`,
+identity stays numeric `bankId` + channel, unchanged. On
+`electrical.controls.*` specifically, use RFC 0009's string-identifier
+shape, built deterministically from that same numeric identity:
+- Relay channel `n`: `espOS-instance<bankId>-relay<n>`
+- Digital input channel `n`: `espOS-instance<bankId>-input<n>`
+
+The two identifiers (numeric on `switches.bank.*`, string on
+`controls.*`) always describe the same channel — the mapping is derived,
+never separately configured, so the trees cannot drift apart or collide.
+`-input<n>` for digital inputs is this project's own extension of the
+RFC's pattern (the RFC's examples only cover `-switch<#>`/`-dimmer<#>`
+outputs, not inputs) — flagged here in case the RFC or its eventual
+implementation converges on different wording for input channels.
 
 **§3.3 Metadata richness gap** — `manufacturer.name` / `manufacturer.model`
 static meta fields are added now (`Waveshare` / `ESP32-S3-ETH-8DI-8RO-C`),
@@ -128,8 +137,10 @@ Applied in the same change as this resolution:
   `controlsEnabled` flag is unnecessary — control is global per §9, not
   per-channel; SPEC.md §9 (Configuration) gains `publishControlsTree: bool`
   (default `false`) alongside the always-on switches-bank publishing.
-- SPEC.md §6.1 (API): documents the `electrical.controls.<bankId>.<n>`
-  mirror path and its fields (`state`, `name`, `meta.displayName`,
+- SPEC.md §6.1a (API): documents the `electrical.controls.<identifier>`
+  mirror path (identifier = `espOS-instance<bankId>-relay<n>` /
+  `-input<n>`, derived from `bankId`+channel, never separately
+  configured) and its fields (`state`, `name`, `meta.displayName`,
   `manufacturer.name`, `manufacturer.model`, `type: "switch"`), gated by
   `publishControlsTree`.
 - SPEC.md §12 (Design Decisions): records this resolution and its
