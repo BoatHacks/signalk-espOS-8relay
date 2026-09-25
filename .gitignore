@@ -13,3 +13,7 @@ test/host/*/managed_components/
 test/host/*/sdkconfig
 test/host/*/sdkconfig.old
 test/host/*/dependencies.lock
+
+# Python bytecode from running scripts and their tests.
+__pycache__/
+*.pyc
