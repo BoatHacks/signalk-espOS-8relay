@@ -72,6 +72,10 @@ summary; tick items here as the procedure passes them.
 - [x] OTA update from the release manifest (HARDWARE_TESTS H1): a board
       on v0.0.6, pointed at `manifest.json` on the `beta` channel, was
       offered v0.0.7 and updated without problems (2026-09-25)
+- [x] PSRAM: the chip is an ESP32-S3R8 (8 MB octal PSRAM, 3.3 V); with it
+      enabled (0.0.9) the boot log shows `Found 8MB PSRAM device`, `SPI
+      SRAM memory test OK`, and the settings page loads again on 0.0.10
+      (2026-09-25)
 
 ## Implementation Steps
 - [ ] Wire the board to test loads, a CAN bus and a SignalK server
