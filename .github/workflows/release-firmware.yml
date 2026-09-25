@@ -190,7 +190,12 @@ jobs:
           # Notes from the version's CHANGELOG.md entry; GitHub's generated
           # list only for a tag pushed without one.
           if scripts/changelog_section.sh "$TAG" > notes.md; then
-            printf '\n**Full Changelog**: %s/%s/compare/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$TAG" >> notes.md
+            # The version's link from the bottom of CHANGELOG.md, e.g. its
+            # compare view against the previous release.
+            link=$(sed -n "s/^\[${TAG#v}\]: //p" CHANGELOG.md | head -1)
+            if [ -n "$link" ]; then
+              printf '\n**Full Changelog**: %s\n' "$link" >> notes.md
+            fi
             notes=(--notes-file notes.md)
           else
             echo "::warning::CHANGELOG.md has no entry for $TAG; using generated notes"
