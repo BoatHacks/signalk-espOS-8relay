@@ -169,6 +169,11 @@ jobs:
     env:
       RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_TAG }}
+
       # A pushed tag, or a tag from cut-release.yml, has no release yet.
       # Only after a successful build, so a failed build never leaves an
       # empty release behind. A pre-release until someone promotes it on
@@ -179,10 +184,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ env.RELEASE_TAG }}
         run: |
-          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
-              --prerelease --title "$TAG" --generate-notes
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            exit 0
           fi
+          # Notes from the version's CHANGELOG.md entry; GitHub's generated
+          # list only for a tag pushed without one.
+          if scripts/changelog_section.sh "$TAG" > notes.md; then
+            printf '\n**Full Changelog**: %s/%s/compare/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$TAG" >> notes.md
+            notes=(--notes-file notes.md)
+          else
+            echo "::warning::CHANGELOG.md has no entry for $TAG; using generated notes"
+            notes=(--generate-notes)
+          fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --prerelease --title "$TAG" "${notes[@]}"
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:

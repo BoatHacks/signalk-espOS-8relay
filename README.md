@@ -10,8 +10,8 @@ It runs on [espOS](https://github.com/signalk-espOS/espOS), which provides the
 networking, SignalK connection, settings web page and signed over-the-air
 updates. This project adds everything specific to the board.
 
-> **Status: design stage. There is no working firmware yet.** See
-> [Current status](#current-status).
+> **Status: hardware bring-up.** Test releases exist, but nothing has been
+> checked on a boat yet. See [Current status](#current-status).
 
 ## Scope
 
@@ -80,6 +80,7 @@ Work is split into stages, each with its own plan in
 
 - [USER_MANUAL.md](USER_MANUAL.md) — installing, setting up and using the
   firmware
+- [CHANGELOG.md](CHANGELOG.md) — what changed in each release
 - [SPEC.md](SPEC.md) — what the firmware does and why
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how the code is organised
 - [RFC-441-DIGITAL-SWITCHING.md](RFC-441-DIGITAL-SWITCHING.md) — how this

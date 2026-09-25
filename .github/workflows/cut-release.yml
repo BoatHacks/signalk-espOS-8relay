@@ -2,8 +2,9 @@
 # it as a pre-release through release-firmware.yml.
 #
 # Actions → "Cut release" → Run workflow, on main, with a version such as
-# v0.0.2. Re-running with the same version retries a failed build, as long
-# as the tag still points at the same commit.
+# v0.0.2. CHANGELOG.md must have a dated entry for it; that entry becomes
+# the release notes. Re-running with the same version retries a failed
+# build, as long as the tag still points at the same commit.
 #
 # Tags and releases made with the workflow token fire no further workflows,
 # so the build is called directly instead of waiting for a tag or release
@@ -33,6 +34,21 @@ jobs:
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Its CHANGELOG.md section becomes the release notes; check it exists
+      # before tagging, not after a build.
+      - name: Check the CHANGELOG entry
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! scripts/changelog_section.sh "$VERSION" >/dev/null; then
+            echo "::error::CHANGELOG.md has no entry for $VERSION. Add a dated '## [${VERSION#v}] - YYYY-MM-DD' section first."
+            exit 1
+          fi
+
       - name: Create the tag
         id: tag
         env:
