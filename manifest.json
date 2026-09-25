@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "app": "signalk-espos-8relay",
+  "builds": [
+    {
+      "target": "esp32s3",
+      "channel": "beta",
+      "version": "v0.0.7",
+      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.0.7/signalk-espOS-8relay-v0.0.7-ota.bin",
+      "size": 1576960,
+      "sha256": "a54f8b43b76333175f60ac35a6ddbf0e8b79adbd825b0b0c727625d915491e67",
+      "notes": "Update checks out of the box: on its first start the board sets"
+    }
+  ]
+}
