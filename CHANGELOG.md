@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   internal RAM for WiFi and the rest. If PSRAM ever fails to start, the
   firmware runs without it. The boot log's chip report shows how much
   PSRAM is in use.
+- `GET /api/v1/n2k` answered 404 in 0.0.8: the same espOS registry-name
+  problem as in 0.0.3 made espOS build a stub instead of the endpoint. The
+  build now gives espos_n2k the web server it looks for.
 
 ## [0.0.8] - 2026-09-25
 

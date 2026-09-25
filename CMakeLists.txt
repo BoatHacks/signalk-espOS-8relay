@@ -37,3 +37,11 @@ if("signalk-espos__espos_ota" IN_LIST _comps AND "signalk-espos__espos_wifi" IN_
     target_link_libraries(${_ota} PRIVATE ${_wifi})
     target_compile_definitions(${_ota} PRIVATE ESPOS_OTA_HAVE_WIFI=1)
 endif()
+# Same for espos_n2k: it builds its GET /api/v1/n2k diagnostics only when
+# espos_httpd's header is on its include path (__has_include), which its
+# bare-name optional dependency doesn't achieve, so the stub was built.
+if("signalk-espos__espos_n2k" IN_LIST _comps AND "signalk-espos__espos_httpd" IN_LIST _comps)
+    idf_component_get_property(_n2k signalk-espos__espos_n2k COMPONENT_LIB)
+    idf_component_get_property(_httpd signalk-espos__espos_httpd COMPONENT_LIB)
+    target_link_libraries(${_n2k} PRIVATE ${_httpd})
+endif()
