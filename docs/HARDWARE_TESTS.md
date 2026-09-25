@@ -278,6 +278,20 @@ an alarm (disconnect the relay chip's I²C, or ask for another way); pass
 if the buzzer repeats the pattern every few seconds and the LED is red.
 Restore and `setcfg '"buzzer_alarm":false'`.
 
+## H. Updates
+
+**H1 [auto] The board finds and installs an update from the manifest.**
+On a board running the previous release, point it at the manifest and the
+beta channel (a board on 0.0.7 or later already has the URL):
+`curl -s -X PUT -H "$H" -d '{"ota":{"manifest_url":"https://raw.githubusercontent.com/BoatHacks/signalk-espOS-8relay/ota/manifest.json","channel":"beta"}}' $B/api/v1/config`,
+then `curl -s -X POST -H "$H" -d '{}' $B/api/v1/ota/check` and after a few
+seconds `curl -s $B/api/v1/ota/status`. Pass if `available` names the new
+release with `"newer": true`, and installing it
+(`curl -s -X POST -H "$H" -d '{"url":"<available.url>"}' $B/api/v1/ota`)
+ends with the new version running and `espos_ota: new image confirmed`.
+On the new version, a first boot logs `app: update manifest: https://…`
+only if the URL was empty.
+
 ---
 
 ## Results
@@ -318,3 +332,4 @@ Copy for each release tested.
 | G2 Buzzer test | | |
 | G3 Buzzer frequency | | |
 | G4 Alarm buzzer | | |
+| H1 Update from the manifest | | |

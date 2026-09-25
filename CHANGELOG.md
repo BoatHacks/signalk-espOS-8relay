@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2026-09-25
+
+### Added
+
+- Update checks out of the box: on its first start the board sets
+  espOS's *Manifest URL* to this project's update list, which every
+  release now updates (`manifest.json` on the `ota` branch). Full
+  releases are offered on the *stable* channel (the default), full
+  releases and pre-releases on *beta*. Emptying the URL turns checks off
+  for good.
+- *Cut release* has a *Publish as a pre-release* checkbox, so the first
+  full release (0.1.0) can be made from the workflow.
+
 ## [0.0.6] - 2026-09-25
 
 ### Added
@@ -112,6 +125,7 @@ First build for hardware bring-up. Not usable: it boot-loops (fixed in
 - All settings in espOS's web UI.
 - Signed release builds with a merged image for USB and an image for OTA.
 
+[0.0.7]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.3...v0.0.4

@@ -255,3 +255,62 @@ jobs:
           fail_on_unmatched_files: true
           files: dist/*.bin
           body: ${{ steps.notes.outputs.body }}
+
+  # Publish the build in the OTA manifest espOS boards check for updates
+  # (USER_MANUAL §3.3): manifest.json on the `ota` branch, served at
+  # https://raw.githubusercontent.com/<repo>/ota/manifest.json. A full
+  # release goes on the stable and beta channels, a pre-release on beta.
+  manifest:
+    if: inputs.tag != '' || github.event_name == 'release' || github.ref_type == 'tag'
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # One manifest update at a time, never cancelled half-way.
+    concurrency:
+      group: ota-manifest
+      cancel-in-progress: false
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_TAG }}
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: firmware
+          path: dist
+
+      - name: Add the build to the manifest on the ota branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          # Ask GitHub, so a release published by hand counts too.
+          pre=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)
+          flag=()
+          if [ "$pre" = "true" ]; then flag=(--prerelease); fi
+          notes=$(scripts/changelog_section.sh "$TAG" 2>/dev/null | grep -m1 '^- ' | sed 's/^- //' || true)
+          image="dist/signalk-espOS-8relay-${TAG}-ota.bin"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/signalk-espOS-8relay-${TAG}-ota.bin"
+
+          git init -q ota
+          cd ota
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q --depth 1 origin ota; then
+            git checkout -q -b ota FETCH_HEAD
+          else
+            git checkout -q --orphan ota
+            printf '%s\n' "# OTA manifest" "" \
+              "Written by the release workflow; don't edit by hand. espOS boards" \
+              "check manifest.json for updates (USER_MANUAL.md section 3.3 on main)." > README.md
+          fi
+          python3 ../scripts/update_ota_manifest.py --manifest manifest.json \
+            --version "$TAG" --url "$url" --image "../$image" --notes "$notes" "${flag[@]}"
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "OTA manifest: ${TAG}$([ "$pre" = "true" ] && echo ' (beta)')"
+          git push -q origin ota

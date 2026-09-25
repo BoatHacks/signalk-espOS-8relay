@@ -33,3 +33,5 @@ jobs:
         run: |
           . "$IDF_PATH/export.sh"
           test/host/run_all.sh
+      - name: Run script tests
+        run: python3 -m unittest discover -s test/scripts -v

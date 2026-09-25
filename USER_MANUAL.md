@@ -84,6 +84,35 @@ idf.py -p /dev/ttyACM0 flash monitor
 writes the firmware and the web UI; `monitor` shows the log. Exit the
 monitor with Ctrl+].
 
+### 3.3 Updates
+
+A board running 0.0.7 or later checks for new firmware by itself. The
+settings are in the web page under *Firmware updates*.
+
+- **Where it looks.** *Manifest URL* is set on the first start to this
+  project's update list,
+  `https://raw.githubusercontent.com/BoatHacks/signalk-espOS-8relay/ota/manifest.json`,
+  which every release updates. To turn update checks off, empty it; the
+  board won't fill it in again.
+- **Channel.** *stable* (the default) offers full releases only. *beta*
+  also offers pre-releases (test builds). Change the *Channel* setting to
+  choose.
+- **Checking and installing.** The board checks shortly after start and
+  then every *Check interval* (24 h). A newer build is shown in the web
+  page; you install it from there. *Install automatically* (off by
+  default) installs it as soon as it is found — the board restarts, so
+  relays follow the restart rules of section 7.5. Leave it off on a boat
+  unless you're sure.
+- **Without internet on board.** Set *Where to look for updates* to
+  *signalk*: the board then asks its SignalK server, which serves the same
+  list through the signalk-espos-updates plugin (fetched when the server
+  is online).
+
+Every update is checked against the project's signature before it is
+installed; a build that doesn't carry it is refused. A new build that
+can't reach the network within 10 minutes of starting is rolled back to
+the previous one.
+
 ## 4. First-time setup
 
 Setup uses espOS's standard provisioning; *details to be confirmed on

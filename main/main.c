@@ -15,6 +15,7 @@
 #include "espos_sk.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "nvs.h"
 #include "board.h"
 #include "device_config.h"
 #include "eth_w5500.h"
@@ -29,6 +30,10 @@
 #include "web_ui.h"
 
 static const char *TAG = "app";
+
+// Where boards look for updates unless someone sets another source. The
+// release workflow keeps it current (USER_MANUAL.md section 3.3).
+#define OTA_MANIFEST_URL "https://raw.githubusercontent.com/BoatHacks/signalk-espOS-8relay/ota/manifest.json"
 
 #define TICK_MS 10
 #define IO_STALL_MS 2000        // raise espOS's taskStalled alarm after this
@@ -172,6 +177,28 @@ static void io_supervisor(void *arg)
     }
 }
 
+// espOS ships with no manifest URL. Fill in this project's, once: an empty
+// URL is also how someone opts out of manifest checks, so after the first
+// boot with this firmware an emptied URL stays empty.
+static void default_ota_manifest(void)
+{
+    nvs_handle_t h;
+    if (nvs_open("app", NVS_READWRITE, &h) != ESP_OK) {
+        return;
+    }
+    uint8_t done = 0;
+    if (nvs_get_u8(h, "ota_url_set", &done) != ESP_OK || !done) {
+        char url[8] = "";
+        espos_config_get_str("ota", "manifest_url", url, sizeof(url), NULL);
+        if (url[0] == '\0' && espos_config_set_str("ota", "manifest_url", OTA_MANIFEST_URL) == ESP_OK) {
+            ESP_LOGI(TAG, "update manifest: %s", OTA_MANIFEST_URL);
+        }
+        nvs_set_u8(h, "ota_url_set", 1);
+        nvs_commit(h);
+    }
+    nvs_close(h);
+}
+
 // Runs after espOS has the config store up and before any networking, so
 // relays reach their boot state (SPEC.md section 3.2) as early as possible:
 // after a warm reset, default-safe relays would otherwise stay on until the
@@ -223,6 +250,8 @@ void app_main(void)
     opts.before_network = start_io;
     opts.arg = &cfg;
     ESP_ERROR_CHECK(espos_start(&opts));
+
+    default_ota_manifest();
 
     // Bank ids only change on restart, so checking once at boot is enough.
     device_config_report_health(&cfg);
