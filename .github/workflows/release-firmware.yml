@@ -297,7 +297,13 @@ jobs:
           pre=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)
           flag=()
           if [ "$pre" = "true" ]; then flag=(--prerelease); fi
-          notes=$(scripts/changelog_section.sh "$TAG" 2>/dev/null | grep -m1 '^- ' | sed 's/^- //' || true)
+          # The version's one-line summary (checked by cut-release.yml); for a
+          # tag pushed without one, the first bullet, joined onto one line.
+          if ! notes=$(scripts/changelog_summary.sh "$TAG" 2>/dev/null); then
+            notes=$(scripts/changelog_section.sh "$TAG" 2>/dev/null \
+              | awk '/^- /{if(f)exit; f=1; sub(/^- /,"")} f&&/^$/{exit} f{printf "%s ", $0}' \
+              | sed 's/  */ /g; s/ $//' || true)
+          fi
           image="dist/signalk-espOS-8relay-${TAG}-ota.bin"
           url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/signalk-espOS-8relay-${TAG}-ota.bin"
 

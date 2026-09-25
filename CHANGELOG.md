@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Each version starts with a one-line summary (at most 127 bytes): boards show
+it as the update's notes, and *Cut release* refuses a version without one.
+
 ## [0.0.10] - 2026-09-25
+
+Fixes NMEA 2000 not starting and a crash when SignalK connects during a page load; releases include the ELF.
 
 ### Fixed
 
@@ -27,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.9] - 2026-09-25
 
+Turns on the board's PSRAM so the settings page loads again, and fixes the 404 on /api/v1/n2k.
+
 ### Fixed
 
 - The settings page still failed with `ESP_ERR_NO_MEM` in 0.0.8. The
@@ -40,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   build now gives espos_n2k the web server it looks for.
 
 ## [0.0.8] - 2026-09-25
+
+Smaller settings schema, a chip and PSRAM report in the boot log, and CAN bus diagnostics.
 
 ### Fixed
 
@@ -59,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.7] - 2026-09-25
 
+The board checks for updates out of the box; every release now publishes an update manifest.
+
 ### Added
 
 - Update checks out of the box: on its first start the board sets
@@ -71,6 +82,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   full release (0.1.0) can be made from the workflow.
 
 ## [0.0.6] - 2026-09-25
+
+Toggle inputs, maximum on-time, and a relay page with status, sources and a buzzer test.
 
 ### Added
 
@@ -99,6 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.5] - 2026-09-25
 
+Relay and input states are resent to SignalK on an interval, so apps don't show them as stale.
+
 ### Added
 
 - *SignalK republish interval* setting (default 10 s, 0 = off): every
@@ -109,6 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   server doesn't already have metadata of its own. Changes apply live.
 
 ## [0.0.4] - 2026-09-25
+
+A relay page on the board: switch relays and watch the inputs from any browser.
 
 ### Added
 
@@ -123,6 +140,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.3] - 2026-09-25
 
+Fixes WiFi, SignalK and OTA updates never starting, and network time.
+
 ### Fixed
 
 - No WiFi, no setup access point, no SignalK connection and no OTA updates:
@@ -135,6 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is now enabled.
 
 ## [0.0.2] - 2026-09-25
+
+Fixes the boot loop and adds signed OTA updates with automatic rollback.
 
 ### Fixed
 
@@ -155,8 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.1] - 2026-09-25
 
-First build for hardware bring-up. Not usable: it boot-loops (fixed in
-0.0.2).
+First build for hardware bring-up. Not usable: it boot-loops (fixed in 0.0.2).
 
 ### Added
 

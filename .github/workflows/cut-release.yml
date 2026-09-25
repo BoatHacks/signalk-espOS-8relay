@@ -53,6 +53,11 @@ jobs:
             echo "::error::CHANGELOG.md has no entry for $VERSION. Add a dated '## [${VERSION#v}] - YYYY-MM-DD' section first."
             exit 1
           fi
+          # Boards show the summary line as the update's notes.
+          if ! err=$(scripts/changelog_summary.sh "$VERSION" 2>&1 >/dev/null); then
+            echo "::error::$err"
+            exit 1
+          fi
 
       - name: Create the tag
         id: tag
