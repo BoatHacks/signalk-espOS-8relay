@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- NMEA 2000 could stay off after boot (`n2k: could not open the CAN
+  bus`): the NMEA 2000 library only opens the bus once a millisecond has
+  passed since it was set up, and a first open attempt within the same
+  millisecond returned "not yet", which the firmware took as final. The
+  bus is now opened by the NMEA 2000 task, which retries until it
+  succeeds; the log says `on the bus` once it is open, or reports an
+  error after 5 s if it still isn't.
+
 ## [0.0.9] - 2026-09-25
 
 ### Fixed

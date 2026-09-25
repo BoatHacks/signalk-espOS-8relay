@@ -38,6 +38,7 @@ constexpr uint32_t kStatusPeriodMs = 2000;
 constexpr uint32_t kLoopMs = 10;
 
 constexpr unsigned char kPriority = 3;
+constexpr uint32_t kOpenTimeoutMs = 5000;  // report a CAN bus that won't open
 const unsigned long kTransmitPgns[] = {SWITCH_BANK_PGN_STATUS, 0};
 const unsigned long kReceivePgns[] = {SWITCH_BANK_PGN_CONTROL, 0};
 
@@ -137,8 +138,24 @@ void on_message(const tN2kMsg &msg) {
 
 void n2k_task(void *) {
   TickType_t last_status = 0;
+  const TickType_t started = xTaskGetTickCount();
+  bool reported = false;
   for (;;) {
+    // Also opens the bus: the library retries Open() here until it is open.
     s.bus->ParseMessages();
+    if (!reported && s.bus->IsOpen()) {
+      reported = true;
+      g_started.store(true);
+      ESP_LOGI(TAG, "on the bus: relay bank %u, input bank %u%s", s.relay_bank, s.input_bank,
+               s.inputs_on ? "" : " (not sent: same id as relays)");
+    } else if (!reported && xTaskGetTickCount() - started > pdMS_TO_TICKS(kOpenTimeoutMs)) {
+      reported = true;  // once; the library keeps retrying every second
+      ESP_LOGE(TAG, "CAN bus did not open within %u ms; still retrying", (unsigned)kOpenTimeoutMs);
+    }
+    if (!s.bus->IsOpen()) {
+      vTaskDelay(pdMS_TO_TICKS(kLoopMs));
+      continue;
+    }
     g_address.store(s.bus->GetN2kSource());
     if (s.bus->ReadResetAddressChanged()) {
       // Come back on the same address next boot, as the standard expects.
@@ -183,20 +200,18 @@ extern "C" esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_co
   s.bus->ExtendTransmitMessages(kTransmitPgns);
   s.bus->ExtendReceiveMessages(kReceivePgns);
   s.bus->SetMsgHandler(on_message);
-  if (!s.bus->Open()) {
-    ESP_LOGE(TAG, "could not open the CAN bus");
-    return ESP_FAIL;
-  }
-  if (xTaskCreate(n2k_task, "n2k", 4096, nullptr, 4, nullptr) != pdPASS) return ESP_ERR_NO_MEM;
+  // Not Open() here: the library only opens once a millisecond has passed
+  // since the object was made (OpenScheduler.FromNow(0) is checked with
+  // `>`), so a quick first Open() returns false without trying, and 0.0.9
+  // gave up on NMEA 2000 for good that way. The task's ParseMessages()
+  // opens it, retrying until it succeeds.
   g_address.store(address);
-  g_started.store(true);
+  if (xTaskCreate(n2k_task, "n2k", 4096, nullptr, 4, nullptr) != pdPASS) return ESP_ERR_NO_MEM;
   // The CAN bus's own diagnostics: whether frames arrive at all and whether
   // the controller sees bus errors. Tells wiring faults from a silent bus.
   if (espos_n2k_api_register(s.bus->receiver()) != ESP_OK) {
     ESP_LOGW(TAG, "GET /api/v1/n2k not available");
   }
-  ESP_LOGI(TAG, "on the bus: relay bank %u, input bank %u%s", s.relay_bank, s.input_bank,
-           s.inputs_on ? "" : " (not sent: same id as relays)");
   return ESP_OK;
 }
 
