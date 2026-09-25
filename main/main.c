@@ -3,6 +3,10 @@
 #include <stdio.h>
 
 #include "esp_app_desc.h"
+#include "esp_chip_info.h"
+#include "esp_efuse.h"
+#include "esp_efuse_table.h"
+#include "esp_flash.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -177,6 +181,47 @@ static void io_supervisor(void *arg)
     }
 }
 
+// What esptool's chip report says, in the boot log: which PSRAM (if any) is
+// inside the chip package decides the PSRAM mode a build must use, and a
+// wrong mode stops the chip at boot.
+static void log_chip_info(void)
+{
+    esp_chip_info_t chip;
+    esp_chip_info(&chip);
+    uint32_t psram_cap = 0, psram_vendor = 0, flash_cap = 0, pkg = 0;
+    esp_efuse_read_field_blob(ESP_EFUSE_PSRAM_CAP, &psram_cap, ESP_EFUSE_PSRAM_CAP[0]->bit_count + 1);
+    esp_efuse_read_field_blob(ESP_EFUSE_PSRAM_VENDOR, &psram_vendor, 2);
+    esp_efuse_read_field_blob(ESP_EFUSE_FLASH_CAP, &flash_cap, 3);
+    esp_efuse_read_field_blob(ESP_EFUSE_PKG_VERSION, &pkg, 3);
+    uint32_t flash_bytes = 0;
+    esp_flash_get_size(NULL, &flash_bytes);
+
+    // eFuse encodings from ESP-IDF's esp32s3 esp_efuse_table.csv.
+    static const char *const psram_mb[] = {"none", "8 MB", "2 MB", "16 MB", "4 MB"};
+    static const char *const vendor[] = {"none", "AP 3.3 V", "AP 1.8 V", "?"};
+    static const char *const flash_mb[] = {"none", "8 MB", "4 MB"};
+    const char *mode = "no PSRAM in the chip package (a separate PSRAM chip can't be seen from here)";
+    if (psram_cap == 1 || psram_cap == 3) {
+        mode = "octal (ESP32-S3R8/R8V/R16V)";
+    } else if (psram_cap == 2 || psram_cap == 4) {
+        mode = "quad (ESP32-S3R2)";
+    }
+    ESP_LOGI(TAG, "chip: model %d rev v%d.%d, %d cores, package %lu, features 0x%lx%s%s", (int)chip.model,
+             chip.revision / 100, chip.revision % 100, chip.cores, (unsigned long)pkg, (unsigned long)chip.features,
+             (chip.features & CHIP_FEATURE_EMB_PSRAM) ? " (embedded PSRAM)" : "",
+             (chip.features & CHIP_FEATURE_EMB_FLASH) ? " (embedded flash)" : "");
+    ESP_LOGI(TAG, "chip: in-package PSRAM %s, vendor %s -> %s",
+             psram_cap < 5 ? psram_mb[psram_cap] : "?", vendor[psram_vendor & 3], mode);
+    ESP_LOGI(TAG, "chip: in-package flash %s, flash chip %lu MB; PSRAM in this build: %s",
+             flash_cap < 3 ? flash_mb[flash_cap] : "?", (unsigned long)(flash_bytes >> 20),
+#if CONFIG_SPIRAM
+             "on"
+#else
+             "off"
+#endif
+    );
+}
+
 // espOS ships with no manifest URL. Fill in this project's, once: an empty
 // URL is also how someone opts out of manifest checks, so after the first
 // boot with this firmware an emptied URL stays empty.
@@ -243,6 +288,7 @@ static esp_err_t start_io(void *arg)
 
 void app_main(void)
 {
+    log_chip_info();
     static device_config_t cfg;
     espos_start_opts_t opts = ESPOS_START_OPTS_DEFAULT;
     opts.app_name = "signalk-espOS-8relay";

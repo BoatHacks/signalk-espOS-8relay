@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Boot log reports the chip: model and revision, the PSRAM inside the
+  chip package (size, vendor, and whether it is quad or octal), and the
+  flash size, as esptool would. Needed before PSRAM can be enabled.
 - `GET /api/v1/n2k`: espOS's CAN diagnostics (frames received and
   dropped, bus errors), to tell a wiring fault from a silent bus.
   Troubleshooting section in the manual.
