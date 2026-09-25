@@ -69,6 +69,9 @@ summary; tick items here as the procedure passes them.
       tags main and calls `release-firmware.yml`, which builds, signs,
       merges and attaches `-merged.bin` (USB) and `-ota.bin` (OTA)
 - [ ] Published where `signalk-espos-manager` can find and install it
+- [x] OTA update from the release manifest (HARDWARE_TESTS H1): a board
+      on v0.0.6, pointed at `manifest.json` on the `beta` channel, was
+      offered v0.0.7 and updated without problems (2026-09-25)
 
 ## Implementation Steps
 - [ ] Wire the board to test loads, a CAN bus and a SignalK server
