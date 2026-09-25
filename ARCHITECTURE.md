@@ -154,6 +154,7 @@ typedef struct {
     uint8_t bank_id;          // relay bank, default 0
     uint8_t input_bank_id;    // input bank, default 1, must differ from bank_id
     uint16_t debounce_ms;     // default 50
+    uint16_t sk_loss_grace_s; // default 30
     bool publish_switches_tree; // default true
     bool publish_controls_tree; // default false
     net_pref_t network_pref;  // ETH_PREFERRED_WIFI_FALLBACK | WIFI_ONLY | ETH_ONLY

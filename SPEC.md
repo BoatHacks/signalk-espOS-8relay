@@ -105,7 +105,8 @@ control regardless of SignalK connectivity).
 - On boot: each relay initializes per its fail-safe policy — `hold`
   restores the last persisted state from NVS; `default-safe` forces `off`
   regardless of prior state.
-- On SignalK disconnect exceeding a configured grace period: relays with
+- On SignalK disconnect exceeding the grace period `skLossGraceS`
+  (default 30 s, §9): relays with
   `default-safe` policy transition to `off`; `hold` relays are unaffected.
   Reconnection does not itself change relay state (the server must
   re-PUT/re-sync if it wants a particular state).
@@ -133,6 +134,8 @@ control regardless of SignalK connectivity).
 - `inputBankId`: input bank instance id, 0–252 (default `1`); must differ
   from `bankId`
 - `debounceMs`: digital input debounce time (default `50`)
+- `skLossGraceS`: seconds without SignalK before `default-safe` relays
+  turn off (default `30`)
 - `network`: interface preference (see §9)
 - `publishSwitchesTree`: bool, default `true` — publish and accept PUTs on
   `electrical.switches.bank.*` (§6.1)
@@ -268,6 +271,8 @@ User-tunable (via config store, §6.3):
   (default `1`); must differ from each other
 - Digital input debounce `debounceMs` (default `50`), one value for all
   8 inputs
+- SignalK-loss grace period `skLossGraceS` (default `30` s), after which
+  `default-safe` relays turn off (§3.2)
 - Network interface preference: Ethernet-preferred-with-WiFi-fallback, or
   fixed WiFi-only / Ethernet-only (WiFi captive-portal provisioning is
   always available regardless of this setting, per espOS)

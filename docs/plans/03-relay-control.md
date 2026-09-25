@@ -47,9 +47,8 @@ restarts the pulse; "off" cancels it.
 
 **SignalK loss.** `relay_ctrl_sk_lost()` turns off `default-safe` relays;
 something else decides when SignalK is lost (plan 05, based on plan 00
-item 3). SPEC.md §3.2 says the grace period is configurable, but §9 has
-no setting for it. **Decide before building:** add a `skLossGraceS`
-setting to SPEC.md §9 and plan 02, with a default.
+item 3), after the `skLossGraceS` grace period (default 30 s, SPEC.md
+§9).
 
 ## Test Strategy
 Host tests with a fake expander:
@@ -69,11 +68,10 @@ doesn't click `hold` relays.
 - [ ] `relay_ctrl` state, boot sequence, set/get, listeners
 - [ ] Momentary timers
 - [ ] `hold` state persistence via plan 02's writer
-- [ ] SignalK-loss hook (once the grace setting is decided)
+- [ ] SignalK-loss hook
 - [ ] Host tests
 
 ## Files to Create/Modify
 - `components/board/`
 - `components/relay_ctrl/` (`relay_ctrl.c/.h`, `tca9554.c/.h`)
 - `test/host/test_relay_ctrl.c`, `test/host/fake_tca9554.c`
-- `SPEC.md` §9 and `02-device-config.md` (grace setting)
