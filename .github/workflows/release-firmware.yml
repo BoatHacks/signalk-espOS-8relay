@@ -2,15 +2,18 @@
 # first flash over USB, and the app image on its own for OTA updates.
 # Modelled on dirkwa/espos-p4-cockpit's release-firmware.yml.
 #
-# Runs when a release is published, when called with a tag by another
-# workflow (a release created with the workflow token never fires the
-# `release:` event), and by hand (assets uploaded as a workflow artifact
-# only, named after the commit). Everyday builds are in build.yml.
+# Runs when a release is published, when a v* tag is pushed (the release
+# is then created here, as a pre-release), when called with a tag by
+# another workflow (a release created with the workflow token never fires
+# the `release:` event), and by hand (assets uploaded as a workflow
+# artifact only, named after the commit). Everyday builds are in build.yml.
 name: Build & release firmware
 
 on:
   release:
     types: [published]
+  push:
+    tags: ["v*"]
   workflow_call:
     inputs:
       tag:
@@ -24,11 +27,11 @@ on:
 concurrency:
   group: >-
     firmware-${{
-      (inputs.tag || github.event.release.tag_name)
-      && format('release-{0}', inputs.tag || github.event.release.tag_name)
+      (inputs.tag || github.event.release.tag_name || github.ref_type == 'tag')
+      && format('release-{0}', inputs.tag || github.event.release.tag_name || github.ref_name)
       || github.ref
     }}
-  cancel-in-progress: ${{ !(inputs.tag || github.event.release.tag_name) }}
+  cancel-in-progress: ${{ !(inputs.tag || github.event.release.tag_name || github.ref_type == 'tag') }}
 
 permissions:
   contents: read
@@ -39,7 +42,7 @@ jobs:
     container: espressif/idf:v6.0.3
     env:
       # Non-empty for a release; empty for a manual build.
-      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || '' }}
+      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || (github.ref_type == 'tag' && github.ref_name) || '' }}
     outputs:
       unsigned: ${{ steps.signing.outputs.unsigned }}
     steps:
@@ -156,14 +159,28 @@ jobs:
           path: dist/
 
   release:
-    if: inputs.tag != '' || github.event_name == 'release'
+    if: inputs.tag != '' || github.event_name == 'release' || github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
-      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
     steps:
+      # A pushed tag has no release yet. Only after a successful build, so a
+      # failed build never leaves an empty release behind. A pre-release
+      # until someone promotes it on GitHub.
+      - name: Create the release for a pushed tag
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --prerelease --title "$TAG" --generate-notes
+          fi
+
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: firmware
