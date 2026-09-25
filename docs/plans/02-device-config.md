@@ -35,23 +35,28 @@ handlers exist; mark those keys `restart_required` rather than rebuilding
 handlers live. Names, pulse times, fail-safe policy and debounce apply
 immediately.
 
-The last commanded state of `hold` relays is also stored in NVS, but not
-in the settings namespace (it isn't a user setting). Writes are
-coalesced (write only on change, at most once every few seconds) to
-limit flash wear from frequently toggled relays.
+The last commanded state of `hold` relays is not a user setting, so it
+isn't in this namespace; `relay_ctrl` stores it (plan 03).
+
+**Built:** one namespace, `swbank` (63 keys, UI tabs General / Relays /
+Inputs), in `components/device_config/config/swbank.json`.
+`device_config_load()` fills a `device_config_t`; consumers who need
+live changes subscribe with `espos_config_subscribe()` and reload. Two
+defaults SPEC.md didn't give were chosen as the safe option: fail-safe
+`default-safe`, pulse time 1000 ms.
 
 ## Test Strategy
 Host tests: defaults match SPEC.md §9; each cross-field rule; a
-momentary relay reports `default-safe`; change callbacks fire for the
-right keys. Manual: all settings appear and save in the web UI.
+momentary relay reports `default-safe`; out-of-range values rejected. Manual: all settings appear and save in the web UI.
 
 ## Implementation Steps
-- [ ] `components/device_config/config/relay.json` descriptor
-- [ ] `device_config.h/.c`: load, typed accessors, change subscription
-- [ ] Cross-field checks: health warning, input bank suppressed
-- [ ] Separate NVS namespace and coalesced writer for `hold` relay state
-- [ ] Host tests
+- [x] `components/device_config/config/swbank.json` descriptor
+- [x] `device_config.h/.c`: load into a struct, effective fail-safe
+- [x] Cross-field check: health warning (`bankIdClash`); suppressing the
+      input bank happens in plans 05/06 via `device_config_input_bank_usable()`
+- [x] Host tests (`test/host/device_config_test`, 6 tests)
+- [ ] On the board: all settings appear and save in the web UI
 
 ## Files to Create/Modify
 - `components/device_config/` (descriptor, source, header, CMakeLists)
-- `test/host/test_device_config.c`
+- `test/host/device_config_test/`

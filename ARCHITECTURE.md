@@ -136,45 +136,15 @@ directly.
 
 ## 3. Data Models
 
-Runtime C structs mirror SPEC.md §4 directly:
+Settings (SPEC.md §4, §9) live in `components/device_config/include/device_config.h`:
+`device_config_t` holds the device-wide settings plus a `relay_cfg_t` and
+an `input_cfg_t` per channel. It is a snapshot read from espOS's config
+store by `device_config_load()`; components take a copy rather than
+sharing one global, and reload on a config-change callback where a setting
+applies live.
 
-```c
-typedef enum { RELAY_MODE_LATCHING, RELAY_MODE_MOMENTARY } relay_mode_t;
-typedef enum { FAILSAFE_HOLD, FAILSAFE_DEFAULT_SAFE } failsafe_policy_t;
-
-typedef struct {
-    uint8_t channel;          // 1-8
-    char name[32];
-    relay_mode_t mode;
-    uint32_t pulse_ms;        // valid when mode == MOMENTARY
-    failsafe_policy_t failsafe;
-    int8_t override_di;       // -1 = none, else 1-8
-    bool state;
-} relay_channel_t;
-
-typedef struct {
-    uint8_t channel;          // 1-8
-    char name[32];
-    bool invert;
-    bool state;
-} input_channel_t;
-
-typedef struct {
-    uint8_t bank_id;          // relay bank, default 0
-    uint8_t input_bank_id;    // input bank, default 1, must differ from bank_id
-    uint16_t debounce_ms;     // default 50
-    uint16_t sk_loss_grace_s; // default 30
-    bool publish_switches_tree; // default true
-    bool publish_controls_tree; // default false
-    bool eth_enabled;         // default true; WiFi station on/off is espOS's own setting
-    relay_channel_t relays[8];
-    input_channel_t inputs[8];
-} device_config_t;
-```
-
-`device_config_t` is the in-RAM mirror of what `espos_config` persists;
-`relay_ctrl`/`input_sense`/`switch_bank` all read/write through it rather
-than hitting NVS directly.
+Runtime state (relay on/off, input readings) belongs to `relay_ctrl` and
+`input_sense` respectively and is not part of the settings struct.
 
 ## 4. Technology Stack
 
@@ -250,7 +220,7 @@ signalk-espOS-8relay/
 │   │   ├── n2k_bridge.cpp/.h, n2k_espos_driver.cpp/.h, switch_bank_pgn.c/.h  # NMEA2000 side
 │   │   └── CMakeLists.txt
 │   └── device_config/
-│       ├── config/relay.json   # espOS config descriptor
+│       ├── config/swbank.json  # espOS config descriptor
 │       ├── device_config.c/.h  # typed accessors
 │       └── CMakeLists.txt
 ├── test/

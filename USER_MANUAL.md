@@ -119,17 +119,17 @@ overrides.
 
 | Setting | Default | Notes |
 |---|---|---|
-| Name | — | Shown in SignalK apps, e.g. "Bilge pump" |
+| Name | Relay *n* | Shown in SignalK apps, e.g. "Bilge pump" |
 | Mode | Latching | *Latching* stays as set; *momentary* switches off by itself after the pulse time |
-| Pulse time | — | For momentary relays |
-| When SignalK is lost or the board restarts | Not yet specified | *Keep last state*, or *switch off*. Momentary relays always switch off. |
+| Pulse time | 1 s | For momentary relays |
+| When SignalK is lost or the board restarts | Switch off | *Keep last state*, or *switch off*. Momentary relays always switch off. |
 | Controlled by input | None | An input (1–8) that switches this relay directly |
 
 ### 6.4 Each input
 
 | Setting | Default | Notes |
 |---|---|---|
-| Name | — | Shown in SignalK apps |
+| Name | Input *n* | Shown in SignalK apps |
 | Invert | Off | Turn on for normally-closed switches |
 
 ### 6.5 Other

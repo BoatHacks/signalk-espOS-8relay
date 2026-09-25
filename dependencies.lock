@@ -72,7 +72,7 @@ dependencies:
       require: private
       version: ^0.10.3
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 0.10.3
   signalk-espos/espos_core:
@@ -136,7 +136,7 @@ dependencies:
       require: private
       version: '>=6.0.0,<6.1.0'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 0.10.3
   signalk-espos/espos_httpd:
@@ -322,9 +322,11 @@ dependencies:
 direct_dependencies:
 - espressif/w5500
 - idf
+- signalk-espos/espos_config
 - signalk-espos/espos_core
+- signalk-espos/espos_health
 - signalk-espos/espos_net
 - signalk-espos/espos_sk
-manifest_hash: b43c9069cb3a566de23004faed355c63c42c505107d08e2f7fbee248d564490b
+manifest_hash: e6c3b982f6e6fdcdb04b1ae4c7697475acc0fddd8a84a4d190d5c438aab64e37
 target: esp32s3
 version: 3.0.0

@@ -1,0 +1,4 @@
+dependencies:
+  idf: ">=6.0.0,<6.1.0"
+  signalk-espos/espos_config: "0.10.3"
+  signalk-espos/espos_health: "0.10.3"

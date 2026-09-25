@@ -118,8 +118,9 @@ control regardless of SignalK connectivity).
 - `name`: user label (e.g. "Bilge Pump"), used for SignalK meta/displayName
   and NMEA2000 product-info-adjacent naming where applicable
 - `mode`: `latching` | `momentary`
-- `pulseMs`: momentary pulse duration (only when `mode: momentary`)
-- `failSafe`: `hold` | `default-safe`
+- `pulseMs`: momentary pulse duration (only when `mode: momentary`;
+  default 1000 ms)
+- `failSafe`: `hold` | `default-safe` (default `default-safe`)
 - `overrideDI`: optional DI channel number that force-drives this relay
 - `state`: `on` | `off` (runtime, persisted per `failSafe` policy)
 

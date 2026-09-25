@@ -44,7 +44,8 @@ The full requirements are in [SPEC.md](SPEC.md).
 | Architecture ([ARCHITECTURE.md](ARCHITECTURE.md)) | Done, being corrected against espOS as findings come in |
 | 00 — espOS fit check | Software checks done; espOS 0.10.3 builds for the ESP32-S3. Boot test waiting for the board |
 | 01 — project scaffold | Done except the on-board check: builds for the ESP32-S3, W5500 Ethernet driver, host tests, CI |
-| 02–06 — firmware | Not started |
+| 02 — settings | Done except the on-board check: all settings in espOS's web UI, host-tested |
+| 03–06 — firmware | Not started |
 | 07 — hardware bring-up and first release | Not started; waiting for the board |
 
 Known issues found so far:

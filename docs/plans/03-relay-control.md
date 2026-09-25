@@ -67,7 +67,8 @@ doesn't click `hold` relays.
 - [ ] TCA9554 driver behind an interface, with a host fake
 - [ ] `relay_ctrl` state, boot sequence, set/get, listeners
 - [ ] Momentary timers
-- [ ] `hold` state persistence via plan 02's writer
+- [ ] `hold` state persistence: own NVS namespace, written only on
+      change and at most every few seconds, to limit flash wear
 - [ ] SignalK-loss hook
 - [ ] Host tests
 
