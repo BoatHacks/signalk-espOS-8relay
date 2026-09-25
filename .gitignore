@@ -1,0 +1,15 @@
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+dependencies.lock.bak
+
+# Signing keys: whoever holds the key can push OTA updates to every device
+# flashed with it. Never commit one.
+*.pem
+
+test/host/*/build/
+test/host/*/managed_components/
+test/host/*/sdkconfig
+test/host/*/sdkconfig.old
+test/host/*/dependencies.lock

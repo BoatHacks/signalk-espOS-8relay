@@ -282,8 +282,7 @@ User-tunable (via config store, §6.3):
   espOS's own "Station enabled" WiFi setting (off = Ethernet only), and
   this firmware's `ethEnabled` (off = WiFi only). WiFi's setup access
   point stays available either way. `ethEnabled` depends on this firmware
-  providing its own W5500 driver, since espOS doesn't support the W5500
-  (see docs/plans/00-espos-fit-check.md).
+  providing its own W5500 driver, since espOS doesn't support the W5500.
 - Per-relay: name, mode (latching/momentary), pulse duration, fail-safe
   policy, optional DI override source
 - Per-input: name, invert (NC vs NO sensor)

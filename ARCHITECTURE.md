@@ -121,9 +121,9 @@ existing config REST/web UI renders and persists them.
   provisioning. espOS always prefers Ethernet over WiFi when both are up;
   `wifi.sta_enabled` turns the WiFi station off. espOS's `espos_eth`
   doesn't support the W5500 (internal Ethernet MAC only), so Ethernet
-  needs a transport of our own: ESP-IDF's `espressif/w5500` driver,
-  reported into espOS via `espos_net_register_if()` / `espos_net_report()`
-  (decision pending, see plan 00).
+  needs a transport of our own: the `eth_w5500` component, using
+  ESP-IDF's `espressif/w5500` driver and reporting into espOS via
+  `espos_net_register_if()` / `espos_net_report()`, as `espos_eth` does.
 - `espos_config` — NVS-backed config store with JSON descriptors. Validates
   each key on its own; no hook for cross-setting rules.
 - `espos_health` — warnings/alarms (used for I2C failures and config
@@ -234,9 +234,10 @@ signalk-espOS-8relay/
 ├── partitions.csv              # copied/adapted from espOS's reference partition table
 ├── sdkconfig.defaults
 ├── main/
-│   └── app_main.c              # espos_start() + component init/wiring
+│   └── main.c                  # espos_start() + component init/wiring
 ├── components/
-│   ├── board/                  # pin map, shared I2C bus
+│   ├── board/                  # pin map
+│   ├── eth_w5500/              # W5500 Ethernet transport into espos_net
 │   ├── relay_ctrl/
 │   │   ├── relay_ctrl.c/.h
 │   │   ├── tca9554.c/.h        # I2C expander driver
@@ -253,7 +254,7 @@ signalk-espOS-8relay/
 │       ├── device_config.c/.h  # typed accessors
 │       └── CMakeLists.txt
 ├── test/
-│   └── host/                   # ESP-IDF Linux-target unit tests (fail-safe, momentary, override precedence)
+│   └── host/                   # one ESP-IDF linux-target test project per suite; run_all.sh runs them all
 ├── docs/
 │   └── plans/                  # per-stage implementation plans
 ├── SPEC.md

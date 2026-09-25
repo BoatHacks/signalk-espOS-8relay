@@ -24,9 +24,41 @@
 
 ## 3. Installing the firmware
 
-*To be written with stage 01 (project scaffold).* It will cover flashing
-over USB-C the first time, and over-the-air updates after that (including
-through signalk-espos-manager).
+There are no release images yet, so for now the firmware is built from
+source. Over-the-air updates (including through signalk-espos-manager) will
+be described with the first release.
+
+### 3.1 Build it
+
+You need ESP-IDF v6.0.3 (see Espressif's installation guide). Then, from
+the repository root:
+
+```sh
+. $IDF_PATH/export.sh
+# A signing key must exist before the first set-target. Use the project's
+# development key if you have access to it; otherwise make your own:
+espsecure generate-signing-key --version 2 --scheme rsa3072 secure_boot_signing_key.pem
+idf.py set-target esp32s3
+idf.py build
+```
+
+Every image is signed. A board only accepts over-the-air updates signed
+with the same key it was first flashed with, so keep the key: lose it and
+boards flashed with it can only be updated over USB. `*.pem` files are
+git-ignored; never commit one.
+
+### 3.2 Flash it over USB-C
+
+Connect the board's USB-C port and run:
+
+```sh
+idf.py -p /dev/ttyACM0 flash monitor
+```
+
+(The port name varies: `/dev/ttyACM0` or `/dev/ttyUSB0` on Linux,
+`/dev/cu.usbmodem…` on macOS, `COM3` or similar on Windows.) `flash`
+writes the firmware and the web UI; `monitor` shows the log. Exit the
+monitor with Ctrl+].
 
 ## 4. First-time setup
 

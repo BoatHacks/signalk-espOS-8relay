@@ -1,0 +1,5 @@
+dependencies:
+  idf: ">=6.0.0,<6.1.0"
+  # ESP-IDF 6 moved the W5500 driver out of esp_eth into this package.
+  espressif/w5500: "2.0.0"
+  signalk-espos/espos_net: "0.10.3"

@@ -1,0 +1,11 @@
+# Copied from espOS 0.10.3 (espos_core/partitions/16mb.csv). Re-copy when
+# espOS's CHANGELOG says the layout changed. Two 6.5 MB app slots for OTA,
+# 'storage' for the web UI. The partition sizes are fixed at USB-flash time.
+nvs,        data, nvs,      ,        48K,
+otadata,    data, ota,      ,        8K,
+phy_init,   data, phy,      ,        4K,
+nvs_keys,   data, nvs_keys, ,        4K,    encrypted
+coredump,   data, coredump, ,        64K,
+ota_0,      app,  ota_0,    ,        6656K,
+ota_1,      app,  ota_1,    ,        6656K,
+storage,    data, littlefs, ,        1792K,

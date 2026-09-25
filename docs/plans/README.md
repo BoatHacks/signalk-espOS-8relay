@@ -40,9 +40,9 @@ Checked against the espOS repository and the Waveshare wiki on
   arg)`, and a path must be published before it can accept PUTs.
 - **SignalK connection events** exist: `ESPOS_EVENT_SK_STREAM_CONNECTED`
   / `_DISCONNECTED`.
-- **No W5500 support in espOS**, despite its README. A transport of our
-  own can plug into espOS's network layer (plan 00 item 2; decision
-  pending).
+- **No W5500 support in espOS**, despite its README. This project has its
+  own transport (`components/eth_w5500`), plugged into espOS's network
+  layer.
 - **espOS 0.10.3 builds for the ESP32-S3** from the component registry.
 - **Registry packages** are per component (`signalk-espos/espos_*`),
   released in lockstep; pin all to 0.10.3.

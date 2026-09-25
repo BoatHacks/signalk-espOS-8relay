@@ -1,0 +1,35 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v6.0.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for esp32s3
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          # CI builds are only checked, never flashed, so a throwaway signing
+          # key is fine. Release builds need the real key (plan 07).
+          espsecure generate-signing-key --version 2 --scheme rsa3072 secure_boot_signing_key.pem
+          idf.py set-target esp32s3
+          idf.py build
+
+  host-tests:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v6.0.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host build dependencies
+        run: apt-get update && apt-get install -y libbsd-dev
+      - name: Run host tests
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          test/host/run_all.sh

@@ -1,0 +1,6 @@
+dependencies:
+  idf: ">=6.0.0,<6.1.0"
+  # espOS components are released in lockstep; keep every one on the same
+  # exact version.
+  signalk-espos/espos_core: "0.10.3"
+  signalk-espos/espos_sk: "0.10.3"

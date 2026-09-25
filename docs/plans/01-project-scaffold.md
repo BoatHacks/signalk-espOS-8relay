@@ -28,30 +28,33 @@ expander, GPIO reads, clock) that tests replace with fakes.
   SignalK server discovers the device.
 
 ## Implementation Steps
-- [ ] Root `CMakeLists.txt`, `main/idf_component.yml` with pinned espOS
-      packages pinned to exactly 0.10.3 (`espos_core`, `espos_sk`,
-      `espos_n2k`, `espos_config`, `espos_httpd`, `espos_ota`,
-      `espos_health`); `espressif/w5500` if the W5500 transport is chosen.
-      Start from espOS's `from_registry` example, which plan 00 built.
-- [ ] `partitions.csv` copied from espOS's `16mb.csv`
-- [ ] `sdkconfig.defaults`: target esp32s3, 16 MB flash, espOS's required
-      lines from `from_registry`, C++ enabled; PSRAM off until its type is
-      confirmed on hardware
-- [ ] Development signing key, kept out of git (`.gitignore`), with
-      README instructions to generate one
-- [ ] `main/app_main.c` calling `espos_start(NULL)`
-- [ ] Empty components: `relay_ctrl`, `input_sense`, `switch_bank`,
-      `device_config`, plus a `board` component holding the pin map
-- [ ] `test/host/` runner with one placeholder test
-- [ ] `.gitignore` for `build/`, `managed_components/`, `sdkconfig`, keys
-- [ ] CI workflow that builds the firmware and runs host tests (espOS
-      provides a reusable firmware workflow; use it if it fits)
-- [ ] USER_MANUAL.md §3: how to build, flash and update; update README.md status
+- [x] Root `CMakeLists.txt`, `main/idf_component.yml` with espOS pinned to
+      exactly 0.10.3, started from espOS's `from_registry` example
+- [x] `partitions.csv` copied from espOS's `16mb.csv`
+- [x] `sdkconfig.defaults`: espOS's required lines, 16 MB flash; PSRAM off
+      until its type is confirmed on hardware
+- [x] Development signing key, git-ignored, stored in the private
+      BoatHacks/laserbrain repo; build instructions in USER_MANUAL.md §3
+- [x] `main/main.c` calling `espos_start()` and starting Ethernet
+- [x] `board` component with the pin map
+- [x] `eth_w5500` component: W5500 over SPI (`espressif/w5500` 2.0.0),
+      reported into espOS's network layer (plan 00 decision)
+- [x] `test/host/run_all.sh` and a `board_test` checking the pin map for
+      double use and flash/PSRAM pins
+- [x] `.gitignore`, `dependencies.lock` committed
+- [x] CI: firmware build for esp32s3 and host tests. espOS's reusable
+      firmware workflow wasn't used: it expects espOS as a git submodule.
+- [ ] On the board: boots, setup access point appears, web UI loads, a
+      SignalK server discovers it, Ethernet gets an address
+
+The other components (`relay_ctrl`, `input_sense`, `switch_bank`,
+`device_config`) are created by the plans that implement them, rather than
+as empty placeholders here.
 
 ## Files to Create/Modify
 - `CMakeLists.txt`, `partitions.csv`, `sdkconfig.defaults`, `.gitignore`
-- `main/app_main.c`, `main/CMakeLists.txt`, `main/idf_component.yml`
-- `components/{board,relay_ctrl,input_sense,switch_bank,device_config}/`
+- `main/main.c`, `main/CMakeLists.txt`, `main/idf_component.yml`
+- `components/board/`, `components/eth_w5500/`
 - `test/host/`
-- `.github/workflows/build.yml`
+- `.github/workflows/build.yml`, `dependencies.lock`
 - `README.md`, `USER_MANUAL.md`
