@@ -4,8 +4,8 @@
 #
 # Runs when a release is published, when a v* tag is pushed (the release
 # is then created here, as a pre-release), when called with a tag by
-# another workflow (a release created with the workflow token never fires
-# the `release:` event), and by hand (assets uploaded as a workflow
+# another workflow such as cut-release.yml (a tag or release created with
+# the workflow token fires no events), and by hand (assets uploaded as a workflow
 # artifact only, named after the commit). Everyday builds are in build.yml.
 name: Build & release firmware
 
@@ -53,6 +53,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          # A called run's github.ref is the caller's branch; build the tag.
+          ref: ${{ inputs.tag || github.ref }}
 
       # The container runs as root on a checkout owned by the runner user;
       # without this git refuses to describe it and the version is lost.
@@ -167,11 +169,12 @@ jobs:
     env:
       RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
     steps:
-      # A pushed tag has no release yet. Only after a successful build, so a
-      # failed build never leaves an empty release behind. A pre-release
-      # until someone promotes it on GitHub.
-      - name: Create the release for a pushed tag
-        if: github.event_name == 'push'
+      # A pushed tag, or a tag from cut-release.yml, has no release yet.
+      # Only after a successful build, so a failed build never leaves an
+      # empty release behind. A pre-release until someone promotes it on
+      # GitHub.
+      - name: Create the release if it doesn't exist
+        if: github.event_name != 'release'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ env.RELEASE_TAG }}

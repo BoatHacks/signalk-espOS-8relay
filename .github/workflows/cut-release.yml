@@ -1,0 +1,71 @@
+# Cut a release by hand: tag the head of main, then build, sign and publish
+# it as a pre-release through release-firmware.yml.
+#
+# Actions → "Cut release" → Run workflow, on main, with a version such as
+# v0.0.2. Re-running with the same version retries a failed build, as long
+# as the tag still points at the same commit.
+#
+# Tags and releases made with the workflow token fire no further workflows,
+# so the build is called directly instead of waiting for a tag or release
+# event.
+name: Cut release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. v0.0.2"
+        type: string
+        required: true
+
+concurrency:
+  group: cut-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Create the tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Via env, not an expression: the version is arbitrary text.
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::run this workflow on main (got $GITHUB_REF)"
+            exit 1
+          fi
+          if ! printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::version must look like v1.2.3 or v1.2.3-rc.1 (got '$VERSION')"
+            exit 1
+          fi
+          if existing=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$VERSION" --jq .object.sha 2>/dev/null); then
+            if [ "$existing" != "$GITHUB_SHA" ]; then
+              echo "::error::tag $VERSION already exists on another commit ($existing)"
+              exit 1
+            fi
+            echo "tag $VERSION already on $GITHUB_SHA; rebuilding"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/$VERSION" -f sha="$GITHUB_SHA" >/dev/null
+            echo "tagged $GITHUB_SHA as $VERSION"
+          fi
+          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: tag
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-firmware.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets: inherit

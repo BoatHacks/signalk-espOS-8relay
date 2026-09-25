@@ -60,8 +60,9 @@ goes back to the plan that owns it. Record hardware facts learned here
 **Release**
 - [x] Production signing key created (fingerprint `4b1b12689b58f2f3`),
       kept in the private BoatHacks/laserbrain repo
-- [ ] Key added as the repository secret `SIGNING_KEY_PEM`
-- [ ] Publish a GitHub release: `release-firmware.yml` builds, signs,
+- [x] Key added as the repository secret `SIGNING_KEY_PEM`
+- [ ] Publish a GitHub release: Actions → "Cut release" (`cut-release.yml`)
+      tags main and calls `release-firmware.yml`, which builds, signs,
       merges and attaches `-merged.bin` (USB) and `-ota.bin` (OTA)
 - [ ] Published where `signalk-espos-manager` can find and install it
 
