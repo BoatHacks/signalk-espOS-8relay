@@ -1,7 +1,7 @@
 // Status LED and alarm buzzer (device builds only). The LED shows espOS
 // health and the SignalK connection; the buzzer, if enabled, sounds "ESP"
 // and the last octet of the device's IP address in Morse while a health
-// alarm is active.
+// alarm is active, or "ESP AP" when it has no address.
 #pragma once
 
 #include "device_config.h"

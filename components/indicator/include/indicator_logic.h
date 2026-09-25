@@ -42,7 +42,8 @@ typedef struct {
 size_t morse_encode(const char *text, morse_seg_t *out, size_t max);
 
 // The alarm message: "ESP", then the last octet of `ip` ("ESP 42" for
-// 192.168.1.42), or just "ESP" without a usable address.
+// 192.168.1.42). Without a usable address, "ESP AP": join the device's
+// setup access point.
 void indicator_alarm_text(const char *ip, char *out, size_t size);
 
 // Whether the tone is on at `t_ms` into a message that repeats with

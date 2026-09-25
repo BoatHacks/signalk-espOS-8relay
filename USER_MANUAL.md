@@ -210,7 +210,9 @@ With *Buzzer on alarm* turned on, the board beeps while an alarm is
 active: "ESP" and then the last number of its IP address, in Morse, every
 few seconds. On a boat with several boards, that tells you which one is
 complaining: `. ... .--.  ....- ..---` is "ESP 42", the board at
-192.168.x.42. Without a network address it beeps just "ESP".
+192.168.x.42. Without a network address (for example when WiFi is down)
+it beeps "ESP AP" (`. ... .--.  .- .--.`): join the board's setup access
+point, `espOS-xxxx`, to reconfigure it.
 
 ## 8. Troubleshooting
 

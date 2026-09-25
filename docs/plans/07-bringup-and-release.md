@@ -29,7 +29,8 @@ goes back to the plan that owns it. Record hardware facts learned here
 - [ ] Status LED: colour order right (green shows green), brightness
       setting works, blue until SignalK connects
 - [ ] Buzzer: tone audible; with "Buzzer on alarm" on, pulling the relay
-      chip's I²C (or another way to raise an alarm) beeps "ESP" + octet
+      chip's I²C (or another way to raise an alarm) beeps "ESP" + octet;
+      with no network address it beeps "ESP AP"
 
 **Relays and inputs**
 - [ ] Momentary relay turns off after its pulse time

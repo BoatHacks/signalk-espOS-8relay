@@ -95,13 +95,13 @@ TEST_CASE("alarm text ends with the IP address's last octet", "[indicator]")
     TEST_ASSERT_EQUAL_STRING("ESP 7", t);
 }
 
-TEST_CASE("without a usable address the alarm text is just ESP", "[indicator]")
+TEST_CASE("without a usable address the alarm text is ESP AP", "[indicator]")
 {
     char t[16];
     const char *bad[] = {NULL, "", "0.0.0.0", "10.0.0.", "10.0.0.x", "10.0.0.300", "fe80::1"};
     for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++) {
         indicator_alarm_text(bad[i], t, sizeof(t));
-        TEST_ASSERT_EQUAL_STRING("ESP", t);
+        TEST_ASSERT_EQUAL_STRING("ESP AP", t);
     }
 }
 

@@ -334,7 +334,8 @@ User-tunable (via config store, §6.3):
 - `buzzerOnAlarm`: bool, default `false`. While a health alarm is active,
   the buzzer repeats "ESP" and the last octet of the device's IP address
   in Morse (80 ms unit, 5 s between rounds), so the complaining board can
-  be told apart from others; "ESP" alone without an address. Off by
+  be told apart from others. Without an address it sends "ESP AP",
+  meaning "join my setup access point". Off by
   default so a new board never beeps unannounced.
 
 Fixed (not user-tunable, board/firmware constants):

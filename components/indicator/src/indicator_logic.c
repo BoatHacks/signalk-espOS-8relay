@@ -88,7 +88,7 @@ void indicator_alarm_text(const char *ip, char *out, size_t size)
     if (dot && end != dot + 1 && *end == '\0' && octet >= 0 && octet <= 255) {
         snprintf(out, size, "ESP %ld", octet);
     } else {
-        snprintf(out, size, "ESP");
+        snprintf(out, size, "ESP AP");  // "log in to my access point"
     }
 }
 
