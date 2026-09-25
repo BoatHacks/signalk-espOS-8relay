@@ -1,10 +1,10 @@
-# signalk-espos-8relay Specification
+# signalk-espOS-8relay Specification
 
 ## 1. Introduction
 
 ### 1.1 Purpose
 
-signalk-espos-8relay is device firmware for the Waveshare ESP32-S3-ETH-8DI-8RO-C
+signalk-espOS-8relay is device firmware for the Waveshare ESP32-S3-ETH-8DI-8RO-C
 industrial relay board, turning it into a remotely controllable 8-channel
 relay/8-input switch bank for a boat's electrical system. It lets a boat
 owner switch loads (pumps, lights, pumps, solenoids, horn, etc.) from a

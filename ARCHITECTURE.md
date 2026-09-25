@@ -1,8 +1,8 @@
-# signalk-espos-8relay Architecture
+# signalk-espOS-8relay Architecture
 
 ## 1. Overview
 
-signalk-espos-8relay is an ESP-IDF 6 application built on top of the
+signalk-espOS-8relay is an ESP-IDF 6 application built on top of the
 [espOS](https://github.com/signalk-espOS/espOS) runtime. espOS owns
 networking, SignalK transport, config storage, web UI, and OTA; this
 project owns board I/O (relays/DI) and the switch-bank domain logic that
@@ -14,7 +14,7 @@ in [docs/plans/00-espos-fit-check.md](docs/plans/00-espos-fit-check.md).
 
 ```
                         +-----------------------------+
-                        |   signalk-espos-8relay app   |
+                        |   signalk-espOS-8relay app   |
                         |  (this repo, main/ + comps)  |
                         |                               |
    TCA9554 (I2C) RO1-8  |  relay_ctrl / input_sense      |
@@ -219,7 +219,7 @@ than hitting NVS directly.
 ## 7. File Structure
 
 ```
-signalk-espos-8relay/
+signalk-espOS-8relay/
 ├── CMakeLists.txt              # top-level ESP-IDF project, declares espos dependency
 ├── partitions.csv              # copied/adapted from espOS's reference partition table
 ├── sdkconfig.defaults
