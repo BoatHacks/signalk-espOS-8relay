@@ -57,8 +57,14 @@ override is a hardware-local behavior independent of SK/N2K availability).
 
 The bridge component. Translates `relay_ctrl`/`input_sense` state into:
 - SignalK deltas on `electrical.switches.bank.*` paths, plus meta deltas
-  for `displayName`, via `espos_sk`.
+  for `displayName`/`manufacturer.name`/`manufacturer.model`, via `espos_sk`.
 - NMEA2000 PGN 127501 transmissions, via `espos_n2k`.
+- When `publishControlsTree` is enabled (SPEC.md §6.1a/§9, tracking
+  SignalK/specification#441 — see RFC-441-DIGITAL-SWITCHING.md), a
+  read-only mirror of the same state under `electrical.controls.*`. No
+  separate component: it's the same relay/input state, the same bridge
+  responsibility, just an additional delta path emitted alongside the
+  canonical one.
 
 And translates incoming commands back into `relay_ctrl` calls:
 - SignalK PUT handler registration (`espos_sk` PUT callback API).

@@ -130,6 +130,7 @@ control regardless of SignalK connectivity).
 - `bankId`: NMEA2000/SignalK switch bank instance id (default derived from
   device serial, overridable)
 - `network`: interface preference (see §9)
+- `publishControlsTree`: bool, default `false` — see §6.1/§12 (RFC 0009 mirror)
 - `relays[8]`, `inputs[8]`: the arrays above
 
 ## 5. Sources / Inputs
@@ -164,6 +165,30 @@ control is unaffected. The two sources do not depend on each other.
   `espos_sk_subscribe`/PUT-registration API; it does not implement a
   custom v2-style REST resource, since no such SignalK server API exists
   for switches.
+- All paths carry static `manufacturer.name` (`Waveshare`) and
+  `manufacturer.model` (`ESP32-S3-ETH-8DI-8RO-C`) meta, per RFC 0009 —
+  see RFC-441-DIGITAL-SWITCHING.md.
+
+### 6.1a `electrical.controls.*` mirror (RFC 0009, opt-in)
+
+When `publishControlsTree` is enabled (default off — see §9, §12, and
+RFC-441-DIGITAL-SWITCHING.md), the same relay/input state is additionally
+published under `electrical.controls.<bankId>.<n>`, matching the path
+shape proposed in [SignalK/specification#441](https://github.com/SignalK/specification/issues/441):
+
+- `electrical.controls.<bankId>.<n>.state` (on/off, mirrors the switches-bank value)
+- `electrical.controls.<bankId>.<n>.type` = `"switch"` (this board has no dimmers)
+- `electrical.controls.<bankId>.<n>.name`
+- `electrical.controls.<bankId>.<n>.meta.displayName`
+- `electrical.controls.<bankId>.<n>.manufacturer.name` / `.manufacturer.model`
+
+This mirror does **not** accept PUT independently — commands always go
+through the canonical `electrical.switches.bank.*` PUT handler (§6.1); the
+`controls.*` tree is read-only, publish-side compatibility only, to avoid
+two independently-writable representations of the same relay going out of
+sync. This firmware's numeric `bankId`/channel identifier is reused as-is
+under `controls.*` rather than adopting RFC 0009's proposed
+`systemname-deviceaddress` string identifier (see RFC-441-DIGITAL-SWITCHING.md §4).
 
 ### 6.2 NMEA2000 PGNs
 
@@ -209,6 +234,9 @@ User-tunable (via config store, §6.3):
 - Per-relay: name, mode (latching/momentary), pulse duration, fail-safe
   policy, optional DI override source
 - Per-input: name, invert (NC vs NO sensor)
+- `publishControlsTree`: bool, default `false` — enables the read-only
+  `electrical.controls.*` mirror described in §6.1a (RFC 0009
+  compatibility; see RFC-441-DIGITAL-SWITCHING.md)
 
 Fixed (not user-tunable, board/firmware constants):
 - Channel count (8 relays, 8 inputs)
@@ -278,6 +306,17 @@ Fixed (not user-tunable, board/firmware constants):
   special-cased to apply only on boot / DI edge, not continuously, so an
   explicit SK/N2K command can still control the relay afterward — this
   avoids a DI override silently fighting every subsequent remote command.
+- **`electrical.controls.*` mirror, opt-in and read-only**: SignalK/specification#441
+  ("RFC 0009: Digital Switching") proposes a separate `electrical.controls.*`
+  path tree for digital switching devices, which this firmware's chosen
+  `electrical.switches.bank.*` convention doesn't share. The RFC is an
+  open, unmerged, undiscussed issue, so `electrical.switches.bank.*`
+  (already-accepted convention, and required anyway for the N2K PGN
+  mapping) remains canonical and always-on. The `controls.*` tree is
+  published only when explicitly enabled (default off), and only ever as
+  a read-only mirror — accepting PUTs on both trees would create two
+  independently-writable representations of the same relay that could
+  disagree. Full comparison and rationale in RFC-441-DIGITAL-SWITCHING.md.
 - **Momentary relays can't be `hold`**: holding a pulsed/momentary output
   on indefinitely across a fail-safe "hold last state" reboot would mean a
   horn or pump-test relay could stick on for an unbounded time with no
