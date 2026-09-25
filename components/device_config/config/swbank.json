@@ -123,7 +123,7 @@
       "maxLength": 32,
       "group": "Relays",
       "title": "Relay 1: name",
-      "description": "Shown in SignalK apps. (Same for every channel.)"
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "relay1_mode",
@@ -135,7 +135,7 @@
       ],
       "group": "Relays",
       "title": "Relay 1: mode",
-      "description": "latching stays as set; momentary switches off by itself after the pulse time. (Same for every channel.)"
+      "description": "latching stays as set; momentary switches off by itself after the pulse time."
     },
     {
       "name": "relay1_pulse_ms",
@@ -146,7 +146,7 @@
       "unit": "ms",
       "group": "Relays",
       "title": "Relay 1: pulse time",
-      "description": "For momentary mode. (Same for every channel.)"
+      "description": "For momentary mode."
     },
     {
       "name": "relay1_failsafe",
@@ -158,7 +158,7 @@
       ],
       "group": "Relays",
       "title": "Relay 1: on SignalK loss or restart",
-      "description": "default-safe switches off; hold keeps the last state. Momentary relays always switch off. (Same for every channel.)"
+      "description": "default-safe switches off; hold keeps the last state. Momentary relays always switch off."
     },
     {
       "name": "relay1_override",
@@ -168,7 +168,7 @@
       "max": 8,
       "group": "Relays",
       "title": "Relay 1: controlled by input",
-      "description": "0 = none, 1-8 = that input switches this relay directly. (Same for every channel.)"
+      "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
       "name": "relay1_link",
@@ -180,7 +180,7 @@
       ],
       "group": "Relays",
       "title": "Relay 1: input link",
-      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over. (Same for every channel.)"
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
     },
     {
       "name": "relay1_max_on_s",
@@ -191,7 +191,7 @@
       "unit": "s",
       "group": "Relays",
       "title": "Relay 1: maximum on-time",
-      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode. (Same for every channel.)"
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay2_name",
@@ -199,7 +199,8 @@
       "default": "Relay 2",
       "maxLength": 32,
       "group": "Relays",
-      "title": "Relay 2: name"
+      "title": "Relay 2: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "relay2_mode",
@@ -210,7 +211,8 @@
         "momentary"
       ],
       "group": "Relays",
-      "title": "Relay 2: mode"
+      "title": "Relay 2: mode",
+      "description": "latching stays as set; momentary switches off by itself after the pulse time."
     },
     {
       "name": "relay2_pulse_ms",
@@ -220,7 +222,8 @@
       "max": 600000,
       "unit": "ms",
       "group": "Relays",
-      "title": "Relay 2: pulse time"
+      "title": "Relay 2: pulse time",
+      "description": "For momentary mode."
     },
     {
       "name": "relay2_failsafe",
@@ -231,7 +234,8 @@
         "hold"
       ],
       "group": "Relays",
-      "title": "Relay 2: on SignalK loss or restart"
+      "title": "Relay 2: on SignalK loss or restart",
+      "description": "default-safe switches off; hold keeps the last state. Momentary relays always switch off."
     },
     {
       "name": "relay2_override",
@@ -240,7 +244,8 @@
       "min": 0,
       "max": 8,
       "group": "Relays",
-      "title": "Relay 2: controlled by input"
+      "title": "Relay 2: controlled by input",
+      "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
       "name": "relay2_link",
@@ -251,7 +256,8 @@
         "toggle"
       ],
       "group": "Relays",
-      "title": "Relay 2: input link"
+      "title": "Relay 2: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
     },
     {
       "name": "relay2_max_on_s",
@@ -261,7 +267,8 @@
       "max": 86400,
       "unit": "s",
       "group": "Relays",
-      "title": "Relay 2: maximum on-time"
+      "title": "Relay 2: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay3_name",
@@ -269,7 +276,8 @@
       "default": "Relay 3",
       "maxLength": 32,
       "group": "Relays",
-      "title": "Relay 3: name"
+      "title": "Relay 3: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "relay3_mode",
@@ -280,7 +288,8 @@
         "momentary"
       ],
       "group": "Relays",
-      "title": "Relay 3: mode"
+      "title": "Relay 3: mode",
+      "description": "latching stays as set; momentary switches off by itself after the pulse time."
     },
     {
       "name": "relay3_pulse_ms",
@@ -290,7 +299,8 @@
       "max": 600000,
       "unit": "ms",
       "group": "Relays",
-      "title": "Relay 3: pulse time"
+      "title": "Relay 3: pulse time",
+      "description": "For momentary mode."
     },
     {
       "name": "relay3_failsafe",
@@ -301,7 +311,8 @@
         "hold"
       ],
       "group": "Relays",
-      "title": "Relay 3: on SignalK loss or restart"
+      "title": "Relay 3: on SignalK loss or restart",
+      "description": "default-safe switches off; hold keeps the last state. Momentary relays always switch off."
     },
     {
       "name": "relay3_override",
@@ -310,7 +321,8 @@
       "min": 0,
       "max": 8,
       "group": "Relays",
-      "title": "Relay 3: controlled by input"
+      "title": "Relay 3: controlled by input",
+      "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
       "name": "relay3_link",
@@ -321,7 +333,8 @@
         "toggle"
       ],
       "group": "Relays",
-      "title": "Relay 3: input link"
+      "title": "Relay 3: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
     },
     {
       "name": "relay3_max_on_s",
@@ -331,7 +344,8 @@
       "max": 86400,
       "unit": "s",
       "group": "Relays",
-      "title": "Relay 3: maximum on-time"
+      "title": "Relay 3: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay4_name",
@@ -339,7 +353,8 @@
       "default": "Relay 4",
       "maxLength": 32,
       "group": "Relays",
-      "title": "Relay 4: name"
+      "title": "Relay 4: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "relay4_mode",
@@ -350,7 +365,8 @@
         "momentary"
       ],
       "group": "Relays",
-      "title": "Relay 4: mode"
+      "title": "Relay 4: mode",
+      "description": "latching stays as set; momentary switches off by itself after the pulse time."
     },
     {
       "name": "relay4_pulse_ms",
@@ -360,7 +376,8 @@
       "max": 600000,
       "unit": "ms",
       "group": "Relays",
-      "title": "Relay 4: pulse time"
+      "title": "Relay 4: pulse time",
+      "description": "For momentary mode."
     },
     {
       "name": "relay4_failsafe",
@@ -371,7 +388,8 @@
         "hold"
       ],
       "group": "Relays",
-      "title": "Relay 4: on SignalK loss or restart"
+      "title": "Relay 4: on SignalK loss or restart",
+      "description": "default-safe switches off; hold keeps the last state. Momentary relays always switch off."
     },
     {
       "name": "relay4_override",
@@ -380,7 +398,8 @@
       "min": 0,
       "max": 8,
       "group": "Relays",
-      "title": "Relay 4: controlled by input"
+      "title": "Relay 4: controlled by input",
+      "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
       "name": "relay4_link",
@@ -391,7 +410,8 @@
         "toggle"
       ],
       "group": "Relays",
-      "title": "Relay 4: input link"
+      "title": "Relay 4: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
     },
     {
       "name": "relay4_max_on_s",
@@ -401,7 +421,8 @@
       "max": 86400,
       "unit": "s",
       "group": "Relays",
-      "title": "Relay 4: maximum on-time"
+      "title": "Relay 4: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay5_name",
@@ -409,7 +430,8 @@
       "default": "Relay 5",
       "maxLength": 32,
       "group": "Relays",
-      "title": "Relay 5: name"
+      "title": "Relay 5: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "relay5_mode",
@@ -420,7 +442,8 @@
         "momentary"
       ],
       "group": "Relays",
-      "title": "Relay 5: mode"
+      "title": "Relay 5: mode",
+      "description": "latching stays as set; momentary switches off by itself after the pulse time."
     },
     {
       "name": "relay5_pulse_ms",
@@ -430,7 +453,8 @@
       "max": 600000,
       "unit": "ms",
       "group": "Relays",
-      "title": "Relay 5: pulse time"
+      "title": "Relay 5: pulse time",
+      "description": "For momentary mode."
     },
     {
       "name": "relay5_failsafe",
@@ -441,7 +465,8 @@
         "hold"
       ],
       "group": "Relays",
-      "title": "Relay 5: on SignalK loss or restart"
+      "title": "Relay 5: on SignalK loss or restart",
+      "description": "default-safe switches off; hold keeps the last state. Momentary relays always switch off."
     },
     {
       "name": "relay5_override",
@@ -450,7 +475,8 @@
       "min": 0,
       "max": 8,
       "group": "Relays",
-      "title": "Relay 5: controlled by input"
+      "title": "Relay 5: controlled by input",
+      "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
       "name": "relay5_link",
@@ -461,7 +487,8 @@
         "toggle"
       ],
       "group": "Relays",
-      "title": "Relay 5: input link"
+      "title": "Relay 5: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
     },
     {
       "name": "relay5_max_on_s",
@@ -471,7 +498,8 @@
       "max": 86400,
       "unit": "s",
       "group": "Relays",
-      "title": "Relay 5: maximum on-time"
+      "title": "Relay 5: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay6_name",
@@ -479,7 +507,8 @@
       "default": "Relay 6",
       "maxLength": 32,
       "group": "Relays",
-      "title": "Relay 6: name"
+      "title": "Relay 6: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "relay6_mode",
@@ -490,7 +519,8 @@
         "momentary"
       ],
       "group": "Relays",
-      "title": "Relay 6: mode"
+      "title": "Relay 6: mode",
+      "description": "latching stays as set; momentary switches off by itself after the pulse time."
     },
     {
       "name": "relay6_pulse_ms",
@@ -500,7 +530,8 @@
       "max": 600000,
       "unit": "ms",
       "group": "Relays",
-      "title": "Relay 6: pulse time"
+      "title": "Relay 6: pulse time",
+      "description": "For momentary mode."
     },
     {
       "name": "relay6_failsafe",
@@ -511,7 +542,8 @@
         "hold"
       ],
       "group": "Relays",
-      "title": "Relay 6: on SignalK loss or restart"
+      "title": "Relay 6: on SignalK loss or restart",
+      "description": "default-safe switches off; hold keeps the last state. Momentary relays always switch off."
     },
     {
       "name": "relay6_override",
@@ -520,7 +552,8 @@
       "min": 0,
       "max": 8,
       "group": "Relays",
-      "title": "Relay 6: controlled by input"
+      "title": "Relay 6: controlled by input",
+      "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
       "name": "relay6_link",
@@ -531,7 +564,8 @@
         "toggle"
       ],
       "group": "Relays",
-      "title": "Relay 6: input link"
+      "title": "Relay 6: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
     },
     {
       "name": "relay6_max_on_s",
@@ -541,7 +575,8 @@
       "max": 86400,
       "unit": "s",
       "group": "Relays",
-      "title": "Relay 6: maximum on-time"
+      "title": "Relay 6: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay7_name",
@@ -549,7 +584,8 @@
       "default": "Relay 7",
       "maxLength": 32,
       "group": "Relays",
-      "title": "Relay 7: name"
+      "title": "Relay 7: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "relay7_mode",
@@ -560,7 +596,8 @@
         "momentary"
       ],
       "group": "Relays",
-      "title": "Relay 7: mode"
+      "title": "Relay 7: mode",
+      "description": "latching stays as set; momentary switches off by itself after the pulse time."
     },
     {
       "name": "relay7_pulse_ms",
@@ -570,7 +607,8 @@
       "max": 600000,
       "unit": "ms",
       "group": "Relays",
-      "title": "Relay 7: pulse time"
+      "title": "Relay 7: pulse time",
+      "description": "For momentary mode."
     },
     {
       "name": "relay7_failsafe",
@@ -581,7 +619,8 @@
         "hold"
       ],
       "group": "Relays",
-      "title": "Relay 7: on SignalK loss or restart"
+      "title": "Relay 7: on SignalK loss or restart",
+      "description": "default-safe switches off; hold keeps the last state. Momentary relays always switch off."
     },
     {
       "name": "relay7_override",
@@ -590,7 +629,8 @@
       "min": 0,
       "max": 8,
       "group": "Relays",
-      "title": "Relay 7: controlled by input"
+      "title": "Relay 7: controlled by input",
+      "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
       "name": "relay7_link",
@@ -601,7 +641,8 @@
         "toggle"
       ],
       "group": "Relays",
-      "title": "Relay 7: input link"
+      "title": "Relay 7: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
     },
     {
       "name": "relay7_max_on_s",
@@ -611,7 +652,8 @@
       "max": 86400,
       "unit": "s",
       "group": "Relays",
-      "title": "Relay 7: maximum on-time"
+      "title": "Relay 7: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay8_name",
@@ -619,7 +661,8 @@
       "default": "Relay 8",
       "maxLength": 32,
       "group": "Relays",
-      "title": "Relay 8: name"
+      "title": "Relay 8: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "relay8_mode",
@@ -630,7 +673,8 @@
         "momentary"
       ],
       "group": "Relays",
-      "title": "Relay 8: mode"
+      "title": "Relay 8: mode",
+      "description": "latching stays as set; momentary switches off by itself after the pulse time."
     },
     {
       "name": "relay8_pulse_ms",
@@ -640,7 +684,8 @@
       "max": 600000,
       "unit": "ms",
       "group": "Relays",
-      "title": "Relay 8: pulse time"
+      "title": "Relay 8: pulse time",
+      "description": "For momentary mode."
     },
     {
       "name": "relay8_failsafe",
@@ -651,7 +696,8 @@
         "hold"
       ],
       "group": "Relays",
-      "title": "Relay 8: on SignalK loss or restart"
+      "title": "Relay 8: on SignalK loss or restart",
+      "description": "default-safe switches off; hold keeps the last state. Momentary relays always switch off."
     },
     {
       "name": "relay8_override",
@@ -660,7 +706,8 @@
       "min": 0,
       "max": 8,
       "group": "Relays",
-      "title": "Relay 8: controlled by input"
+      "title": "Relay 8: controlled by input",
+      "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
       "name": "relay8_link",
@@ -671,7 +718,8 @@
         "toggle"
       ],
       "group": "Relays",
-      "title": "Relay 8: input link"
+      "title": "Relay 8: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
     },
     {
       "name": "relay8_max_on_s",
@@ -681,7 +729,8 @@
       "max": 86400,
       "unit": "s",
       "group": "Relays",
-      "title": "Relay 8: maximum on-time"
+      "title": "Relay 8: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "input1_name",
@@ -690,7 +739,7 @@
       "maxLength": 32,
       "group": "Inputs",
       "title": "Input 1: name",
-      "description": "Shown in SignalK apps. (Same for every channel.)"
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "input1_invert",
@@ -698,7 +747,7 @@
       "default": false,
       "group": "Inputs",
       "title": "Input 1: invert",
-      "description": "Turn on for normally-closed switches. (Same for every channel.)"
+      "description": "Turn on for normally-closed switches."
     },
     {
       "name": "input2_name",
@@ -706,14 +755,16 @@
       "default": "Input 2",
       "maxLength": 32,
       "group": "Inputs",
-      "title": "Input 2: name"
+      "title": "Input 2: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "input2_invert",
       "type": "bool",
       "default": false,
       "group": "Inputs",
-      "title": "Input 2: invert"
+      "title": "Input 2: invert",
+      "description": "Turn on for normally-closed switches."
     },
     {
       "name": "input3_name",
@@ -721,14 +772,16 @@
       "default": "Input 3",
       "maxLength": 32,
       "group": "Inputs",
-      "title": "Input 3: name"
+      "title": "Input 3: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "input3_invert",
       "type": "bool",
       "default": false,
       "group": "Inputs",
-      "title": "Input 3: invert"
+      "title": "Input 3: invert",
+      "description": "Turn on for normally-closed switches."
     },
     {
       "name": "input4_name",
@@ -736,14 +789,16 @@
       "default": "Input 4",
       "maxLength": 32,
       "group": "Inputs",
-      "title": "Input 4: name"
+      "title": "Input 4: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "input4_invert",
       "type": "bool",
       "default": false,
       "group": "Inputs",
-      "title": "Input 4: invert"
+      "title": "Input 4: invert",
+      "description": "Turn on for normally-closed switches."
     },
     {
       "name": "input5_name",
@@ -751,14 +806,16 @@
       "default": "Input 5",
       "maxLength": 32,
       "group": "Inputs",
-      "title": "Input 5: name"
+      "title": "Input 5: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "input5_invert",
       "type": "bool",
       "default": false,
       "group": "Inputs",
-      "title": "Input 5: invert"
+      "title": "Input 5: invert",
+      "description": "Turn on for normally-closed switches."
     },
     {
       "name": "input6_name",
@@ -766,14 +823,16 @@
       "default": "Input 6",
       "maxLength": 32,
       "group": "Inputs",
-      "title": "Input 6: name"
+      "title": "Input 6: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "input6_invert",
       "type": "bool",
       "default": false,
       "group": "Inputs",
-      "title": "Input 6: invert"
+      "title": "Input 6: invert",
+      "description": "Turn on for normally-closed switches."
     },
     {
       "name": "input7_name",
@@ -781,14 +840,16 @@
       "default": "Input 7",
       "maxLength": 32,
       "group": "Inputs",
-      "title": "Input 7: name"
+      "title": "Input 7: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "input7_invert",
       "type": "bool",
       "default": false,
       "group": "Inputs",
-      "title": "Input 7: invert"
+      "title": "Input 7: invert",
+      "description": "Turn on for normally-closed switches."
     },
     {
       "name": "input8_name",
@@ -796,14 +857,16 @@
       "default": "Input 8",
       "maxLength": 32,
       "group": "Inputs",
-      "title": "Input 8: name"
+      "title": "Input 8: name",
+      "description": "Shown in SignalK apps."
     },
     {
       "name": "input8_invert",
       "type": "bool",
       "default": false,
       "group": "Inputs",
-      "title": "Input 8: invert"
+      "title": "Input 8: invert",
+      "description": "Turn on for normally-closed switches."
     }
   ]
 }

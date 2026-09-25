@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Each version starts with a one-line summary (at most 127 bytes): boards show
 it as the update's notes, and *Cut release* refuses a version without one.
 
+## [Unreleased]
+
+### Changed
+
+- Every relay's and input's settings have their descriptions again (taken
+  out in 0.0.8 to save RAM; with PSRAM since 0.0.9 the schema fits).
+
 ## [0.0.10] - 2026-09-25
 
 Fixes NMEA 2000 not starting and a crash when SignalK connects during a page load; releases include the ELF.
