@@ -18,3 +18,7 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 # The board's module: 16 MB flash, 8 MB PSRAM. PSRAM stays off until its
 # type (quad or octal) is confirmed on hardware; the wrong mode stops boot.
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# Metadata slots: espOS uses up to 9 for its own device paths; the two
+# switch-bank trees need up to 32 (8 relays + 8 inputs, twice).
+CONFIG_ESPOS_SK_MAX_META=48

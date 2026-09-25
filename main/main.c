@@ -2,8 +2,10 @@
 
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "espos.h"
 #include "espos_config.h"
+#include "espos_event.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "board.h"
@@ -13,12 +15,46 @@
 #include "input_sense.h"
 #include "relay_ctrl.h"
 #include "relay_hw.h"
+#include "sk_bridge.h"
+#include "sk_espos.h"
 
 static const char *TAG = "app";
 
 #define TICK_MS 10
 
 static TaskHandle_t s_io_task;
+
+static uint32_t now_ms(void)
+{
+    return (uint32_t)(esp_timer_get_time() / 1000);
+}
+
+// ------------------------------------------------ wiring between modules
+
+static esp_err_t input_override(uint8_t relay, bool on)
+{
+    return relay_ctrl_set(relay, on, RELAY_SRC_INPUT);
+}
+
+static esp_err_t sk_set_relay(uint8_t relay, bool on)
+{
+    return relay_ctrl_set(relay, on, RELAY_SRC_SK);
+}
+
+static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_t mask, void *arg)
+{
+    sk_bridge_relay_changed(channel, on);
+}
+
+static void on_input_change(uint8_t channel, bool on, uint8_t mask, void *arg)
+{
+    sk_bridge_input_changed(channel, on);
+}
+
+static void on_sk_stream(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    sk_bridge_stream_changed(id == ESPOS_EVENT_SK_STREAM_CONNECTED);
+}
 
 // Per changed key, on the writer's task: just wake the I/O task, which
 // reloads once however many keys changed.
@@ -29,12 +65,7 @@ static void on_config_change(const char *ns, const char *key, void *arg)
     }
 }
 
-static esp_err_t input_override(uint8_t relay, bool on)
-{
-    return relay_ctrl_set(relay, on, RELAY_SRC_INPUT);
-}
-
-// Relay pulses, flash saves and input polling, every TICK_MS.
+// Relay pulses, flash saves, input polling and the SignalK-loss timer.
 static void io_task(void *arg)
 {
     for (;;) {
@@ -43,10 +74,12 @@ static void io_task(void *arg)
             if (device_config_load(&cfg) == ESP_OK) {
                 relay_ctrl_update_config(&cfg);
                 input_sense_update_config(&cfg);
+                sk_bridge_update_config(&cfg);
             }
         }
         relay_ctrl_tick();
         input_sense_poll();
+        sk_bridge_tick();
     }
 }
 
@@ -54,10 +87,11 @@ static void io_task(void *arg)
 // relays reach their boot state (SPEC.md section 3.2) as early as possible:
 // after a warm reset, default-safe relays would otherwise stay on until the
 // network is up.
-static esp_err_t start_relays(void *arg)
+static esp_err_t start_io(void *arg)
 {
     device_config_t *cfg = arg;
     ESP_ERROR_CHECK(device_config_load(cfg));
+
     relay_ctrl_hw_t hw;
     ESP_ERROR_CHECK(relay_hw_create(&hw));
     // A dead expander is reported through espOS health; keep booting so the
@@ -65,11 +99,15 @@ static esp_err_t start_relays(void *arg)
     if (relay_ctrl_init(&hw, cfg) != ESP_OK) {
         ESP_LOGE(TAG, "relay expander did not respond; relays unavailable");
     }
+    ESP_ERROR_CHECK(relay_ctrl_add_listener(on_relay_change, NULL));
+
     input_sense_hw_t in_hw;
     ESP_ERROR_CHECK(input_hw_create(&in_hw));
     // Overrides are applied on the first settled reading, after the relays'
     // own boot state above.
     ESP_ERROR_CHECK(input_sense_init(&in_hw, cfg, input_override));
+    ESP_ERROR_CHECK(input_sense_add_listener(on_input_change, NULL));
+
     xTaskCreate(io_task, "io", 4096, NULL, 5, &s_io_task);
     return ESP_OK;
 }
@@ -80,13 +118,25 @@ void app_main(void)
     espos_start_opts_t opts = ESPOS_START_OPTS_DEFAULT;
     opts.app_name = "signalk-espOS-8relay";
     opts.board = BOARD_NAME;
-    opts.before_network = start_relays;
+    opts.before_network = start_io;
     opts.arg = &cfg;
     ESP_ERROR_CHECK(espos_start(&opts));
 
     // Bank ids only change on restart, so checking once at boot is enough.
     device_config_report_health(&cfg);
     ESP_ERROR_CHECK(espos_config_subscribe(on_config_change, NULL));
+
+    static const sk_bridge_io_t sk_io = {
+        .set_relay = sk_set_relay,
+        .relay_mask = relay_ctrl_get_mask,
+        .inputs_ready = input_sense_ready,
+        .input_mask = input_sense_get_mask,
+        .sk_lost = relay_ctrl_sk_lost,
+        .now_ms = now_ms,
+    };
+    ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_CONNECTED, on_sk_stream, NULL));
+    ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_DISCONNECTED, on_sk_stream, NULL));
+    ESP_ERROR_CHECK(sk_bridge_start(&sk_espos_api, &sk_io, &cfg));
 
     if (cfg.eth_enabled) {
         // Ethernet failing must not stop the device: it still works over WiFi.

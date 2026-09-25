@@ -188,6 +188,21 @@ with its own on/off setting: `electrical.switches.bank.*` (this section,
   `name`.
 - `electrical.switches.bank.<inputBankId>.<n>.state` — digital input
   state (n = 1–8), read-only (PUT rejected).
+- State values are numbers, `1` (on) and `0` (off), and each channel also
+  publishes `<...>.<n>.order` = n, exactly as SignalK's own NMEA 2000
+  converter (n2k-signalk) does for PGN 127501, so apps see one format
+  whichever way the data arrives. PUT accepts `1`/`0` and `true`/`false`;
+  anything else is answered 400.
+- Display names are sent as metadata through espOS, which only writes a
+  path's metadata on the server when the server has none ("server-side
+  edits win"). A rename on the device therefore reaches SignalK apps only
+  for paths the server hasn't got metadata for yet; otherwise rename it on
+  the server. The `electrical.controls.*` tree's `.name` value always
+  follows the device.
+- If the SignalK server also reads the NMEA 2000 bus, it derives the same
+  `electrical.switches.bank.*` paths from this device's PGN 127501, as a
+  second source. This is documented rather than prevented: the user can
+  turn off `publishSwitchesTree`, leaving NMEA 2000 as the only route.
 - Firmware registers a SignalK PUT handler per relay path, on each
   enabled tree, via espOS's
   `espos_sk_subscribe`/PUT-registration API; it does not implement a
@@ -217,8 +232,9 @@ name the same channel. The firmware derives this 1:1 mapping (bank
 id + channel + kind ↔ string identifier); it is never separately
 configured, so the two trees can never drift apart or collide.
 
-- `electrical.controls.<identifier>.state` (on/off; writable via PUT for
-  relay identifiers, read-only for input identifiers)
+- `electrical.controls.<identifier>.state` (`1`/`0`, as on the switches
+  tree; writable via PUT for relay identifiers, read-only for input
+  identifiers)
 - `electrical.controls.<identifier>.type` = `"switch"` (this board has no dimmers)
 - `electrical.controls.<identifier>.name`
 - `electrical.controls.<identifier>.meta.displayName`

@@ -84,9 +84,13 @@ The bridge component. Translates `relay_ctrl`/`input_sense` state into:
 
 And translates incoming commands back into `relay_ctrl` calls:
 - SignalK PUT handler registration (`espos_sk` PUT callback API) for
-  relay paths on each enabled tree. Handlers on both trees resolve to the
-  same `relay_ctrl` call; `controls.*` identifiers are parsed back to bank
-  id + channel.
+  relay paths on each enabled tree. Every handler carries its relay
+  channel as its argument, so both trees resolve to the same
+  `relay_ctrl_set()` call without parsing paths.
+
+The SignalK side (`sk_bridge.c`) reaches espOS and the relay/input modules
+only through function tables (`sk_api_t`, `sk_bridge_io_t`) that `main`
+fills in, so its host tests can check every path and value it sends.
 - PGN 127502 reception.
 
 `espos_n2k` only sends and receives raw CAN frames, so the NMEA2000 side
@@ -221,7 +225,7 @@ signalk-espOS-8relay/
 │   │   ├── input_sense.c/.h
 │   │   └── CMakeLists.txt
 │   ├── switch_bank/
-│   │   ├── sk_bridge.c/.h, paths.c/.h        # SignalK side
+│   │   ├── sk_bridge.c/.h, sk_espos.c/.h     # SignalK side
 │   │   ├── n2k_bridge.cpp/.h, n2k_espos_driver.cpp/.h, switch_bank_pgn.c/.h  # NMEA2000 side
 │   │   └── CMakeLists.txt
 │   └── device_config/

@@ -154,6 +154,22 @@ With the `electrical.controls.*` tree turned on, the same relay also
 appears as `electrical.controls.espOS-instanceB-relayn` and the input as
 `electrical.controls.espOS-instanceI-inputn`.
 
+States are `1` (on) and `0` (off). To switch a relay, send `1`/`0` or
+`true`/`false`.
+
+**Names.** The first time the board connects, each relay's and input's
+name becomes its display name in SignalK. After that, the SignalK server's
+own setting wins: to rename a channel later, change its display name on
+the server (or clear it there, and the board's name is used again).
+
+**If your SignalK server also reads the NMEA 2000 bus**, it already gets
+the relays and inputs from the bus, under the same
+`electrical.switches.bank.*` paths. Having both makes apps list two
+sources for each switch. Turn off *Publish electrical.switches.bank.\** on
+the board; the server keeps seeing the relays through NMEA 2000, and
+switching them from SignalK still works if the server has an NMEA 2000
+switching plugin (such as signalk-n2k-switching) set up for this bank.
+
 ### 7.2 From NMEA 2000
 
 The board appears on the bus as a switch-bank device. MFDs and switch

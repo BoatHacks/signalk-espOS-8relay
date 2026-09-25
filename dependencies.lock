@@ -327,6 +327,6 @@ direct_dependencies:
 - signalk-espos/espos_health
 - signalk-espos/espos_net
 - signalk-espos/espos_sk
-manifest_hash: ec40414406ac0a0e54b2eac726cf4cdf78611508a6b8d2c5305ade91dad15de9
+manifest_hash: 2572f592a9a6ea71c6548ec2ed9cb68b979356f43f6fbb4682e59cffc6d9a301
 target: esp32s3
 version: 3.0.0

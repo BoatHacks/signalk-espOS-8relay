@@ -63,15 +63,31 @@ handler registration; meta re-declared on rename. Manual: SignalK
 instrument panel toggles relays via both trees.
 
 ## Implementation Steps
-- [ ] Settle the value format and the duplicate-source risk (above)
-- [ ] Path table and parser
-- [ ] Publishing and meta, per tree toggle
-- [ ] PUT handlers
-- [ ] SignalK-loss detection
-- [ ] Host tests
-- [ ] Update SPEC.md §6.1 with the value format
+- [x] Value format: numbers 1/0 plus `.order`, as n2k-signalk publishes
+      PGN 127501. Duplicate sources: documented, with the switches-tree
+      toggle as the remedy (user decision)
+- [x] Paths built in one function for both trees; no parser needed, since
+      each PUT handler carries its channel as its argument
+- [x] Publishing and metadata per tree toggle; everything republished on
+      each stream connect (the server routes PUTs only to paths seen on the
+      current connection)
+- [x] PUT handlers on every enabled tree (16 with both on, espOS's limit)
+- [x] SignalK-loss detection from espOS's stream events; only after a
+      connection was lost, and only while a tree is published
+- [x] `CONFIG_ESPOS_SK_MAX_META=48`: espOS uses up to 9 metadata slots,
+      both trees need 32
+- [x] Host tests (`test/host/sk_bridge_test`, 18 tests)
+- [x] SPEC.md §6.1 and USER_MANUAL.md §7.1 updated (value format, names,
+      duplicate sources)
+- [ ] On the board: an instrument panel switches relays via both trees;
+      pulling the server's cable triggers the fail-safe after 30 s
+
+Found while building: espOS only writes metadata the server doesn't
+already have, so renames on the device don't reach SignalK apps after the
+first connection. Documented; changing it would need espOS support.
 
 ## Files to Create/Modify
-- `components/switch_bank/` (`sk_bridge.c/.h`, `paths.c/.h`)
-- `test/host/test_sk_paths.c`, `test/host/test_sk_bridge.c`
-- `SPEC.md` §6.1
+- `components/switch_bank/` (`sk_bridge`, `sk_espos`)
+- `main/main.c`, `sdkconfig.defaults`
+- `test/host/sk_bridge_test/`
+- `SPEC.md` §6.1, `USER_MANUAL.md` §7.1
