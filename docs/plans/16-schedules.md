@@ -13,15 +13,12 @@ network.
   reversed first)
 - README "Board hardware" (PCF85063 on the relay I²C bus, unused)
 
-## Decision first
-Schedules could instead live in a SignalK plugin or Node-RED flow, which
-already have time, position, sun calculations and a UI. On the board
-they keep working without a server, at the cost of a settings UI that
-fits espOS's flat key/value settings. **Decide before starting**; if the
-answer is "server side", close the issue and document the recommended
-plugin in the manual instead.
+## Decision (2026-09-25)
+**On the board.** Schedules must keep working without a SignalK server.
+SPEC.md §10.2 updated. The cost is a schedule UI that fits espOS's flat
+key/value settings (or a page of our own, like the relay page).
 
-## Approach (if on the board)
+## Approach
 - **RTC driver** for the PCF85063 (I²C 0x51, on SCL 41 / SDA 42, shared
   with the TCA9554 — reuse the bus handle and its locking). At boot, if
   the RTC holds a valid time, hand it to espOS with `espos_time_set()`
@@ -51,7 +48,7 @@ plugin in the manual instead.
 On the board: RTC keeps time across a power cut; a 2-minute schedule.
 
 ## Implementation Steps
-- [ ] Decision (board vs. server side); update SPEC.md
+- [x] Decision: on the board; SPEC.md updated
 - [ ] PCF85063 driver and clock sync
 - [ ] Time zone and position settings; sun calculation
 - [ ] Schedule settings and evaluator; `RELAY_SRC_SCHEDULE`

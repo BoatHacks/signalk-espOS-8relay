@@ -8,8 +8,8 @@ reversing motor's contactors). Switching one on first switches the other
 off, optionally with a dead time before the second closes.
 
 ## Relevant SPEC/ARCHITECTURE Sections
-- SPEC.md §2, §10.2 (lists multi-condition interlocks as out of scope —
-  this plan adds the pairwise case only; update SPEC.md)
+- SPEC.md §2, §10.2 (pairwise interlocks brought into scope on
+  2026-09-25; multi-condition rules stay deferred)
 - ARCHITECTURE.md §2.1 (`relay_ctrl`)
 - Plan 03
 
@@ -26,9 +26,10 @@ off, optionally with a dead time before the second closes.
   - "On" to relay A while its partner B is on: B off now; A on after the
     dead time (a pending-on deadline checked in the tick, like pulses).
     The command succeeds; listeners see B off, then A on.
-  - "All on" through the web page: the API documents that interlocked
-    partners can't both be on; the higher-numbered one wins (or refuse —
-    decide and test).
+  - "All on" (web page and `PUT /api/v1/relays`) — *decided
+    2026-09-25:* skips every relay that is in an interlocked pair and
+    switches the rest on. The response lists the skipped relays and the
+    page says so ("All on: relays 3 and 4 skipped, interlocked").
   - A pending-on is cancelled by a later "off" to A or "on" to B.
 - **Boot and hold:** if the stored state has both partners on (older
   firmware, or a config change), restore neither and raise a warning.

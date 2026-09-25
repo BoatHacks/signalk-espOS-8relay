@@ -363,12 +363,12 @@ Fixed (not user-tunable, board/firmware constants):
 
 - Multi-relay group/scene control (e.g. "all off") — not needed until
   real usage shows a pattern; keep MVP to per-channel control.
-- Local scheduling/timers (e.g. time-of-day relay control) — deferred;
-  SignalK-side automation (Node-RED, etc.) can already do this without
-  firmware changes.
-- Interlock logic beyond simple single-DI-forces-single-relay (e.g.
-  multi-condition rules) — deferred; keep the override mapping minimal for
-  MVP and revisit only if a real use case needs it.
+- Local scheduling/timers (e.g. time-of-day relay control) — **decided
+  2026-09-25: to be built on the board**, using the PCF85063 real-time
+  clock, so schedules work without a SignalK server (plan 16).
+- Interlock logic: **pairwise interlocks (two relays never on together)
+  are in scope as of 2026-09-25** (plan 15). Multi-condition rules stay
+  deferred until a real use case needs them.
 - RS232/expansion header support — the board exposes an expansion GPIO
   header not used by this spec at all; out of scope entirely, not just
   deferred.

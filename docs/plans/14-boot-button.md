@@ -22,27 +22,30 @@ a release will trigger.
 - **Feedback:** while held, the LED blinks white after 5 s ("release
   for access point") and red after 15 s ("release for factory reset").
   Needs a small "override pattern" input to `indicator`.
-- **Reopen the access point.** espOS has no public "start portal now"
-  call (checked in 0.10.3: `espos_wifi` opens its portal on its own,
-  `portal_after_s` after the station fails, or when none is configured).
-  Options, in order of preference:
-  1. Ask upstream for an `espos_wifi_portal_open(duration)` API and use
-     it once available.
-  2. Meanwhile: turn the station off for this boot only
-     (`sta_enabled=false` in RAM, not saved) and restart WiFi, so the
-     portal opens; a restart returns to normal. Needs checking whether
-     espOS allows a non-persistent override; if not, use option 3.
-  3. Save `sta_enabled=false`, restart, and let the portal's own save
-     turn the station back on. Riskier: document clearly.
+- **Reopen the access point** — *decided 2026-09-25:* save
+  `wifi.sta_enabled=false` and restart. espOS 0.10.3 has no public "start
+  portal now" call; with the station off it opens its portal. Saving a
+  network in the portal turns the station back on.
+  - The risk: if nobody completes the portal, the board stays off WiFi
+    (Ethernet, NMEA 2000, inputs and relays keep working). Mitigate: the
+    LED shows a distinct "portal open" colour, the buzzer (if enabled)
+    beeps "ESP AP", and the manual says how to finish or undo it.
+  - Check first that the portal's save really sets `sta_enabled=true`
+    again; if it doesn't, set it from our side on the portal's
+    "network saved" event.
+  - Still worth an upstream request for `espos_wifi_portal_open()`;
+    switch to it when it exists.
 - **Factory reset:** `espos_config_factory_reset()` (exists in 0.10.3),
-  also clear the saved `hold` relay state and counters (plan 11), then
-  `esp_restart()` so boot and fail-safe rules apply to the relays.
+  also clear the saved `hold` relay state and counters (plan 11), and
+  **forget the SignalK token** (`espos_sk_forget_token()`, *decided
+  2026-09-25*: factory means everything, the board must be approved on
+  the server again), then `esp_restart()` so boot and fail-safe rules
+  apply to the relays.
 - Short presses do nothing, so an accidental knock is harmless.
 
-## Open questions
-- Which portal option espOS supports (see above) — decide before coding.
-- Should a factory reset keep the SignalK token? No: "factory" means
-  everything; say so in the manual.
+## Decisions (2026-09-25)
+- Access point: save the station off and restart (see Approach).
+- Factory reset forgets the SignalK token.
 
 ## Test Strategy
 - Host tests for a pure `button` state machine: debounce, held-at-boot
@@ -53,7 +56,8 @@ the bootloader and not trigger anything later); relays after a factory
 reset follow boot rules.
 
 ## Implementation Steps
-- [ ] Resolve the portal question with espOS
+- [x] Portal approach decided (save station off)
+- [ ] Check that the portal's save turns the station back on
 - [ ] Button state machine (host-tested) and GPIO 0 input in `board`
 - [ ] Indicator override pattern
 - [ ] Actions: portal, factory reset (+ hold state, counters), restart
