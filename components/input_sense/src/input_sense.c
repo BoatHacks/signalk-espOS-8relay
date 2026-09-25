@@ -40,12 +40,22 @@ static void notify(int i, bool on, uint8_t mask)
     }
 }
 
-// Drive every relay that names input i+1 as its override.
-static void apply_override(int i, bool on)
+// Drive every relay that names input i+1 as its override. A follow link
+// copies the input. A toggle link flips the relay on each press and ignores
+// the release; at boot the input's level says nothing about the relay, so
+// toggle links are left alone then (a button held at power-up is no press).
+static void apply_override(int i, bool on, bool boot)
 {
     for (int r = 0; r < BOARD_CHANNELS; r++) {
-        if (s.cfg.relays[r].override_di == i + 1) {
-            s.override(r + 1, on);
+        if (s.cfg.relays[r].override_di != i + 1) {
+            continue;
+        }
+        if (s.cfg.relays[r].link == INPUT_LINK_TOGGLE) {
+            if (on && !boot) {
+                s.override(r + 1, INPUT_ACTION_TOGGLE);
+            }
+        } else {
+            s.override(r + 1, on ? INPUT_ACTION_ON : INPUT_ACTION_OFF);
         }
     }
 }
@@ -125,7 +135,7 @@ void input_sense_poll(void)
             notify(i, s.stable & (1u << i), s.stable);
         }
         for (int i = 0; i < BOARD_CHANNELS; i++) {
-            apply_override(i, s.stable & (1u << i));
+            apply_override(i, s.stable & (1u << i), true);
         }
         return;
     }
@@ -146,7 +156,7 @@ void input_sense_poll(void)
     for (int i = 0; i < BOARD_CHANNELS; i++) {
         if (changed & (1u << i)) {
             notify(i, s.stable & (1u << i), s.stable);
-            apply_override(i, s.stable & (1u << i));
+            apply_override(i, s.stable & (1u << i), false);
         }
     }
 }

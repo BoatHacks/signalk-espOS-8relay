@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2026-09-25
+
+### Added
+
+- *Input link* setting per relay (#1): *follow* (as before) or *toggle*,
+  where each press of a push button on the input switches the relay over
+  and the release does nothing. Nothing happens at start-up, even with the
+  button held.
+- *Maximum on-time* setting per relay (#2): a latching relay switches
+  itself off after that long, whatever switched it on; another "on"
+  restarts the time. 0 (the default) means no limit.
+
 ## [0.0.5] - 2026-09-25
 
 ### Added
@@ -85,6 +97,7 @@ First build for hardware bring-up. Not usable: it boot-loops (fixed in
 - All settings in espOS's web UI.
 - Signed release builds with a merged image for USB and an image for OTA.
 
+[0.0.6]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.2...v0.0.3

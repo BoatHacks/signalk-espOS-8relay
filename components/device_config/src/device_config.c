@@ -61,6 +61,11 @@ esp_err_t device_config_load(device_config_t *out)
         r->failsafe = strcmp(val, "hold") == 0 ? FAILSAFE_HOLD : FAILSAFE_DEFAULT_SAFE;
         snprintf(key, sizeof(key), "relay%d_override", n);
         r->override_di = (uint8_t)get_int(key);
+        snprintf(key, sizeof(key), "relay%d_link", n);
+        get_str(key, val, sizeof(val));
+        r->link = strcmp(val, "toggle") == 0 ? INPUT_LINK_TOGGLE : INPUT_LINK_FOLLOW;
+        snprintf(key, sizeof(key), "relay%d_max_on_s", n);
+        r->max_on_s = (uint32_t)get_int(key);
 
         input_cfg_t *in = &out->inputs[n - 1];
         snprintf(key, sizeof(key), "input%d_name", n);

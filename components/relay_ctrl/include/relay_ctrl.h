@@ -23,6 +23,7 @@ typedef enum {
     RELAY_SRC_PULSE_END,   // a momentary pulse ran out
     RELAY_SRC_FAILSAFE,    // SignalK was lost
     RELAY_SRC_WEB,         // the device's own relay page
+    RELAY_SRC_MAX_ON,      // a relay's maximum on-time ran out
 } relay_source_t;
 
 // Persists the on/off state of `hold` relays (bit n-1 = relay n).
@@ -57,10 +58,16 @@ esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg)
 void relay_ctrl_update_config(const device_config_t *cfg);
 
 // Switch relay `channel` (1-8). The most recent call wins, whatever its
-// source. "On" for a momentary relay starts (or restarts) its pulse.
+// source. "On" for a momentary relay starts (or restarts) its pulse; for a
+// latching relay with a maximum on-time it starts (or restarts) that timer,
+// and the relay switches off with RELAY_SRC_MAX_ON when it runs out.
 // ESP_ERR_INVALID_ARG for a bad channel; an I2C error leaves the reported
 // state at what was last confirmed on the chip.
 esp_err_t relay_ctrl_set(uint8_t channel, bool on, relay_source_t src);
+
+// Switch relay `channel` to the opposite of its current state, decided
+// atomically (a push button linked in toggle mode).
+esp_err_t relay_ctrl_toggle(uint8_t channel, relay_source_t src);
 
 bool relay_ctrl_get(uint8_t channel);
 uint8_t relay_ctrl_get_mask(void);

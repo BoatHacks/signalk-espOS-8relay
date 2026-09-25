@@ -51,12 +51,12 @@ Host tests in `input_sense_test` with the fake clock:
 On the board: a real push button on DI1 toggling relay 1.
 
 ## Implementation Steps
-- [ ] `r<n>_link` setting and `relay_cfg_t.link_mode`
-- [ ] Override callback carries on/off/toggle; `main.c` maps toggle
-- [ ] Rising-edge-only handling and no boot override for toggle links
-- [ ] Host tests
-- [ ] Relay page: show "toggled by input n" (links with plan 12)
-- [ ] USER_MANUAL §6.3, §7.4; CHANGELOG
+- [x] `relay<n>_link` setting and `relay_cfg_t.link`; toggles go through a new atomic `relay_ctrl_toggle()`
+- [x] Override callback carries on/off/toggle; `main.c` maps toggle
+- [x] Rising-edge-only handling and no boot override for toggle links
+- [x] Host tests
+- [x] Relay page: show "toggled by input n" (links with plan 12)
+- [x] USER_MANUAL §6.3, §7.4; CHANGELOG
 
 ## Files to Create/Modify
 - `components/device_config/` (`config/swbank.json`, header, loader)

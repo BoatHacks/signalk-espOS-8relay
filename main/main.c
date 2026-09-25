@@ -39,9 +39,12 @@ static uint32_t now_ms(void)
 
 // ------------------------------------------------ wiring between modules
 
-static esp_err_t input_override(uint8_t relay, bool on)
+static esp_err_t input_override(uint8_t relay, input_action_t action)
 {
-    return relay_ctrl_set(relay, on, RELAY_SRC_INPUT);
+    if (action == INPUT_ACTION_TOGGLE) {
+        return relay_ctrl_toggle(relay, RELAY_SRC_INPUT);
+    }
+    return relay_ctrl_set(relay, action == INPUT_ACTION_ON, RELAY_SRC_INPUT);
 }
 
 static esp_err_t sk_set_relay(uint8_t relay, bool on)

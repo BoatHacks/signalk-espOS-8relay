@@ -24,13 +24,15 @@ static const input_sense_hw_t hw = {.read_pins = read_pins, .now_ms = fake_now};
 static struct {
     uint8_t ch;
     bool on;
+    bool toggle;
 } overrides[MAX_EVENTS], changes[MAX_EVENTS];
 static int n_overrides, n_changes;
 
-static esp_err_t record_override(uint8_t relay, bool on)
+static esp_err_t record_override(uint8_t relay, input_action_t action)
 {
     overrides[n_overrides].ch = relay;
-    overrides[n_overrides].on = on;
+    overrides[n_overrides].on = action == INPUT_ACTION_ON;
+    overrides[n_overrides].toggle = action == INPUT_ACTION_TOGGLE;
     n_overrides++;
     return ESP_OK;
 }
@@ -231,4 +233,101 @@ TEST_CASE("linking a relay to an input that is on doesn't switch it", "[input_se
     input_sense_update_config(&cfg);
     run_for(200);
     TEST_ASSERT_EQUAL(0, n_overrides);  // it follows the input from its next change
+}
+
+// ------------------------------------------------------------ toggle links
+
+TEST_CASE("toggle link: each press toggles once, the release does nothing", "[input_sense]")
+{
+    fresh();
+    cfg.relays[2].override_di = 4;
+    cfg.relays[2].link = INPUT_LINK_TOGGLE;
+    start();
+    run_for(100);  // settle
+    TEST_ASSERT_EQUAL(0, n_overrides);
+
+    energise(4, true);
+    run_for(100);
+    TEST_ASSERT_EQUAL(1, n_overrides);
+    TEST_ASSERT_EQUAL(3, overrides[0].ch);
+    TEST_ASSERT_TRUE(overrides[0].toggle);
+
+    energise(4, false);
+    run_for(100);
+    TEST_ASSERT_EQUAL(1, n_overrides);  // release ignored
+
+    energise(4, true);
+    run_for(100);
+    TEST_ASSERT_EQUAL(2, n_overrides);
+    TEST_ASSERT_TRUE(overrides[1].toggle);
+}
+
+TEST_CASE("toggle link: bounce within the debounce time doesn't double-toggle", "[input_sense]")
+{
+    fresh();
+    cfg.relays[0].override_di = 1;
+    cfg.relays[0].link = INPUT_LINK_TOGGLE;
+    start();
+    run_for(100);
+    for (int k = 0; k < 5; k++) {  // contact bounce: 20 ms on, 10 ms off
+        energise(1, true);
+        run_for(20);
+        energise(1, false);
+        run_for(10);
+    }
+    energise(1, true);
+    run_for(100);
+    TEST_ASSERT_EQUAL(1, n_overrides);
+    TEST_ASSERT_TRUE(overrides[0].toggle);
+}
+
+TEST_CASE("toggle link: nothing at boot, even with the button held", "[input_sense]")
+{
+    fresh();
+    cfg.relays[5].override_di = 2;
+    cfg.relays[5].link = INPUT_LINK_TOGGLE;
+    energise(2, true);  // held at power-up
+    start();
+    run_for(200);
+    TEST_ASSERT_TRUE(input_sense_ready());
+    TEST_ASSERT_EQUAL(0, n_overrides);
+    energise(2, false);  // letting go is a release, not a press
+    run_for(100);
+    TEST_ASSERT_EQUAL(0, n_overrides);
+}
+
+TEST_CASE("toggle link: with invert, the press is the pin going to rest", "[input_sense]")
+{
+    fresh();
+    cfg.relays[0].override_di = 3;
+    cfg.relays[0].link = INPUT_LINK_TOGGLE;
+    cfg.inputs[2].invert = true;  // normally-closed button
+    energise(3, true);            // at rest: energised, reads off
+    start();
+    run_for(100);
+    energise(3, false);  // pressed: circuit opens, reads on
+    run_for(100);
+    TEST_ASSERT_EQUAL(1, n_overrides);
+    TEST_ASSERT_TRUE(overrides[0].toggle);
+}
+
+TEST_CASE("one input can follow one relay and toggle another", "[input_sense]")
+{
+    fresh();
+    cfg.relays[0].override_di = 5;
+    cfg.relays[1].override_di = 5;
+    cfg.relays[1].link = INPUT_LINK_TOGGLE;
+    start();
+    run_for(100);
+    TEST_ASSERT_EQUAL(1, n_overrides);  // boot: the follow link only
+    TEST_ASSERT_EQUAL(1, overrides[0].ch);
+    TEST_ASSERT_FALSE(overrides[0].on);
+    n_overrides = 0;
+    energise(5, true);
+    run_for(100);
+    TEST_ASSERT_EQUAL(2, n_overrides);
+    TEST_ASSERT_EQUAL(1, overrides[0].ch);
+    TEST_ASSERT_TRUE(overrides[0].on);
+    TEST_ASSERT_EQUAL(2, overrides[1].ch);
+    TEST_ASSERT_TRUE(overrides[1].toggle);
 }

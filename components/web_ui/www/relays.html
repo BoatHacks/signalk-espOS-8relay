@@ -81,6 +81,12 @@ let busy = false;
 let timer = null;
 const rows = [];
 
+function fmtDuration(s) {
+  if (s % 3600 === 0) return (s / 3600) + " h";
+  if (s % 60 === 0) return (s / 60) + " min";
+  return s + " s";
+}
+
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -118,7 +124,8 @@ function render(s) {
     row.name.textContent = r.channel + " · " + r.name;
     const notes = [];
     if (r.momentary) notes.push("momentary");
-    if (r.input) notes.push("follows input " + r.input);
+    if (r.input) notes.push((r.inputToggle ? "toggled by input " : "follows input ") + r.input);
+    if (r.maxOnS) notes.push("off after " + fmtDuration(r.maxOnS));
     row.meta.textContent = notes.join(" · ");
     row.pill.textContent = r.on ? "ON" : "OFF";
     row.pill.classList.toggle("is-on", r.on);

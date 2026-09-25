@@ -392,3 +392,139 @@ TEST_CASE("a single failed write is retried", "[relay_ctrl]")
     TEST_ASSERT_TRUE(relay_ctrl_get(1));
     TEST_ASSERT_EQUAL(ESPOS_HEALTH_NORMAL, expander_health());
 }
+
+// ------------------------------------------------------------- toggle
+
+TEST_CASE("toggle flips a relay and reports the source", "[relay_ctrl]")
+{
+    fresh();
+    start();
+    TEST_ESP_OK(relay_ctrl_toggle(2, RELAY_SRC_INPUT));
+    TEST_ASSERT_TRUE(relay_ctrl_get(2));
+    TEST_ESP_OK(relay_ctrl_toggle(2, RELAY_SRC_INPUT));
+    TEST_ASSERT_FALSE(relay_ctrl_get(2));
+    TEST_ASSERT_EQUAL(2, n_events);
+    TEST_ASSERT_EQUAL(RELAY_SRC_INPUT, events[1].src);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, relay_ctrl_toggle(9, RELAY_SRC_INPUT));
+}
+
+TEST_CASE("toggling a momentary relay starts a pulse; again ends it early", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].mode = RELAY_MODE_MOMENTARY;
+    start();
+    TEST_ESP_OK(relay_ctrl_toggle(1, RELAY_SRC_INPUT));
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));
+    clock_ms += 400;
+    TEST_ESP_OK(relay_ctrl_toggle(1, RELAY_SRC_INPUT));
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));
+    clock_ms += 2000;
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL(2, n_events);  // no pulse end left running
+}
+
+// ------------------------------------------------------ maximum on-time
+
+TEST_CASE("max on-time switches a relay off, whatever switched it on", "[relay_ctrl]")
+{
+    const relay_source_t sources[] = {RELAY_SRC_SK, RELAY_SRC_N2K, RELAY_SRC_WEB, RELAY_SRC_INPUT};
+    for (size_t k = 0; k < sizeof(sources) / sizeof(sources[0]); k++) {
+        fresh();
+        cfg.relays[3].max_on_s = 60;
+        start();
+        TEST_ESP_OK(relay_ctrl_set(4, true, sources[k]));
+        clock_ms += 59999;
+        relay_ctrl_tick();
+        TEST_ASSERT_TRUE(relay_ctrl_get(4));
+        clock_ms += 1;
+        relay_ctrl_tick();
+        TEST_ASSERT_FALSE(relay_ctrl_get(4));
+        TEST_ASSERT_EQUAL(2, n_events);
+        TEST_ASSERT_EQUAL(RELAY_SRC_MAX_ON, events[1].src);
+        TEST_ASSERT_FALSE(events[1].on);
+    }
+}
+
+TEST_CASE("max on-time: a repeated on restarts it, off cancels it", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].max_on_s = 10;
+    start();
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));
+    clock_ms += 8000;
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));  // "still here"
+    clock_ms += 8000;
+    relay_ctrl_tick();
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));
+    clock_ms += 2000;
+    relay_ctrl_tick();
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));
+
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(1, false, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));  // no limit on relay 2
+    n_events = 0;
+    clock_ms += 3600 * 1000;
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL(0, n_events);
+    TEST_ASSERT_TRUE(relay_ctrl_get(2));
+}
+
+TEST_CASE("max on-time is ignored for momentary relays", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].mode = RELAY_MODE_MOMENTARY;
+    cfg.relays[0].pulse_ms = 5000;
+    cfg.relays[0].max_on_s = 1;
+    start();
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));
+    clock_ms += 1000;
+    relay_ctrl_tick();
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));  // the pulse decides, not the limit
+    clock_ms += 4000;
+    relay_ctrl_tick();
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));
+    TEST_ASSERT_EQUAL(RELAY_SRC_PULSE_END, events[1].src);
+}
+
+TEST_CASE("max on-time: set or cleared while on applies from now", "[relay_ctrl]")
+{
+    fresh();
+    start();
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));
+    clock_ms += 3600 * 1000;
+    cfg.relays[0].max_on_s = 30;  // set on a relay that has been on for an hour
+    relay_ctrl_update_config(&cfg);
+    relay_ctrl_tick();
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));
+    clock_ms += 30000;
+    relay_ctrl_tick();
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));
+
+    cfg.relays[1].max_on_s = 30;
+    relay_ctrl_update_config(&cfg);
+    clock_ms += 20000;
+    cfg.relays[1].max_on_s = 0;  // cleared before it ran out
+    relay_ctrl_update_config(&cfg);
+    clock_ms += 60000;
+    relay_ctrl_tick();
+    TEST_ASSERT_TRUE(relay_ctrl_get(2));
+}
+
+TEST_CASE("max on-time: a hold relay restored at boot gets a fresh timer", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].failsafe = FAILSAFE_HOLD;
+    cfg.relays[0].max_on_s = 20;
+    store.has_value = true;
+    store.value = 0x01;
+    start();
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));
+    clock_ms += 19999;
+    relay_ctrl_tick();
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));
+    clock_ms += 1;
+    relay_ctrl_tick();
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));
+}

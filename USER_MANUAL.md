@@ -148,6 +148,8 @@ overrides.
 | Pulse time | 1 s | For momentary relays |
 | When SignalK is lost or the board restarts | Switch off | *Keep last state*, or *switch off*. Momentary relays always switch off. |
 | Controlled by input | None | An input (1–8) that switches this relay directly |
+| Input link | Follow | *Follow*: the relay copies its input. *Toggle*: each press of a push button on the input switches the relay over (section 7.4). |
+| Maximum on-time | 0 (no limit) | Switch off automatically after this long, however the relay was switched on. Ignored in momentary mode. |
 
 ### 6.4 Each input
 
@@ -234,10 +236,29 @@ the relays.
 
 ### 7.4 Input overrides
 
-A relay linked to an input follows that input whenever the input changes.
-A command from SignalK or NMEA 2000 after that still works, and holds until
-the input changes again. At start-up, a linked relay takes the input's
-state.
+A relay linked to an input reacts to it in one of two ways (*Input link*,
+section 6.3):
+
+- **Follow** (the default): the relay follows the input whenever the input
+  changes. A command from SignalK, NMEA 2000 or the relay page after that
+  still works, and holds until the input changes again. At start-up, a
+  linked relay takes the input's state.
+- **Toggle**, for momentary push buttons: each press switches the relay
+  over; letting go does nothing. Other commands work as usual, and the
+  next press switches over from whatever state the relay is in. At
+  start-up nothing happens, even with the button held. A momentary relay
+  in toggle mode starts its pulse on a press, and a second press during
+  the pulse ends it early. For a normally-closed button, also turn on the
+  input's *Invert*.
+
+### 7.4.1 Maximum on-time
+
+A relay with a *Maximum on-time* switches itself off once it has been on
+that long, whoever switched it on, including an input it follows. Another
+"on" command restarts the time, so a pump can be kept running by
+confirming it. After a restart, a relay that comes back on starts a fresh
+time. Setting or clearing the limit while the relay is on applies from
+that moment.
 
 ### 7.5 If the network or power is lost
 

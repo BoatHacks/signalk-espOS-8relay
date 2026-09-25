@@ -20,9 +20,13 @@ typedef struct {
     uint32_t (*now_ms)(void);
 } input_sense_hw_t;
 
-// Switches a relay for an override. relay_ctrl_set() with RELAY_SRC_INPUT on
-// the device; a recorder in tests.
-typedef esp_err_t (*input_override_fn_t)(uint8_t relay_channel, bool on);
+// What an input asks of a relay linked to it: follow links pass on/off,
+// toggle links pass TOGGLE on each press (and nothing on release).
+typedef enum { INPUT_ACTION_OFF, INPUT_ACTION_ON, INPUT_ACTION_TOGGLE } input_action_t;
+
+// Switches a relay for an override. relay_ctrl_set()/relay_ctrl_toggle()
+// with RELAY_SRC_INPUT on the device; a recorder in tests.
+typedef esp_err_t (*input_override_fn_t)(uint8_t relay_channel, input_action_t action);
 
 // Called on a debounced change, and once per input when the first readings
 // settle. `mask` is every input's state.

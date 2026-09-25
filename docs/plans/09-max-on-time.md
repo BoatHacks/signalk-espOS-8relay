@@ -47,11 +47,11 @@ Host tests in `relay_ctrl_test` (fake clock, fake expander):
 On the board: a 10 s limit on a lamp.
 
 ## Implementation Steps
-- [ ] `r<n>_max_on_s` setting
-- [ ] Deadline mask and `RELAY_SRC_MAX_ON` in `relay_ctrl`
-- [ ] Restart-on-repeat, config-change and boot rules
-- [ ] Host tests
-- [ ] USER_MANUAL §6.3, §7.5; CHANGELOG
+- [x] `relay<n>_max_on_s` setting
+- [x] Deadline mask and `RELAY_SRC_MAX_ON` in `relay_ctrl`
+- [x] Restart-on-repeat, config-change and boot rules
+- [x] Host tests
+- [x] USER_MANUAL §6.3, §7.4.1; CHANGELOG
 
 ## Files to Create/Modify
 - `components/device_config/`

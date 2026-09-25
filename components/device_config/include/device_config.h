@@ -18,6 +18,8 @@ extern "C" {
 
 typedef enum { RELAY_MODE_LATCHING, RELAY_MODE_MOMENTARY } relay_mode_t;
 typedef enum { FAILSAFE_DEFAULT_SAFE, FAILSAFE_HOLD } failsafe_policy_t;
+// How a relay reacts to its override input: copy it, or flip on each press.
+typedef enum { INPUT_LINK_FOLLOW, INPUT_LINK_TOGGLE } input_link_t;
 
 typedef struct {
     char name[DEVICE_CONFIG_NAME_MAX + 1];
@@ -26,6 +28,8 @@ typedef struct {
     // As stored. Use device_config_effective_failsafe() to act on it.
     failsafe_policy_t failsafe;
     uint8_t override_di;  // 0 = none, else input channel 1-8
+    input_link_t link;
+    uint32_t max_on_s;    // 0 = no limit; latching relays only
 } relay_cfg_t;
 
 typedef struct {

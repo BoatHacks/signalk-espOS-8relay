@@ -22,6 +22,8 @@ static struct {
     uint8_t mask;               // last state confirmed on the chip
     uint8_t pulsing;            // momentary relays with a running pulse
     uint32_t pulse_end[BOARD_CHANNELS];
+    uint8_t limited;            // latching relays with a running max on-time
+    uint32_t max_on_end[BOARD_CHANNELS];
     bool save_pending;
     uint32_t last_save_ms;
     bool i2c_fault;
@@ -52,6 +54,12 @@ static uint8_t hold_mask(void)
         }
     }
     return m;
+}
+
+// Maximum on-time in ms, 0 = none. Momentary relays end by themselves.
+static uint32_t max_on_ms(int i)
+{
+    return is_momentary(i) ? 0 : s.cfg.relays[i].max_on_s * 1000u;
 }
 
 static bool deadline_passed(uint32_t now, uint32_t deadline)
@@ -93,6 +101,23 @@ static esp_err_t commit_locked(uint8_t target)
     return ESP_OK;
 }
 
+// Keep max on-time timers in step with s.mask after a change: a relay that
+// came on starts its timer, one that went off drops it, and `restart` (an
+// explicit "on" command) restarts it for a relay that was already on.
+static void track_max_on_locked(uint8_t before, uint8_t restart)
+{
+    const uint32_t now = s.hw.now_ms();
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        const uint8_t bit = 1u << i;
+        if (!(s.mask & bit) || max_on_ms(i) == 0) {
+            s.limited &= ~bit;
+        } else if (!(before & bit) || (restart & bit)) {
+            s.max_on_end[i] = now + max_on_ms(i);
+            s.limited |= bit;
+        }
+    }
+}
+
 // Tell listeners about every relay that differs between `before` and s.mask.
 // Called without the lock held.
 static void notify(uint8_t before, uint8_t after, relay_source_t src)
@@ -121,6 +146,7 @@ esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg)
     s.hw = *hw;
     s.cfg = *cfg;
     s.pulsing = 0;
+    s.limited = 0;
     s.save_pending = false;
     s.last_save_ms = hw->now_ms() - RELAY_CTRL_SAVE_DELAY_MS;
 
@@ -152,6 +178,9 @@ esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg)
         return err;
     }
     s.mask = target;
+    // A relay restored on starts a fresh max on-time: the time it spent on
+    // before the restart isn't known.
+    track_max_on_locked(0, 0);
     // A warm boot may have held a newer state than the store had.
     s.save_pending = warm;
     return ESP_OK;
@@ -162,6 +191,10 @@ void relay_ctrl_update_config(const device_config_t *cfg)
     xSemaphoreTake(s.lock, portMAX_DELAY);
     const uint8_t old_hold = hold_mask();
     const uint32_t now = s.hw.now_ms();
+    uint32_t old_limit[BOARD_CHANNELS];
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        old_limit[i] = max_on_ms(i);
+    }
     s.cfg = *cfg;
     for (int i = 0; i < BOARD_CHANNELS; i++) {
         const uint8_t bit = 1u << i;
@@ -177,10 +210,21 @@ void relay_ctrl_update_config(const device_config_t *cfg)
     if (hold_mask() != old_hold) {
         s.save_pending = true;
     }
+    // A changed max on-time applies from now to a relay that is on; 0 or
+    // momentary mode cancels it.
+    uint8_t changed_limit = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (max_on_ms(i) != old_limit[i]) {
+            changed_limit |= 1u << i;
+        }
+    }
+    track_max_on_locked(s.mask, changed_limit);
     xSemaphoreGive(s.lock);
 }
 
-esp_err_t relay_ctrl_set(uint8_t channel, bool on, relay_source_t src)
+// relay_ctrl_set() and relay_ctrl_toggle(): `on` < 0 means "the opposite of
+// now", decided under the lock so two sources can't both read the old state.
+static esp_err_t set_or_toggle(uint8_t channel, int on_req, relay_source_t src)
 {
     if (channel < 1 || channel > BOARD_CHANNELS) {
         return ESP_ERR_INVALID_ARG;
@@ -190,6 +234,7 @@ esp_err_t relay_ctrl_set(uint8_t channel, bool on, relay_source_t src)
 
     xSemaphoreTake(s.lock, portMAX_DELAY);
     const uint8_t before = s.mask;
+    const bool on = on_req < 0 ? !(s.mask & bit) : on_req;
     esp_err_t err = commit_locked(on ? (s.mask | bit) : (s.mask & ~bit));
     if (err == ESP_OK) {
         if (on && is_momentary(i)) {
@@ -198,12 +243,24 @@ esp_err_t relay_ctrl_set(uint8_t channel, bool on, relay_source_t src)
         } else if (!on) {
             s.pulsing &= ~bit;
         }
+        // An "on" to a relay already on restarts its max on-time.
+        track_max_on_locked(before, on ? bit : 0);
     }
     const uint8_t after = s.mask;
     xSemaphoreGive(s.lock);
 
     notify(before, after, src);
     return err;
+}
+
+esp_err_t relay_ctrl_set(uint8_t channel, bool on, relay_source_t src)
+{
+    return set_or_toggle(channel, on ? 1 : 0, src);
+}
+
+esp_err_t relay_ctrl_toggle(uint8_t channel, relay_source_t src)
+{
+    return set_or_toggle(channel, -1, src);
 }
 
 bool relay_ctrl_get(uint8_t channel)
@@ -237,6 +294,7 @@ void relay_ctrl_sk_lost(void)
     const uint8_t off = (uint8_t)~hold_mask();
     if (commit_locked(s.mask & ~off) == ESP_OK) {
         s.pulsing &= ~off;
+        track_max_on_locked(before, 0);
     }
     const uint8_t after = s.mask;
     xSemaphoreGive(s.lock);
@@ -258,6 +316,17 @@ void relay_ctrl_tick(void)
     if (ended && commit_locked(s.mask & ~ended) == ESP_OK) {
         s.pulsing &= ~ended;
     }
+    const uint8_t after_pulses = s.mask;
+
+    uint8_t expired = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if ((s.limited & (1u << i)) && deadline_passed(now, s.max_on_end[i])) {
+            expired |= 1u << i;
+        }
+    }
+    if (expired && commit_locked(s.mask & ~expired) == ESP_OK) {
+        s.limited &= ~expired;
+    }
 
     if (s.save_pending && now - s.last_save_ms >= RELAY_CTRL_SAVE_DELAY_MS) {
         if (s.hw.store.save(s.hw.store.ctx, s.mask & hold_mask()) == ESP_OK) {
@@ -268,7 +337,8 @@ void relay_ctrl_tick(void)
     const uint8_t after = s.mask;
     xSemaphoreGive(s.lock);
 
-    notify(before, after, RELAY_SRC_PULSE_END);
+    notify(before, after_pulses, RELAY_SRC_PULSE_END);
+    notify(after_pulses, after, RELAY_SRC_MAX_ON);
 }
 
 void relay_ctrl_reset(void)

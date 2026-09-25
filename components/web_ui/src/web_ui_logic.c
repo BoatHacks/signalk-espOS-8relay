@@ -23,6 +23,8 @@ char *web_ui_state_json(const web_ui_view_t *view)
         cJSON_AddBoolToObject(o, "on", (view->relay_mask >> i) & 1);
         cJSON_AddBoolToObject(o, "momentary", r->mode == RELAY_MODE_MOMENTARY);
         cJSON_AddNumberToObject(o, "input", r->override_di);
+        cJSON_AddBoolToObject(o, "inputToggle", r->link == INPUT_LINK_TOGGLE);
+        cJSON_AddNumberToObject(o, "maxOnS", r->mode == RELAY_MODE_MOMENTARY ? 0 : r->max_on_s);
 
         cJSON *in = cJSON_CreateObject();
         cJSON_AddItemToArray(inputs, in);

@@ -160,6 +160,29 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "relay1_link",
+      "type": "string",
+      "default": "follow",
+      "enum": [
+        "follow",
+        "toggle"
+      ],
+      "group": "Relays",
+      "title": "Relay 1: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
+    },
+    {
+      "name": "relay1_max_on_s",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 86400,
+      "unit": "s",
+      "group": "Relays",
+      "title": "Relay 1: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
+    },
+    {
       "name": "relay2_name",
       "type": "string",
       "default": "Relay 2",
@@ -212,6 +235,29 @@
       "group": "Relays",
       "title": "Relay 2: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "relay2_link",
+      "type": "string",
+      "default": "follow",
+      "enum": [
+        "follow",
+        "toggle"
+      ],
+      "group": "Relays",
+      "title": "Relay 2: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
+    },
+    {
+      "name": "relay2_max_on_s",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 86400,
+      "unit": "s",
+      "group": "Relays",
+      "title": "Relay 2: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay3_name",
@@ -268,6 +314,29 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "relay3_link",
+      "type": "string",
+      "default": "follow",
+      "enum": [
+        "follow",
+        "toggle"
+      ],
+      "group": "Relays",
+      "title": "Relay 3: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
+    },
+    {
+      "name": "relay3_max_on_s",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 86400,
+      "unit": "s",
+      "group": "Relays",
+      "title": "Relay 3: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
+    },
+    {
       "name": "relay4_name",
       "type": "string",
       "default": "Relay 4",
@@ -320,6 +389,29 @@
       "group": "Relays",
       "title": "Relay 4: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "relay4_link",
+      "type": "string",
+      "default": "follow",
+      "enum": [
+        "follow",
+        "toggle"
+      ],
+      "group": "Relays",
+      "title": "Relay 4: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
+    },
+    {
+      "name": "relay4_max_on_s",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 86400,
+      "unit": "s",
+      "group": "Relays",
+      "title": "Relay 4: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay5_name",
@@ -376,6 +468,29 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "relay5_link",
+      "type": "string",
+      "default": "follow",
+      "enum": [
+        "follow",
+        "toggle"
+      ],
+      "group": "Relays",
+      "title": "Relay 5: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
+    },
+    {
+      "name": "relay5_max_on_s",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 86400,
+      "unit": "s",
+      "group": "Relays",
+      "title": "Relay 5: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
+    },
+    {
       "name": "relay6_name",
       "type": "string",
       "default": "Relay 6",
@@ -428,6 +543,29 @@
       "group": "Relays",
       "title": "Relay 6: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "relay6_link",
+      "type": "string",
+      "default": "follow",
+      "enum": [
+        "follow",
+        "toggle"
+      ],
+      "group": "Relays",
+      "title": "Relay 6: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
+    },
+    {
+      "name": "relay6_max_on_s",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 86400,
+      "unit": "s",
+      "group": "Relays",
+      "title": "Relay 6: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "relay7_name",
@@ -484,6 +622,29 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "relay7_link",
+      "type": "string",
+      "default": "follow",
+      "enum": [
+        "follow",
+        "toggle"
+      ],
+      "group": "Relays",
+      "title": "Relay 7: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
+    },
+    {
+      "name": "relay7_max_on_s",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 86400,
+      "unit": "s",
+      "group": "Relays",
+      "title": "Relay 7: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
+    },
+    {
       "name": "relay8_name",
       "type": "string",
       "default": "Relay 8",
@@ -536,6 +697,29 @@
       "group": "Relays",
       "title": "Relay 8: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "relay8_link",
+      "type": "string",
+      "default": "follow",
+      "enum": [
+        "follow",
+        "toggle"
+      ],
+      "group": "Relays",
+      "title": "Relay 8: input link",
+      "description": "follow = the relay copies its input; toggle = each press of a push button on the input switches the relay over."
+    },
+    {
+      "name": "relay8_max_on_s",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 86400,
+      "unit": "s",
+      "group": "Relays",
+      "title": "Relay 8: maximum on-time",
+      "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
       "name": "input1_name",

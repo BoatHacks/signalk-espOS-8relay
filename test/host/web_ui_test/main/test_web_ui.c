@@ -66,11 +66,18 @@ TEST_CASE("state: names are escaped; mode and input link reported", "[web_ui]")
     strcpy(cfg.relays[2].name, "Deck \"light\" \\ <b>");
     cfg.relays[2].mode = RELAY_MODE_MOMENTARY;
     cfg.relays[2].override_di = 5;
+    cfg.relays[2].link = INPUT_LINK_TOGGLE;
+    cfg.relays[2].max_on_s = 600;  // momentary: reported as no limit
+    cfg.relays[1].max_on_s = 1800;
     cJSON *root = state(0, 0, true);
     cJSON *r = item(root, "relays", 2);
     TEST_ASSERT_EQUAL_STRING("Deck \"light\" \\ <b>", cJSON_GetObjectItem(r, "name")->valuestring);
     TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(r, "momentary")));
     TEST_ASSERT_EQUAL(5, cJSON_GetObjectItem(r, "input")->valueint);
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(r, "inputToggle")));
+    TEST_ASSERT_EQUAL(0, cJSON_GetObjectItem(r, "maxOnS")->valueint);
+    TEST_ASSERT_EQUAL(1800, cJSON_GetObjectItem(item(root, "relays", 1), "maxOnS")->valueint);
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(item(root, "relays", 1), "inputToggle")));
     TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(item(root, "relays", 0), "momentary")));
     TEST_ASSERT_EQUAL(0, cJSON_GetObjectItem(item(root, "relays", 0), "input")->valueint);
     cJSON_Delete(root);
