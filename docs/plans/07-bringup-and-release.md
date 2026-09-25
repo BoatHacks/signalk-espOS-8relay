@@ -76,6 +76,9 @@ summary; tick items here as the procedure passes them.
       enabled (0.0.9) the boot log shows `Found 8MB PSRAM device`, `SPI
       SRAM memory test OK`, and the settings page loads again on 0.0.10
       (2026-09-25)
+- [x] NMEA 2000 opens at boot on 0.0.10 (`n2k: on the bus: relay bank 0,
+      input bank 1` at 1.7 s); before, the library's same-millisecond open
+      could make the firmware give up (2026-09-25)
 
 ## Implementation Steps
 - [ ] Wire the board to test loads, a CAN bus and a SignalK server
