@@ -50,7 +50,10 @@ driver. Applies commands (on/off), enforces momentary pulse timing (an
 on SignalK loss. The expander keeps its outputs through an ESP32 reset,
 which lets `hold` relays survive an OTA reboot without switching; see
 [plan 03](docs/plans/03-relay-control.md) for the boot sequence this
-requires. Nothing else in this repo talks to the expander — all relay
+requires; relays start in espOS's `before_network` hook, before any
+networking. Momentary pulses and flash saves are driven by
+`relay_ctrl_tick()`, called every 10 ms by a relay task. Nothing else in
+this repo talks to the expander — all relay
 state changes go through this component so `switch_bank` (§2.3) always
 has one place to ask for/command state.
 

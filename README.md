@@ -45,7 +45,8 @@ The full requirements are in [SPEC.md](SPEC.md).
 | 00 — espOS fit check | Software checks done; espOS 0.10.3 builds for the ESP32-S3. Boot test waiting for the board |
 | 01 — project scaffold | Done except the on-board check: builds for the ESP32-S3, W5500 Ethernet driver, host tests, CI |
 | 02 — settings | Done except the on-board check: all settings in espOS's web UI, host-tested |
-| 03–06 — firmware | Not started |
+| 03 — relay control | Done except the on-board check: safe boot sequence, momentary pulses, fail-safe, hold-state storage; host-tested |
+| 04–06 — firmware | Not started |
 | 07 — hardware bring-up and first release | Not started; waiting for the board |
 
 Known issues found so far:

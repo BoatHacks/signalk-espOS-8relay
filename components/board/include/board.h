@@ -10,6 +10,9 @@
 #define BOARD_I2C_SCL 41
 #define BOARD_I2C_SDA 42
 #define BOARD_TCA9554_ADDR 0x20  // EXIO1-8 = relay 1-8
+// Expander output level that energises a relay. Assumed high; confirm on
+// the board (docs/plans/07-bringup-and-release.md).
+#define BOARD_RELAY_ACTIVE_HIGH 1
 
 // Digital inputs DI1-DI8, in channel order.
 #define BOARD_DI_PINS {4, 5, 6, 7, 8, 9, 10, 11}

@@ -1,0 +1,2 @@
+dependencies:
+  signalk-espos/espos_health: "0.10.3"

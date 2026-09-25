@@ -63,16 +63,26 @@ On hardware (plan 07): confirm relay polarity and that an OTA reboot
 doesn't click `hold` relays.
 
 ## Implementation Steps
-- [ ] `board`: pin map and shared I2C bus
-- [ ] TCA9554 driver behind an interface, with a host fake
-- [ ] `relay_ctrl` state, boot sequence, set/get, listeners
-- [ ] Momentary timers
-- [ ] `hold` state persistence: own NVS namespace, written only on
-      change and at most every few seconds, to limit flash wear
-- [ ] SignalK-loss hook
-- [ ] Host tests
+- [x] `board`: pin map and relay polarity (`BOARD_RELAY_ACTIVE_HIGH`,
+      assumed 1). The I2C bus is opened in `relay_hw.c` for now; it moves
+      to `board` when the RTC needs it.
+- [x] TCA9554 register layer behind an interface (`tca9554.c`)
+- [x] `relay_ctrl`: boot sequence, set/get, listeners, thread-safe
+- [x] Momentary pulses, driven by `relay_ctrl_tick()` every 10 ms from a
+      relay task rather than one `esp_timer` per relay, so timing is a
+      plain function of a clock that tests control
+- [x] `hold` state in NVS namespace `relay_state`: saved on the next tick
+      after a change, then at most every 5 s
+- [x] `relay_ctrl_sk_lost()`; detecting the loss is plan 05
+- [x] Relays start in espOS's `before_network` hook, so after a warm reset
+      default-safe relays drop before networking starts
+- [x] Host tests (`test/host/relay_ctrl_test`, 13 tests; the boot-order
+      test was checked to fail when the order is swapped)
+- [ ] On the board: relay polarity, no click on cold power-up, `hold`
+      relays don't click on an OTA reboot
 
 ## Files to Create/Modify
 - `components/board/`
-- `components/relay_ctrl/` (`relay_ctrl.c/.h`, `tca9554.c/.h`)
-- `test/host/test_relay_ctrl.c`, `test/host/fake_tca9554.c`
+- `components/relay_ctrl/` (`relay_ctrl`, `tca9554`, `relay_hw`)
+- `main/main.c`
+- `test/host/relay_ctrl_test/`
