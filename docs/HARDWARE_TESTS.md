@@ -218,6 +218,16 @@ reconnects within a minute and republishes.
 
 ## E. NMEA 2000
 
+**E0 [auto] CAN diagnostics.** `curl -s $B/api/v1/n2k` (0.0.8 and
+later) reports espOS's CAN counters. Read them first when NMEA 2000
+doesn't work:
+
+| Shows | Means |
+|---|---|
+| frames received > 0 | the bus works; look above the CAN layer |
+| 0 frames, error count rising | signals arrive but can't be decoded: termination (jumper `120R`), CAN-H/L swapped, bitrate, bus-side ground |
+| 0 frames, no errors | nothing arrives: bus not connected to the CAN terminal, or no other device sending |
+
 **E1 [auto] On the bus.** `status` → `nmea2000.started: true`, an
 `address` (34 unless another device took it), and `traffic: true` when
 other devices are on the bus. With a CAN adapter: `candump can0` shows
@@ -321,6 +331,7 @@ Copy for each release tested.
 | D2 Republish | | |
 | D3 SignalK switching | | |
 | D4 Fail-safe | | |
+| E0 CAN diagnostics | | |
 | E1 On the bus | | |
 | E2 N2K switching | | |
 | E3 MFD lists device | | |

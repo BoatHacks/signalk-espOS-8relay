@@ -15,6 +15,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "espos_n2k_api.h"
 #include "nvs.h"
 #include "switch_bank_pgn.h"
 
@@ -51,6 +52,9 @@ std::atomic<uint8_t> g_address{0};
 // single frame callback, which this class takes.
 class EsposN2k : public tNMEA2000 {
  public:
+  // For espOS's GET /api/v1/n2k diagnostics (frames, drops, bus errors).
+  const void *receiver() const { return &rx_; }
+
   EsposN2k()
       : rx_(espos_n2k::TwaiReceiverConfig{.tx_pin = static_cast<gpio_num_t>(BOARD_CAN_TX),
                                           .rx_pin = static_cast<gpio_num_t>(BOARD_CAN_RX)}) {}
@@ -186,6 +190,11 @@ extern "C" esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_co
   if (xTaskCreate(n2k_task, "n2k", 4096, nullptr, 4, nullptr) != pdPASS) return ESP_ERR_NO_MEM;
   g_address.store(address);
   g_started.store(true);
+  // The CAN bus's own diagnostics: whether frames arrive at all and whether
+  // the controller sees bus errors. Tells wiring faults from a silent bus.
+  if (espos_n2k_api_register(s.bus->receiver()) != ESP_OK) {
+    ESP_LOGW(TAG, "GET /api/v1/n2k not available");
+  }
   ESP_LOGI(TAG, "on the bus: relay bank %u, input bank %u%s", s.relay_bank, s.input_bank,
            s.inputs_on ? "" : " (not sent: same id as relays)");
   return ESP_OK;

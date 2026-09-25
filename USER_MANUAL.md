@@ -340,4 +340,23 @@ sounding. Passive buzzers differ: if the tone is quiet or shrill, change
 
 ## 8. Troubleshooting
 
-*To be written during hardware bring-up (stage 07).*
+### NMEA 2000: nothing received, or the board isn't listed
+
+The relay page's status line says *no bus traffic* when no frame has
+arrived for 10 seconds. `http://<board>/api/v1/n2k` shows espOS's CAN
+counters, which tell the causes apart:
+
+- **Frames received, but the board still doesn't show on an MFD**: the
+  wiring is fine; report it as a firmware problem.
+- **No frames, and the error count rises**: the board hears the bus but
+  can't make sense of it. Check that CAN-H and CAN-L aren't swapped, that
+  the bus is terminated at both ends of the backbone (a board on a drop
+  cable must **not** have its `120R` jumper fitted; a board at the end of
+  a backbone, or on a two-device test bench, must), and that the CAN
+  terminal's ground is connected to the bus ground (NET-C).
+- **No frames and no errors**: nothing reaches the board. Check the drop
+  cable reaches the CAN terminal, and that at least one other device on
+  the bus is powered and sending.
+
+The CAN interface is isolated from the rest of the board, so its ground
+is not the power supply's ground.
