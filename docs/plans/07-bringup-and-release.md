@@ -58,8 +58,10 @@ goes back to the plan that owns it. Record hardware facts learned here
 - [ ] Captive-portal provisioning on a fresh board
 
 **Release**
-- [ ] Production signing key created and stored outside the repo
-- [ ] Version tag, signed build, release notes
+- [ ] Production signing key created, kept outside the repo, and added
+      as the repository secret `SIGNING_KEY_PEM`
+- [ ] Publish a GitHub release: `release-firmware.yml` builds, signs,
+      merges and attaches `-merged.bin` (USB) and `-ota.bin` (OTA)
 - [ ] Published where `signalk-espos-manager` can find and install it
 
 ## Implementation Steps

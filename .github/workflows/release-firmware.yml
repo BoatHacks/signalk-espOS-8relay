@@ -1,0 +1,206 @@
+# Build, sign and attach firmware to a GitHub release: a merged image for a
+# first flash over USB, and the app image on its own for OTA updates.
+# Modelled on dirkwa/espos-p4-cockpit's release-firmware.yml.
+#
+# Runs when a release is published, when called with a tag by another
+# workflow (a release created with the workflow token never fires the
+# `release:` event), and by hand (assets uploaded as a workflow artifact
+# only, named after the commit). Everyday builds are in build.yml.
+name: Build & release firmware
+
+on:
+  release:
+    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        description: "The release tag to build, sign and attach assets to"
+        type: string
+        required: true
+  workflow_dispatch:
+
+# A publishing run is never cancelled: killing an upload half-way leaves a
+# release with an incomplete asset set. Runs for the same tag queue instead.
+concurrency:
+  group: >-
+    firmware-${{
+      (inputs.tag || github.event.release.tag_name)
+      && format('release-{0}', inputs.tag || github.event.release.tag_name)
+      || github.ref
+    }}
+  cancel-in-progress: ${{ !(inputs.tag || github.event.release.tag_name) }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v6.0.3
+    env:
+      # Non-empty for a release; empty for a manual build.
+      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || '' }}
+    outputs:
+      unsigned: ${{ steps.signing.outputs.unsigned }}
+    steps:
+      # fetch-depth 0: ESP-IDF takes the firmware's version from
+      # `git describe`, which needs tags; a shallow clone has none and every
+      # build would report a bare commit hash.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The container runs as root on a checkout owned by the runner user;
+      # without this git refuses to describe it and the version is lost.
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # Releases must be signed with the project's real key: a device only
+      # accepts OTA images signed with the key it was first flashed with. Fail
+      # rather than fall back, because a release signed with a throwaway key
+      # installs fine over USB and then rejects every future OTA.
+      - name: Restore signing key (releases)
+        id: signing
+        if: env.RELEASE_TAG != ''
+        env:
+          KEY: ${{ secrets.SIGNING_KEY_PEM }}
+          ALLOW_UNSIGNED: ${{ vars.ALLOW_UNSIGNED_RELEASE }}
+        run: |
+          if [ -z "$KEY" ] && [ "$ALLOW_UNSIGNED" = "true" ]; then
+            echo "::warning::ALLOW_UNSIGNED_RELEASE is set: building with a" \
+                 "throwaway signing key. USB flashing works; OTA updates will NOT."
+            echo "unsigned=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "$KEY" ]; then
+            echo "::error::SIGNING_KEY_PEM is not set. Releases are signed so" \
+                 "devices can verify OTA updates. Generate a production key and" \
+                 "add it as a repository secret:"
+            echo "::error::  espsecure generate-signing-key --version 2 --scheme rsa3072 signing_key.pem"
+            echo "::error::  gh secret set SIGNING_KEY_PEM < signing_key.pem"
+            echo "::error::Keep that file safe: losing it means no device flashed" \
+                 "with this release can take another OTA."
+            echo "::error::To release for USB flashing only, set repository" \
+                 "variable ALLOW_UNSIGNED_RELEASE=true."
+            exit 1
+          fi
+          printf '%s' "$KEY" > secure_boot_signing_key.pem
+          # Catch a truncated or mangled secret before a long build.
+          openssl rsa -in secure_boot_signing_key.pem -noout -check
+
+      - name: Build for esp32s3
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          # Manual builds and ALLOW_UNSIGNED releases get a throwaway key.
+          if [ ! -f secure_boot_signing_key.pem ]; then
+            espsecure generate-signing-key --version 2 --scheme rsa3072 secure_boot_signing_key.pem
+          fi
+          idf.py set-target esp32s3
+          idf.py build
+
+      # --require storage: an image merged without the web UI partition still
+      # boots, but serves espOS's placeholder page instead of the settings UI.
+      - name: Merge flash images into one binary
+        shell: bash
+        run: |
+          python3 -m venv /tmp/esptool
+          /tmp/esptool/bin/pip install --quiet "esptool==4.8.1"
+          PATH=/tmp/esptool/bin:$PATH python3 scripts/espos_merge_firmware.py \
+            --build-dir build --chip esp32s3 --out merged.bin --require storage
+
+      - name: Verify merged binary
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          from pathlib import Path
+          data = Path("merged.bin").read_bytes()
+          files = json.loads(Path("build/flasher_args.json").read_text())["flash_files"]
+          print(f"{len(data)} bytes ({len(data)/1024/1024:.2f} MiB)")
+          # The ESP32-S3 bootloader sits at 0x0 and starts with image magic 0xE9.
+          if data[0] != 0xE9:
+              sys.exit(f"error: no ESP image magic at 0x0 (got {data[0]:#04x})")
+          storage = [int(off, 16) for off, f in files.items() if "storage" in f]
+          if not storage:
+              sys.exit("error: the build has no storage (web UI) partition")
+          at = storage[0]
+          if len(data) <= at or data[at:at + 0x1000] == b"\xff" * 0x1000:
+              sys.exit(f"error: storage partition at {at:#x} missing or blank")
+          print("merged image looks structurally sound")
+          PY
+
+      # Both files in one flat directory: upload-artifact strips paths to
+      # their common ancestor. The OTA image is what a device fetches; the
+      # merged image is for a cable.
+      - name: Stage assets
+        shell: bash
+        env:
+          # Via env, not an expression: a tag name is arbitrary text.
+          TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          VERSION="${TAG:-$(git describe --tags --always)}"
+          case "$VERSION" in
+            *[!A-Za-z0-9._-]*) echo "::error::refusing unsafe version '$VERSION'"; exit 1 ;;
+          esac
+          APP="$(python3 -c 'import json; print(json.load(open("build/flasher_args.json"))["app"]["file"])')"
+          mkdir -p dist
+          cp merged.bin    "dist/signalk-espOS-8relay-${VERSION}-merged.bin"
+          cp "build/$APP"  "dist/signalk-espOS-8relay-${VERSION}-ota.bin"
+          ls -l dist/
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: firmware
+          path: dist/
+
+  release:
+    if: inputs.tag != '' || github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: firmware
+          path: dist
+
+      # An unsigned release says so where people download it, above the
+      # release notes, not only in a CI log.
+      - name: Prepend the unsigned-build warning
+        if: needs.build.outputs.unsigned == 'true'
+        id: notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          # Fail closed: an API error must not replace the notes with just
+          # the warning.
+          if ! existing=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body 2>&1); then
+            echo "::error::could not read the release body for $TAG: $existing"
+            exit 1
+          fi
+          # Random delimiter: the body is arbitrary text.
+          delim="RELEASE_BODY_$(openssl rand -hex 8)"
+          {
+            echo "body<<${delim}"
+            echo '> [!WARNING]'
+            echo '> **Unsigned build: USB flashing only.** Built without a signing'
+            echo '> key (`ALLOW_UNSIGNED_RELEASE`), so a device flashed with it will'
+            echo '> reject every OTA update, including later releases. Flash over'
+            echo '> USB, or set `SIGNING_KEY_PEM` and re-release.'
+            echo ''
+            printf '%s\n' "$existing"
+            echo "${delim}"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          fail_on_unmatched_files: true
+          files: dist/*.bin
+          body: ${{ steps.notes.outputs.body }}

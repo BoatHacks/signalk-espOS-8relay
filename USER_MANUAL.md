@@ -24,9 +24,29 @@
 
 ## 3. Installing the firmware
 
-There are no release images yet, so for now the firmware is built from
-source. Over-the-air updates (including through signalk-espos-manager) will
-be described with the first release.
+Each GitHub release carries two files:
+
+- `signalk-espOS-8relay-<version>-merged.bin`: everything in one image
+  (bootloader, partition table, firmware, web UI). Use it for the first
+  install over USB-C.
+- `signalk-espOS-8relay-<version>-ota.bin`: the firmware alone, for
+  over-the-air updates of a board that already runs this firmware.
+
+There are no releases yet; until then, build from source (3.1).
+
+### 3.0 Flash a release over USB-C
+
+With esptool installed (`pip install esptool`):
+
+```sh
+esptool.py --chip esp32s3 -p /dev/ttyACM0 write_flash 0x0 signalk-espOS-8relay-<version>-merged.bin
+```
+
+**This resets all settings.** The merged image is one continuous block
+that also covers the settings area, so relay names, bank ids, WiFi
+credentials and the saved state of `hold` relays go back to defaults. Use
+it for a first install or a deliberate reset; update a working board with
+the OTA image instead.
 
 ### 3.1 Build it
 
