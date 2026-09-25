@@ -49,6 +49,17 @@
       "description": "How long SignalK may be unreachable before relays set to switch off do so."
     },
     {
+      "name": "sk_repub_s",
+      "type": "int",
+      "default": 10,
+      "min": 0,
+      "max": 3600,
+      "unit": "s",
+      "group": "General",
+      "title": "SignalK republish interval",
+      "description": "Resend every relay and input state to SignalK this often, even when nothing changed, so apps don't show them as stale. 0 = send changes only."
+    },
+    {
       "name": "eth_enabled",
       "type": "bool",
       "default": true,

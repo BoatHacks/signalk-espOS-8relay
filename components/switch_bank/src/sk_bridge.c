@@ -25,6 +25,7 @@ static struct {
     bool down;
     bool lost_fired;
     uint32_t down_since;
+    uint32_t republished_at;
 } s;
 
 // ------------------------------------------------------------------ paths
@@ -93,7 +94,9 @@ static void declare_names(tree_t t, bool input, uint8_t ch)
     snprintf(meta, sizeof(meta),
              "{\"displayName\":\"%s\",\"manufacturer\":{\"name\":\"" MANUFACTURER "\",\"model\":\"" MODEL "\"}}", name);
     make_path(path, t, input, ch, "state");
-    s.api.declare_meta(path, meta, 0);
+    // With a republish interval the server can tell a quiet board from a
+    // gone one: espOS turns the period into the path's "timeout".
+    s.api.declare_meta(path, meta, (uint32_t)s.cfg.sk_republish_s * 1000);
     if (t == TREE_CONTROLS) {
         make_path(path, t, input, ch, "name");
         s.api.publish_string(path, name_of(input, ch));
@@ -117,6 +120,23 @@ static void publish_description(tree_t t, bool input, uint8_t ch)
     s.api.publish_string(path, MODEL);
 }
 
+// Every channel's state and nothing else: the periodic republish.
+static void publish_states_locked(void)
+{
+    const uint8_t relays = s.io.relay_mask();
+    const bool inputs_ready = s.io.inputs_ready();
+    const uint8_t inputs = s.io.input_mask();
+    for (tree_t t = TREE_SWITCHES; t <= TREE_CONTROLS; t++) {
+        for (uint8_t ch = 1; tree_on(t) && ch <= BOARD_CHANNELS; ch++) {
+            publish_state(t, false, ch, relays & (1u << (ch - 1)));
+            if (inputs_on() && inputs_ready) {
+                publish_state(t, true, ch, inputs & (1u << (ch - 1)));
+            }
+        }
+    }
+    s.republished_at = s.io.now_ms();
+}
+
 static void publish_all_locked(void)
 {
     const uint8_t relays = s.io.relay_mask();
@@ -135,6 +155,7 @@ static void publish_all_locked(void)
             }
         }
     }
+    s.republished_at = s.io.now_ms();
 }
 
 // -------------------------------------------------------------------- PUT
@@ -254,6 +275,18 @@ void sk_bridge_update_config(const device_config_t *cfg)
         }
     }
     s.cfg.sk_loss_grace_s = cfg->sk_loss_grace_s;
+    if (s.cfg.sk_republish_s != cfg->sk_republish_s) {
+        s.cfg.sk_republish_s = cfg->sk_republish_s;
+        // The metadata timeout follows the interval.
+        for (tree_t t = TREE_SWITCHES; s.started && t <= TREE_CONTROLS; t++) {
+            for (uint8_t ch = 1; tree_on(t) && ch <= BOARD_CHANNELS; ch++) {
+                declare_names(t, false, ch);
+                if (inputs_on()) {
+                    declare_names(t, true, ch);
+                }
+            }
+        }
+    }
     xSemaphoreGive(s.lock);
 }
 
@@ -316,6 +349,13 @@ void sk_bridge_tick(void)
                 s.io.now_ms() - s.down_since >= (uint32_t)s.cfg.sk_loss_grace_s * 1000;
     if (fire) {
         s.lost_fired = true;
+    }
+    // Only while the stream is up: espOS would otherwise buffer repeats of
+    // unchanged values for a server that isn't there.
+    const uint32_t every_ms = (uint32_t)s.cfg.sk_republish_s * 1000;
+    if (s.started && s.connected_once && !s.down && every_ms &&
+        s.io.now_ms() - s.republished_at >= every_ms) {
+        publish_states_locked();
     }
     xSemaphoreGive(s.lock);
     if (fire) {

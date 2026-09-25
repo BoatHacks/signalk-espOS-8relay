@@ -38,6 +38,7 @@ esp_err_t device_config_load(device_config_t *out)
     out->input_bank_id = (uint8_t)get_int("input_bank_id");
     out->debounce_ms = (uint16_t)get_int("debounce_ms");
     out->sk_loss_grace_s = (uint16_t)get_int("sk_grace_s");
+    out->sk_republish_s = (uint16_t)get_int("sk_repub_s");
     out->eth_enabled = get_bool("eth_enabled");
     out->publish_switches_tree = get_bool("pub_switches");
     out->publish_controls_tree = get_bool("pub_controls");

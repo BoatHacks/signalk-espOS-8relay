@@ -45,6 +45,7 @@ static esp_err_t pub_string(const char *path, const char *v)
 static esp_err_t meta(const char *path, const char *json, uint32_t period)
 {
     record(CALL_META, path);
+    calls[n_calls].number = period;
     snprintf(calls[n_calls++].text, sizeof(calls[0].text), "%s", json);
     return ESP_OK;
 }
@@ -425,4 +426,87 @@ TEST_CASE("no fail-safe when SignalK isn't a control path", "[sk_bridge]")
     clock_ms += 60000;
     sk_bridge_tick();
     TEST_ASSERT_EQUAL(0, sk_lost_calls);
+}
+
+// ------------------------------------------------------------- republish
+
+static int count_state_numbers(void)
+{
+    int n = 0;
+    for (int k = 0; k < n_calls; k++) {
+        if (calls[k].kind == CALL_NUMBER && strstr(calls[k].path, ".state")) {
+            n++;
+        }
+    }
+    return n;
+}
+
+TEST_CASE("republish: every state, every interval, while connected", "[sk_bridge]")
+{
+    fresh();
+    cfg.sk_republish_s = 10;
+    relay_mask = 0x05;
+    start();
+    sk_bridge_stream_changed(true);  // full publish, restarts the interval
+    n_calls = 0;
+    clock_ms += 9999;
+    sk_bridge_tick();
+    TEST_ASSERT_EQUAL(0, n_calls);
+    clock_ms += 1;
+    sk_bridge_tick();
+    TEST_ASSERT_EQUAL(16, count_state_numbers());  // 8 relays + 8 inputs
+    TEST_ASSERT_EQUAL(16, n_calls);                // states only
+    TEST_ASSERT_EQUAL(1, calls[find(CALL_NUMBER, "electrical.switches.bank.0.3.state")].number);
+    n_calls = 0;
+    sk_bridge_tick();
+    TEST_ASSERT_EQUAL(0, n_calls);
+    clock_ms += 10000;
+    sk_bridge_tick();
+    TEST_ASSERT_EQUAL(16, n_calls);
+}
+
+TEST_CASE("republish: nothing before a connection or while it is down", "[sk_bridge]")
+{
+    fresh();
+    cfg.sk_republish_s = 10;
+    start();
+    n_calls = 0;
+    clock_ms += 60000;
+    sk_bridge_tick();
+    TEST_ASSERT_EQUAL(0, n_calls);
+    sk_bridge_stream_changed(true);
+    sk_bridge_stream_changed(false);
+    n_calls = 0;
+    clock_ms += 20000;
+    sk_bridge_tick();
+    TEST_ASSERT_EQUAL(0, n_calls);
+}
+
+TEST_CASE("republish: 0 sends changes only", "[sk_bridge]")
+{
+    fresh();
+    cfg.sk_republish_s = 0;
+    start();
+    sk_bridge_stream_changed(true);
+    n_calls = 0;
+    clock_ms += 3600 * 1000;
+    sk_bridge_tick();
+    TEST_ASSERT_EQUAL(0, n_calls);
+}
+
+TEST_CASE("republish: the interval is the metadata period, and follows changes", "[sk_bridge]")
+{
+    fresh();
+    cfg.sk_republish_s = 10;
+    start();
+    TEST_ASSERT_EQUAL(10000, calls[find(CALL_META, "electrical.switches.bank.0.1.state")].number);
+    TEST_ASSERT_EQUAL(10000, calls[find(CALL_META, "electrical.switches.bank.1.8.state")].number);
+    n_calls = 0;
+    cfg.sk_republish_s = 30;
+    sk_bridge_update_config(&cfg);
+    TEST_ASSERT_EQUAL(16, count(CALL_META));
+    TEST_ASSERT_EQUAL(30000, calls[find(CALL_META, "electrical.switches.bank.0.1.state")].number);
+    n_calls = 0;
+    sk_bridge_update_config(&cfg);  // unchanged: no re-declare
+    TEST_ASSERT_EQUAL(0, count(CALL_META));
 }

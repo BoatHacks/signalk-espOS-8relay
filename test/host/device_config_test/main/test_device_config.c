@@ -44,6 +44,7 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
     TEST_ASSERT_EQUAL(1, c.input_bank_id);
     TEST_ASSERT_EQUAL(50, c.debounce_ms);
     TEST_ASSERT_EQUAL(30, c.sk_loss_grace_s);
+    TEST_ASSERT_EQUAL(10, c.sk_republish_s);
     TEST_ASSERT_TRUE(c.eth_enabled);
     TEST_ASSERT_TRUE(c.publish_switches_tree);
     TEST_ASSERT_FALSE(c.publish_controls_tree);

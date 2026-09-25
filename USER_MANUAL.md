@@ -162,6 +162,7 @@ overrides.
 |---|---|---|
 | Input debounce | 50 ms | How long an input must be steady before a change counts (10 ms minimum) |
 | SignalK-loss grace period | 30 s | How long SignalK may be unreachable before relays set to *switch off* do so |
+| SignalK republish interval | 10 s | Resend every relay and input state this often even when nothing changed, so SignalK apps don't show them as stale. 0 = send changes only. |
 | Status LED brightness | 10 % | 0 turns the LED off (section 7.6) |
 | Buzzer on alarm | Off | Beep in Morse while an alarm is active (section 7.6) |
 | Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
@@ -179,6 +180,12 @@ and off. Inputs can only be read.
 With the `electrical.controls.*` tree turned on, the same relay also
 appears as `electrical.controls.espOS-instanceB-relayn` and the input as
 `electrical.controls.espOS-instanceI-inputn`.
+
+States are sent when they change, and again every *SignalK republish
+interval* (10 s by default, section 6.5), so apps that mark old values as
+stale keep showing them as current. The interval is also sent as the
+paths' `timeout` metadata, unless the server already has its own metadata
+for them.
 
 States are `1` (on) and `0` (off). To switch a relay, send `1`/`0` or
 `true`/`false`.

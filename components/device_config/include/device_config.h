@@ -38,6 +38,7 @@ typedef struct {
     uint8_t input_bank_id;
     uint16_t debounce_ms;
     uint16_t sk_loss_grace_s;
+    uint16_t sk_republish_s;  // 0 = changes only
     bool eth_enabled;
     bool publish_switches_tree;
     bool publish_controls_tree;
