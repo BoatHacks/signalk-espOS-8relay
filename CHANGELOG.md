@@ -34,8 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Over-the-air updates through espOS's `espos_ota`: signed images only,
   with automatic rollback if a new image doesn't reach the network within
   the rollback timeout (10 minutes by default). An update replaces the
-  firmware and keeps all settings; it doesn't update the web page. v0.0.1
-  has no OTA support, so it must be updated to this release over USB.
+  firmware and keeps all settings; it doesn't update the web page. Built
+  in but never started until 0.0.3, so update 0.0.1 and 0.0.2 over USB.
 
 ## [0.0.1] - 2026-09-25
 
