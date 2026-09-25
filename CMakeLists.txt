@@ -12,3 +12,28 @@ project(signalk-espos-8relay)
 # Web UI bundle -> the LittleFS 'storage' partition. Defined by espos_httpd;
 # must come after project().
 espos_project_ui_partition()
+
+# espOS 0.10.3 installed from the component registry decides which of its
+# optional parts to start by looking for bare component names (espos_wifi,
+# espos_sk, espos_ota) in BUILD_COMPONENTS. Registry components are named
+# signalk-espos__espos_*, so every check fails: espos_start() then starts no
+# WiFi, no SignalK client and no OTA, and espos_ota never asks WiFi whether a
+# station is configured. Link and define what espOS meant to. Harmless once
+# espOS matches the namespaced names itself: the same links and =1 defines
+# again.
+idf_build_get_property(_comps BUILD_COMPONENTS)
+idf_component_get_property(_core signalk-espos__espos_core COMPONENT_LIB)
+foreach(_part wifi sk ota)
+    if("signalk-espos__espos_${_part}" IN_LIST _comps)
+        idf_component_get_property(_lib signalk-espos__espos_${_part} COMPONENT_LIB)
+        string(TOUPPER "${_part}" _PART)
+        target_link_libraries(${_core} PRIVATE ${_lib})
+        target_compile_definitions(${_core} PRIVATE ESPOS_HAVE_${_PART}=1)
+    endif()
+endforeach()
+if("signalk-espos__espos_ota" IN_LIST _comps AND "signalk-espos__espos_wifi" IN_LIST _comps)
+    idf_component_get_property(_ota signalk-espos__espos_ota COMPONENT_LIB)
+    idf_component_get_property(_wifi signalk-espos__espos_wifi COMPONENT_LIB)
+    target_link_libraries(${_ota} PRIVATE ${_wifi})
+    target_compile_definitions(${_ota} PRIVATE ESPOS_OTA_HAVE_WIFI=1)
+endif()

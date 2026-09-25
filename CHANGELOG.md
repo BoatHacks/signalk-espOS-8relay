@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.3] - 2026-09-25
+
+### Fixed
+
+- No WiFi, no setup access point, no SignalK connection and no OTA updates:
+  espOS 0.10.3, installed from the component registry, looks for its
+  optional parts under their bare names and misses the registry's
+  `signalk-espos__` prefix, so `espos_start()` started none of them. The
+  build now links and enables WiFi, the SignalK client and OTA itself, and
+  lets OTA see whether a WiFi network is configured.
+- Network time (SNTP) failed to start: the DHCP-supplied NTP server option
+  is now enabled.
+
 ## [0.0.2] - 2026-09-25
 
 ### Fixed
@@ -48,5 +61,6 @@ First build for hardware bring-up. Not usable: it boot-loops (fixed in
 - All settings in espOS's web UI.
 - Signed release builds with a merged image for USB and an image for OTA.
 
+[0.0.3]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/BoatHacks/signalk-espOS-8relay/releases/tag/v0.0.1
