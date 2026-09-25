@@ -162,8 +162,8 @@ overrides.
 |---|---|---|
 | Input debounce | 50 ms | How long an input must be steady before a change counts (10 ms minimum) |
 | SignalK-loss grace period | 30 s | How long SignalK may be unreachable before relays set to *switch off* do so |
-| Status LED brightness | 10 % | 0 turns the LED off (section 7.5) |
-| Buzzer on alarm | Off | Beep in Morse while an alarm is active (section 7.5) |
+| Status LED brightness | 10 % | 0 turns the LED off (section 7.6) |
+| Buzzer on alarm | Off | Beep in Morse while an alarm is active (section 7.6) |
 | Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
 
 ## 7. Everyday use
@@ -196,20 +196,43 @@ the board; the server keeps seeing the relays through NMEA 2000, and
 switching them from SignalK still works if the server has an NMEA 2000
 switching plugin (such as signalk-n2k-switching) set up for this bank.
 
-### 7.2 From NMEA 2000
+### 7.2 From the relay page
+
+Open `http://<board address>/relays` (for example
+`http://espos-cf28.local/relays`) in a browser on the same network. It
+lists the 8 relays with On and Off buttons and their current state, and
+next to each relay the state of the input with the same number. *All on*
+(which asks first) and *All off* switch every relay. The page updates
+every second.
+
+The page switches relays the same way SignalK and NMEA 2000 do: a
+momentary relay switched on turns itself off after its pulse time, and a
+relay that follows an input keeps the page's command until that input
+changes.
+
+If an API key is set in espOS's security settings, log in on the
+device's main page first. Without a key, anyone on the network can switch
+the relays from this page, so set one on a shared network.
+
+The same actions are available to scripts: `GET /api/v1/relays` returns
+the state, and `PUT /api/v1/relays/<n>` (one relay) or `PUT
+/api/v1/relays` (all) with the body `{"on": true}` or `{"on": false}` and
+`Content-Type: application/json` switch them.
+
+### 7.3 From NMEA 2000
 
 The board appears on the bus as a switch-bank device. MFDs and switch
 panels that support NMEA 2000 switch banks show both banks, and can switch
 the relays.
 
-### 7.3 Input overrides
+### 7.4 Input overrides
 
 A relay linked to an input follows that input whenever the input changes.
 A command from SignalK or NMEA 2000 after that still works, and holds until
 the input changes again. At start-up, a linked relay takes the input's
 state.
 
-### 7.4 If the network or power is lost
+### 7.5 If the network or power is lost
 
 - **SignalK unreachable for longer than the grace period:** relays set to
   *switch off* switch off; the rest stay as they are. NMEA 2000 and input
@@ -219,7 +242,7 @@ state.
 - **Power loss:** all relays drop out. When power returns, relays set to
   *keep last state* switch back on to their last state.
 
-### 7.5 Status LED and buzzer
+### 7.6 Status LED and buzzer
 
 | LED | Meaning |
 |---|---|

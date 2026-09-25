@@ -22,6 +22,7 @@ typedef enum {
     RELAY_SRC_INPUT,       // an input override
     RELAY_SRC_PULSE_END,   // a momentary pulse ran out
     RELAY_SRC_FAILSAFE,    // SignalK was lost
+    RELAY_SRC_WEB,         // the device's own relay page
 } relay_source_t;
 
 // Persists the on/off state of `hold` relays (bit n-1 = relay n).

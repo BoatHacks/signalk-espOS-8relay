@@ -6,7 +6,7 @@ dependencies:
       require: private
       version: '>=5.0'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 1.7.19~2
   espressif/led_strip:
@@ -182,7 +182,7 @@ dependencies:
       require: private
       version: ^0.10.3
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 0.10.3
   signalk-espos/espos_log:
@@ -384,17 +384,19 @@ dependencies:
       type: git
     version: 5b7b9fc3ccc18e30ebfba92da6486cffc6251595
 direct_dependencies:
+- espressif/cjson
 - espressif/led_strip
 - espressif/w5500
 - idf
 - signalk-espos/espos_config
 - signalk-espos/espos_core
 - signalk-espos/espos_health
+- signalk-espos/espos_httpd
 - signalk-espos/espos_n2k
 - signalk-espos/espos_net
 - signalk-espos/espos_ota
 - signalk-espos/espos_sk
 - ttlappalainen/nmea2000
-manifest_hash: 95c5cd18bde46e72a8e10f4908a22204705f0d3559a9b096ad0b6a578ddba588
+manifest_hash: 030c228f36f61c8e469234985a7f054e28248d28e30a2f3ed729dd4cb91da02c
 target: esp32s3
 version: 3.0.0

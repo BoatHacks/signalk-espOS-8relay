@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relays</title>
+<style>
+:root {
+  --bg: #f4f5f7; --card: #fff; --text: #1b1f24; --muted: #5f6b7a; --line: #dde1e6;
+  --on: #1f9d55; --on-bg: #e3f5ea; --off: #6b7785; --off-bg: #eceff2;
+  --warn: #b7791f; --err: #c53030; --err-bg: #fdecec; --btn: #fff; --btn-line: #c8ced6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418; --card: #1a1e24; --text: #e6e9ed; --muted: #97a1ad; --line: #2b313a;
+    --on: #48bb78; --on-bg: #173424; --off: #97a1ad; --off-bg: #262c34;
+    --warn: #ecc94b; --err: #fc8181; --err-bg: #3a1d1d; --btn: #222831; --btn-line: #3a424d;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 12px; }
+h1 { font-size: 20px; margin: 0; flex: 1 1 auto; }
+header a { color: var(--muted); font-size: 14px; }
+.all { display: flex; gap: 8px; }
+button { font: inherit; font-weight: 600; padding: 8px 14px; min-height: 40px; border-radius: 8px;
+  border: 1px solid var(--btn-line); background: var(--btn); color: var(--text); cursor: pointer; }
+button:disabled { opacity: .45; cursor: default; }
+button.on { border-color: var(--on); color: var(--on); }
+button.off { color: var(--muted); }
+#status { font-size: 13px; color: var(--muted); margin: 0 0 12px; min-height: 18px; }
+#status.err { color: var(--err); }
+.banner { background: var(--err-bg); color: var(--err); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.banner a { color: inherit; }
+.list { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center;
+  padding: 10px 14px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.name { font-weight: 600; overflow-wrap: anywhere; }
+.meta { font-size: 13px; color: var(--muted); }
+.ctl { display: flex; align-items: center; gap: 8px; }
+.pill { display: inline-block; min-width: 44px; text-align: center; font-size: 13px; font-weight: 700;
+  border-radius: 999px; padding: 2px 10px; background: var(--off-bg); color: var(--off); }
+.pill.is-on { background: var(--on-bg); color: var(--on); }
+.input { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--off); flex: none; }
+.dot.is-on { background: var(--on); border-color: var(--on); }
+.dot.unknown { border-style: dashed; }
+@media (min-width: 640px) {
+  .row { grid-template-columns: minmax(0, 1fr) auto minmax(150px, 190px); }
+  .input { grid-column: auto; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Relays</h1>
+    <div class="all">
+      <button id="all-on" class="on" type="button">All on</button>
+      <button id="all-off" class="off" type="button">All off</button>
+    </div>
+    <a href="/">Settings</a>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+  <p id="status">Loading…</p>
+  <div id="list" class="list"></div>
+</main>
+<script>
+"use strict";
+const API = "/api/v1/relays";
+const POLL_MS = 1000;
+const list = document.getElementById("list");
+const statusEl = document.getElementById("status");
+const banner = document.getElementById("banner");
+const allOn = document.getElementById("all-on");
+const allOff = document.getElementById("all-off");
+let busy = false;
+let timer = null;
+const rows = [];
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+// One row per channel: relay n with its buttons, and input n's state.
+function build(n) {
+  const row = el("div", "row");
+  const info = el("div");
+  const name = el("div", "name");
+  const meta = el("div", "meta");
+  info.append(name, meta);
+  const ctl = el("div", "ctl");
+  const pill = el("span", "pill", "–");
+  const on = el("button", "on", "On");
+  const off = el("button", "off", "Off");
+  on.type = off.type = "button";
+  on.onclick = () => send(API + "/" + n, true);
+  off.onclick = () => send(API + "/" + n, false);
+  ctl.append(pill, on, off);
+  const input = el("div", "input");
+  const dot = el("span", "dot unknown");
+  const inText = el("span");
+  input.append(dot, inText);
+  row.append(info, ctl, input);
+  list.append(row);
+  return { name, meta, pill, on, off, dot, inText };
+}
+
+function render(s) {
+  s.relays.forEach((r, i) => {
+    const row = rows[i] || (rows[i] = build(r.channel));
+    row.name.textContent = r.channel + " · " + r.name;
+    const notes = [];
+    if (r.momentary) notes.push("momentary");
+    if (r.input) notes.push("follows input " + r.input);
+    row.meta.textContent = notes.join(" · ");
+    row.pill.textContent = r.on ? "ON" : "OFF";
+    row.pill.classList.toggle("is-on", r.on);
+    const input = s.inputs[i];
+    const known = input.on !== null;
+    row.dot.classList.toggle("unknown", !known);
+    row.dot.classList.toggle("is-on", known && input.on);
+    const label = "Input " + input.channel;
+    row.inText.textContent = (input.name === label ? label : label + " · " + input.name) + ": " +
+      (known ? (input.on ? "on" : "off") : "settling");
+  });
+  setBusy(busy);
+}
+
+function setBusy(b) {
+  busy = b;
+  for (const r of rows) r.on.disabled = r.off.disabled = b;
+  allOn.disabled = allOff.disabled = b;
+}
+
+function showStatus(text, isErr) {
+  statusEl.textContent = text;
+  statusEl.classList.toggle("err", !!isErr);
+}
+
+async function handle(res) {
+  if (res.status === 401 || res.status === 403) {
+    banner.hidden = false;
+    banner.innerHTML = 'This device has an API key set. <a href="/">Log in on the settings page</a>, then come back.';
+    throw new Error("not logged in");
+  }
+  banner.hidden = true;
+  let body = null;
+  try { body = await res.json(); } catch (e) { /* not JSON */ }
+  if (!res.ok) throw new Error((body && body.message) || ("HTTP " + res.status));
+  return body;
+}
+
+let polling = false;
+async function poll() {
+  if (polling) return;  // the request in flight schedules the next one
+  polling = true;
+  clearTimeout(timer);
+  try {
+    render(await handle(await fetch(API, { cache: "no-store" })));
+    if (!busy) showStatus("Live · updated " + new Date().toLocaleTimeString());
+  } catch (e) {
+    showStatus("Can't reach the device: " + e.message, true);
+  }
+  polling = false;
+  if (!document.hidden) timer = setTimeout(poll, POLL_MS);
+}
+
+async function send(url, on) {
+  setBusy(true);
+  showStatus("Switching…");
+  try {
+    render(await handle(await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ on }),
+    })));
+    showStatus("Done");
+  } catch (e) {
+    showStatus("Failed: " + e.message, true);
+  }
+  setBusy(false);
+}
+
+allOn.onclick = () => {
+  if (confirm("Switch ALL relays on?")) send(API, true);
+};
+allOff.onclick = () => send(API, false);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+poll();
+</script>
+</body>
+</html>

@@ -21,6 +21,7 @@
 #include "relay_hw.h"
 #include "sk_bridge.h"
 #include "sk_espos.h"
+#include "web_ui.h"
 
 static const char *TAG = "app";
 
@@ -51,6 +52,11 @@ static esp_err_t sk_set_relay(uint8_t relay, bool on)
 static esp_err_t n2k_set_relay(uint8_t relay, bool on)
 {
     return relay_ctrl_set(relay, on, RELAY_SRC_N2K);
+}
+
+static esp_err_t web_set_relay(uint8_t relay, bool on)
+{
+    return relay_ctrl_set(relay, on, RELAY_SRC_WEB);
 }
 
 static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_t mask, void *arg)
@@ -96,6 +102,7 @@ static void io_task(void *arg)
                 input_sense_update_config(&cfg);
                 sk_bridge_update_config(&cfg);
                 indicator_update_config(&cfg);
+                web_ui_update_config(&cfg);
             }
         }
         relay_ctrl_tick();
@@ -185,6 +192,17 @@ void app_main(void)
     // NMEA 2000 failing must not stop SignalK control.
     if (n2k_bridge_start(&n2k_io, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "NMEA 2000 unavailable");
+    }
+
+    static const web_ui_io_t web_io = {
+        .set_relay = web_set_relay,
+        .relay_mask = relay_ctrl_get_mask,
+        .inputs_ready = input_sense_ready,
+        .input_mask = input_sense_get_mask,
+    };
+    // The relay page is a convenience; SignalK and NMEA 2000 don't need it.
+    if (web_ui_start(&web_io, &cfg) != ESP_OK) {
+        ESP_LOGE(TAG, "relay page unavailable");
     }
 
     // The LED and buzzer only report; the device works without them.
