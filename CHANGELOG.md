@@ -10,6 +10,14 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ## [Unreleased]
 
+### Added
+
+- The BOOT button now does something while the firmware is running (issue
+  #7): held ~5 s, it reopens the setup access point; held ~15 s, it
+  factory-resets the board. The status LED blinks white or red to show
+  which action a release will trigger. Compiled and host-tested; the
+  on-board check is still open.
+
 ## [0.1.0] - 2026-09-26
 
 First release tested end to end on real hardware: relays, inputs, SignalK, NMEA 2000 (bench-tested, not on a boat yet).

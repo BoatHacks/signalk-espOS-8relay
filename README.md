@@ -130,7 +130,7 @@ without error but haven't been tested with a cable plugged in.
 | WS2812 RGB LED | GPIO 38 | Yes | `indicator`: status colour |
 | Passive piezo buzzer | GPIO 46 | Yes | `indicator`: Morse alarm (off by default) |
 | PCF85063 real-time clock | same I²C bus as the relays | **No** | Would keep time across power loss, e.g. for scheduled switching |
-| BOOT button | GPIO 0 | Partly | USB bootloader only; the firmware doesn't read it (could do a factory reset or reopen the setup access point) |
+| BOOT button | GPIO 0 | Yes | USB bootloader, and (compiled and host-tested; on-board check pending) a held press reopens the setup access point (~5 s) or factory-resets (~15 s), release to trigger |
 | microSD (TF) card slot | SPI MISO 45, MOSI 47, SCLK 48 | **No** | Could hold an event log; chip-select pin not yet known |
 | GPIO expansion header | various | **No** | Out of scope (SPEC.md §10.2) |
 | USB-C | USB-Serial-JTAG | Yes | Power, flashing, serial log |

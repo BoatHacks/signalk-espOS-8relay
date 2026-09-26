@@ -36,6 +36,7 @@ static struct {
     atomic_bool test_requested;  // indicator_test_buzzer() -> task
     atomic_bool busy;            // an alarm or a test is sounding
     atomic_bool started;
+    atomic_int override;         // indicator_override_t; NONE = 0, show status as usual
 } s;
 
 static void set_tone(bool on)
@@ -70,7 +71,11 @@ static void indicator_task(void *arg)
         const indicator_state_t state =
             indicator_state((int)health, atomic_load(&s.sk_relevant), sk.connected);
 
-        const indicator_rgb_t c = indicator_color(state, atomic_load(&s.brightness));
+        const indicator_override_t override = (indicator_override_t)atomic_load(&s.override);
+        const indicator_rgb_t c = override != INDICATOR_OVERRIDE_NONE
+                                       ? indicator_override_color(override, atomic_load(&s.brightness),
+                                                                   (uint32_t)(esp_timer_get_time() / 1000))
+                                       : indicator_color(state, atomic_load(&s.brightness));
         if (memcmp(&c, &shown, sizeof(c)) != 0) {
             show(c);
             shown = c;
@@ -136,6 +141,11 @@ void indicator_update_config(const device_config_t *cfg)
     atomic_store(&s.buzzer_enabled, cfg->buzzer_on_alarm);
     atomic_store(&s.sk_relevant, cfg->publish_switches_tree || cfg->publish_controls_tree);
     atomic_store(&s.freq_hz, cfg->buzzer_freq_hz);
+}
+
+void indicator_set_override(indicator_override_t override)
+{
+    atomic_store(&s.override, (int)override);
 }
 
 esp_err_t indicator_test_buzzer(void)

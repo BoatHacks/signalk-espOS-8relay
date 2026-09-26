@@ -39,6 +39,15 @@ static uint32_t now_ms(void)
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
+esp_err_t relay_hw_clear_hold_state(void)
+{
+    esp_err_t err = nvs_erase_key(s_nvs, NVS_KEY);
+    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) {
+        return err;
+    }
+    return nvs_commit(s_nvs);
+}
+
 esp_err_t relay_hw_create(relay_ctrl_hw_t *out)
 {
     // The RTC shares this bus; whoever adds RTC support should move the bus

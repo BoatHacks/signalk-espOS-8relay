@@ -132,6 +132,10 @@ hardware*:
    (Security → Access Requests). Without approval it can't publish or be
    switched from SignalK.
 
+If the board later loses its WiFi (e.g. the boat's password changed) and
+you don't have a laptop and USB cable handy, see the BOOT button recovery
+methods in section 8 instead of repeating this from scratch.
+
 ## 5. Connections
 
 | Board terminal | Use |
@@ -343,6 +347,32 @@ sounding. Passive buzzers differ: if the tone is quiet or shrill, change
 *Buzzer frequency* (section 6.5) and test again.
 
 ## 8. Troubleshooting
+
+### Recovering a board that's lost its network, with the BOOT button
+
+The small button next to the USB-C port (used for USB flashing) doubles as
+a recovery button once the firmware is running. Hold it and watch the
+status LED:
+
+- **~5 seconds: the LED blinks white.** Release now to reopen the setup
+  access point (`espOS-xxxx`), the same one you connected to for
+  first-time setup (section 4). Go through it again to point the board at
+  a different (or corrected) WiFi network. The board keeps working over
+  Ethernet, NMEA 2000, its inputs and relays the whole time it's showing
+  this access point — only WiFi is affected — but if nobody finishes the
+  portal, it stays off WiFi until someone does, or the button is used
+  again.
+- **~15 seconds: the LED starts blinking red instead.** Release now for a
+  full factory reset: every setting goes back to its default, the board
+  forgets its SignalK server approval (it must be approved again,
+  section 4 step 4), and it restarts. Relays come up in their normal
+  boot state (section 7.5), not whatever they happened to be doing before
+  the reset.
+- **Let go before 5 seconds** and nothing happens — a stray knock against
+  the button is harmless.
+
+A button already being held when the board powers up is ignored until it's
+released once, so it can't trigger either action by accident during boot.
 
 ### NMEA 2000: nothing received, or the board isn't listed
 

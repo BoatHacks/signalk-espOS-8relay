@@ -16,6 +16,16 @@ indicator_state_t indicator_state(int health, bool sk_relevant, bool sk_connecte
     return sk_relevant && !sk_connected ? INDICATOR_NO_SIGNALK : INDICATOR_OK;
 }
 
+static indicator_rgb_t scale(indicator_rgb_t c, uint8_t brightness_pct)
+{
+    const unsigned pct = brightness_pct > 100 ? 100 : brightness_pct;
+    return (indicator_rgb_t){
+        (uint8_t)((c.r * pct + 50) / 100),
+        (uint8_t)((c.g * pct + 50) / 100),
+        (uint8_t)((c.b * pct + 50) / 100),
+    };
+}
+
 indicator_rgb_t indicator_color(indicator_state_t state, uint8_t brightness_pct)
 {
     static const indicator_rgb_t full[] = {
@@ -24,13 +34,20 @@ indicator_rgb_t indicator_color(indicator_state_t state, uint8_t brightness_pct)
         [INDICATOR_WARN] = {255, 120, 0},
         [INDICATOR_ALARM] = {255, 0, 0},
     };
-    const unsigned pct = brightness_pct > 100 ? 100 : brightness_pct;
-    const indicator_rgb_t c = full[state];
-    return (indicator_rgb_t){
-        (uint8_t)((c.r * pct + 50) / 100),
-        (uint8_t)((c.g * pct + 50) / 100),
-        (uint8_t)((c.b * pct + 50) / 100),
+    return scale(full[state], brightness_pct);
+}
+
+indicator_rgb_t indicator_override_color(indicator_override_t override, uint8_t brightness_pct, uint32_t t_ms)
+{
+    if (override == INDICATOR_OVERRIDE_NONE) {
+        return (indicator_rgb_t){0, 0, 0};
+    }
+    static const indicator_rgb_t full[] = {
+        [INDICATOR_OVERRIDE_PORTAL] = {255, 255, 255},
+        [INDICATOR_OVERRIDE_RESET] = {255, 0, 0},
     };
+    const bool on = (t_ms / INDICATOR_OVERRIDE_BLINK_MS) % 2 == 0;
+    return on ? scale(full[override], brightness_pct) : (indicator_rgb_t){0, 0, 0};
 }
 
 static const char *morse_of(char c)

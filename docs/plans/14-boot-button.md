@@ -87,12 +87,20 @@ reset follow boot rules.
 - [x] Checked whether the portal's save turns the station back on —
       confirmed on hardware it does not; this project must force it
       (see Decisions, 2026-09-26)
-- [ ] Force `sta_enabled=true` on the portal's "network saved" event
-- [ ] Button state machine (host-tested) and GPIO 0 input in `board`
-- [ ] Indicator override pattern: new blinking-white state (portal) and
+- [x] Force `sta_enabled=true` on the portal's "network saved" event
+      (only while the portal is actually open, so a network slot edited
+      from the normal settings page with the station deliberately off
+      isn't flipped back on as a side effect)
+- [x] Button state machine (`components/button`, host-tested, 6 cases)
+      and GPIO 0 input
+- [x] Indicator override pattern: new blinking-white state (portal) and
       blinking-red pattern reusing the alarm color (factory reset)
-- [ ] Actions: portal, factory reset (+ hold state, counters), restart
+- [x] Actions: portal, factory reset (+ hold state; no cycle counters
+      exist yet, issue #4), restart
 - [ ] USER_MANUAL §4, §8; README hardware table; CHANGELOG
+- [ ] On-board check (SPEC/plan 07 style): both actions on real
+      hardware, power-up with the button held, relays after a factory
+      reset follow boot rules
 
 ## Files to Create/Modify
 - `components/board/` (pin), new `components/button/` or in `main`

@@ -6,12 +6,18 @@
 
 #include "device_config.h"
 #include "esp_err.h"
+#include "indicator_logic.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 esp_err_t indicator_start(const device_config_t *cfg);
+
+// The BOOT button (plan 14) drives this while held: NONE shows espOS
+// health/SignalK status as usual, anything else takes over the LED (not the
+// buzzer) until set back to NONE. Callable from any task.
+void indicator_set_override(indicator_override_t override);
 
 // Brightness, buzzer switch and frequency, tree toggles; callable from any
 // task.

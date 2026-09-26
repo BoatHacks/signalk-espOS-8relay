@@ -30,6 +30,23 @@ indicator_state_t indicator_state(int health, bool sk_relevant, bool sk_connecte
 // Green, blue, amber or red, scaled to `brightness_pct` (0 = off).
 indicator_rgb_t indicator_color(indicator_state_t state, uint8_t brightness_pct);
 
+// The BOOT button (plan 14) overrides the LED while held long enough to do
+// something on release: blinking white for "reopen the setup access point",
+// blinking red for "factory reset". Red is reused for its "destructive
+// action" association, but blinking rather than solid so it never looks
+// like INDICATOR_ALARM's solid red.
+typedef enum {
+    INDICATOR_OVERRIDE_NONE,
+    INDICATOR_OVERRIDE_PORTAL,
+    INDICATOR_OVERRIDE_RESET,
+} indicator_override_t;
+
+#define INDICATOR_OVERRIDE_BLINK_MS 400
+
+// `t_ms`: free-running time (any origin -- only the blink phase matters).
+// NONE returns off; callers fall back to indicator_color() themselves.
+indicator_rgb_t indicator_override_color(indicator_override_t override, uint8_t brightness_pct, uint32_t t_ms);
+
 // One stretch of tone or silence, in Morse units.
 typedef struct {
     bool on;

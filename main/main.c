@@ -26,8 +26,11 @@
 #include "freertos/task.h"
 #include "nvs.h"
 #include "board.h"
+#include "button_hw.h"
+#include "button_logic.h"
 #include "device_config.h"
 #include "eth_w5500.h"
+#include "espos_wifi.h"
 #include "indicator.h"
 #include "input_hw.h"
 #include "input_sense.h"
@@ -50,6 +53,9 @@ static const char *TAG = "app";
 
 static TaskHandle_t s_io_task;
 static volatile int64_t s_io_alive_us;
+static button_state_t s_button;
+static button_hw_t s_button_hw;
+static bool s_button_hw_ok;
 
 static uint32_t now_ms(void)
 {
@@ -150,6 +156,71 @@ static void on_config_change(const char *ns, const char *key, void *arg)
     if (s_io_task && strcmp(ns, DEVICE_CONFIG_NS) == 0) {
         xTaskNotifyGive(s_io_task);
     }
+    // The captive portal's own page does not turn the station back on when
+    // a network is saved (confirmed on hardware, plan 14) -- there is a
+    // separate "station enabled" box a person must also tick, easy to miss
+    // on a board they are trying to recover after losing network access.
+    // Do it here instead, but only while the portal is actually open: a
+    // network slot edited from the normal settings page, with the station
+    // deliberately off (e.g. an Ethernet-only setup), must not be flipped
+    // back on as a side effect.
+    if (strcmp(ns, "wifi") == 0 && strncmp(key, "ssid", 4) == 0) {
+        espos_wifi_status_t wst = {0};
+        bool sta_enabled = true;
+        if (espos_wifi_get_status(&wst) == ESP_OK && wst.sm.portal_active &&
+            espos_config_get_bool("wifi", "sta_enabled", &sta_enabled) == ESP_OK && !sta_enabled) {
+            ESP_LOGI(TAG, "network saved while the portal was open: turning the station back on");
+            espos_config_set_bool("wifi", "sta_enabled", true);
+        }
+    }
+}
+
+// BOOT button actions (plan 14, issue #7). Both restart so the relays take
+// their fail-safe/boot rules (SPEC.md §3.2) rather than being left in
+// whatever state a settings change happened to catch them in.
+static void do_reopen_portal(void)
+{
+    ESP_LOGW(TAG, "BOOT button: reopening the setup access point");
+    // espOS 0.10.3 has no public "start the portal now" call; with the
+    // station off, it opens its portal instead of trying to connect.
+    espos_config_set_bool("wifi", "sta_enabled", false);
+    esp_restart();
+}
+
+static void do_factory_reset(void)
+{
+    ESP_LOGW(TAG, "BOOT button: factory reset");
+    // Not covered by espos_config_factory_reset(): the relays' persisted
+    // `hold` state (its own NVS namespace, not espos_config) and the
+    // SignalK token (factory means everything -- the board must be
+    // approved on the server again).
+    relay_hw_clear_hold_state();
+    espos_sk_forget_token();
+    espos_config_factory_reset();
+    esp_restart();
+}
+
+static void button_poll(void)
+{
+    if (!s_button_hw_ok) {
+        return;
+    }
+    button_feedback_t feedback;
+    const button_action_t action =
+        button_logic_update(&s_button, s_button_hw.read(s_button_hw.ctx), now_ms(), &feedback);
+
+    static const indicator_override_t override_of[] = {
+        [BUTTON_FEEDBACK_NONE] = INDICATOR_OVERRIDE_NONE,
+        [BUTTON_FEEDBACK_PORTAL] = INDICATOR_OVERRIDE_PORTAL,
+        [BUTTON_FEEDBACK_RESET] = INDICATOR_OVERRIDE_RESET,
+    };
+    indicator_set_override(override_of[feedback]);
+
+    switch (action) {
+    case BUTTON_ACTION_PORTAL: do_reopen_portal(); break;
+    case BUTTON_ACTION_RESET: do_factory_reset(); break;
+    case BUTTON_ACTION_NONE: break;
+    }
 }
 
 // Relay pulses, flash saves, input polling and the SignalK-loss timer.
@@ -174,6 +245,7 @@ static void io_task(void *arg)
         }
         relay_ctrl_tick();
         input_sense_poll();
+        button_poll();
         sk_bridge_tick();
     }
 }
@@ -304,6 +376,16 @@ static esp_err_t start_io(void *arg)
     // own boot state above.
     ESP_ERROR_CHECK(input_sense_init(&in_hw, cfg, input_override));
     ESP_ERROR_CHECK(input_sense_add_listener(on_input_change, NULL));
+
+    if (button_hw_create(&s_button_hw) == ESP_OK) {
+        // A button already held here (e.g. still being released from the
+        // bootloader check) is ignored until it is first seen released, so
+        // it can never trigger an action from a state it did not choose.
+        button_logic_init(&s_button, s_button_hw.read(s_button_hw.ctx));
+        s_button_hw_ok = true;
+    } else {
+        ESP_LOGE(TAG, "BOOT button unavailable");
+    }
 
     s_io_alive_us = esp_timer_get_time();
     xTaskCreate(io_task, "io", 4096, NULL, 5, &s_io_task);
