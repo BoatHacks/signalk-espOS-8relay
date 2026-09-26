@@ -308,39 +308,39 @@ only if the URL was empty.
 
 Copy for each release tested.
 
-**Release:** vX.Y.Z · **Date:** · **Tested by:** · **Board revision:**
+**Release:** v0.0.10-4-g20b99e1-dirty (local dev build, not a tagged release) · **Date:** 2026-09-26 · **Tested by:** Tobias Rosenstock (with Claude) · **Board revision:** ESP32-S3-ETH-8DI-8RO-C, first unit
 
 | Test | Result | Notes |
 |---|---|---|
-| A1 Boot log | | |
-| A2 No core dump | | |
-| A3 LED colour | | |
-| B1 Relay polarity | | |
-| B2 Every relay | | |
-| B3 Momentary pulse | | |
-| B4 Max on-time | | |
-| B5 Restart / hold | | |
-| B6 Cold power-up | | |
-| B7 OTA reboot | | |
-| C1 Input polarity | | |
-| C2 Debounce | | |
-| C3 Toggle mode | | |
-| C4 Toggle at boot | | |
-| C5 Follow mode | | |
-| D1 SignalK connection | | |
-| D2 Republish | | |
-| D3 SignalK switching | | |
-| D4 Fail-safe | | |
-| E0 CAN diagnostics | | |
-| E1 On the bus | | |
-| E2 N2K switching | | |
-| E3 MFD lists device | | |
-| E4 Address claim | | |
-| E5 Traffic warning | | |
-| F1 Ethernet preferred | | |
-| F2 Setup access point | | |
-| G1 Page loads | | |
-| G2 Buzzer test | | |
-| G3 Buzzer frequency | | |
-| G4 Alarm buzzer | | |
-| H1 Update from the manifest | | |
+| A1 Boot log | pass | one benign, self-recovering blip: the SignalK websocket was closed by the server right as SNTP set the clock, reconnected within ~1s. No error from a tracked tag, no alarm. |
+| A2 No core dump | fail → resolved | a coredump was present at session start, from the earlier-installed v0.0.10 release (ELF hash matched exactly). Decoded: `n2k` task race between `TwaiTransmitter::set()` (task context) and the TWAI TX-from-ISR path over a shared frame buffer, `LoadProhibited` in `twai_ll_format_frame_buffer`. Crashed whichever task happened to be running (`wifi`, coincidentally). Not present in the dirty build under test. Cleared before continuing. |
+| A3 LED colour | not run | skipped this session |
+| B1 Relay polarity | pass | on = coil energized, no inversion needed |
+| B2 Every relay | pass | all 8 channels, clean `on by web`/`off by web` pairs; human confirmed audible clicks and per-relay status LEDs |
+| B3 Momentary pulse | pass | 1510ms measured vs. 1500ms configured (±20ms tolerance) |
+| B4 Max on-time | pass | 10010ms vs. 10000ms; re-sending "on" at 8s correctly restarted the timer (cutoff at 18050ms). Found and fixed a doc bug: the `setcfg` example set `relay2_mode` instead of `relay3_mode`, which would have left relay 3 in momentary mode and made the test meaningless. |
+| B5 Restart / hold | pass | hold relay stayed on with no click across two restarts, confirmed by ear; default-safe relay correctly dropped |
+| B6 Cold power-up | pass | single clean click (the hold relay) after N2K-bus power-cycle, no click-then-settle glitch; a long WiFi reconnect during this test was the known AUTH_EXPIRE pattern (espOS#136), not a new fault — confirmed via serial log the board was healthy throughout |
+| B7 OTA reboot | pass | re-installed the same dirty build over OTA (no tagged release to point at); confirmed `new image confirmed`, hold relay survived |
+| C1 Input polarity | pass | current flowing = on, no inversion |
+| C2 Debounce | pass | 9 flip cycles (fast and slow), each exactly one clean transition, no chatter, down to ~70ms between edges |
+| C3 Toggle mode | pass | 3 presses, clean alternation, one `by input` line per press, nothing on the release |
+| C4 Toggle at boot | pass | no `relay 1 on by input` anywhere in the boot log with the "button" relay held on through the restart |
+| C5 Follow mode | pass | follows both directions; a web override correctly persists until the next real input edge, not just a matching value |
+| D1 SignalK connection | pass | connected throughout a 2-minute watch, no repeat disconnects |
+| D2 Republish | pass | 10.01s measured once sampled with wall-clock-anchored polling; an initial two-sample check showed an apparent 30s gap, which was a tool round-trip measurement artifact, not a real interval problem |
+| D3 SignalK switching | pass | PUT via the SignalK server worked in both directions; landed as `by nmea2000` rather than `by signalk` in the log because this network has a real N2K↔SK bridge device (`halpi2-nmea2000`) that the multi-source PUT routed through — the control path was still proven end-to-end |
+| D4 Fail-safe | pass, with a note | failsafe transition at 30.81s (target ~30s); reconnect after the server came back took 69.2s, over the doc's "within a minute," but traced precisely to the reconnect backoff having already grown large during the ~2.5 minute outage, not a functional defect — reconnected and republished automatically with no intervention |
+| E0 CAN diagnostics | pass | frames received, zero dropped, zero bus-off; arbitration-lost errors present but expected on a live multi-node bus |
+| E1 On the bus | pass | address 34 (at the time), `traffic` flag verified against exact frame timing (flips true on an external frame, decays false exactly 10s later) |
+| E2 N2K switching | pass | `cansend` PGN 127502 switched relay 1 both ways, log wording exact, next PGN 127501 broadcast reflected the change |
+| E3 MFD lists device | not run | no MFD/chartplotter on the bench |
+| E4 Address claim | pass | a competing ISO Address Claim (NAME=0) for address 34 made the board move to 35 immediately, stayed stable, stayed fully functional. Left on 35 afterward (not forced back to 34). |
+| E5 Traffic warning | pass | `traffic: false` and the relay page's own template renders "no bus traffic" after a natural quiet window |
+| F1 Ethernet preferred | not run | Ethernet port not wired this session |
+| F2 Setup access point | not run | skipped this session |
+| G1 Page loads | pass | `200`, valid responsive HTML; 8-row rendering and header confirmed by code inspection against the live API (no browser available in this environment to visually confirm) |
+| G2 Buzzer test | pass | `202`/`409` as expected, log line exact (`"ESP 141"` at 2700 Hz), human confirmed audible |
+| G3 Buzzer frequency | pass | 1000 Hz and 5000 Hz both confirmed audible with a pitch change, applied live with no restart |
+| G4 Alarm buzzer | not run | the only `ALARM`-level condition that doesn't force a reboot (`relayExpander`) needs opening the case; filed espOS#137 suggesting a test-injection endpoint like the buzzer's, so this can be exercised remotely in future |
+| H1 Update from the manifest | not run | skipped this session |

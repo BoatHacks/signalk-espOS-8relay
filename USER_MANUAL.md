@@ -1,10 +1,12 @@
 # signalk-espOS-8relay User Manual
 
-> **This manual describes the planned behaviour.** No firmware has been
-> released yet, so nothing here can be tried out. Sections are filled in
-> and checked as each stage is built; setting names and some details may
-> still change. The requirements behind this manual are in
-> [SPEC.md](SPEC.md).
+> **Status: hardware bring-up.** Test releases exist (see
+> [GitHub Releases](https://github.com/BoatHacks/signalk-espOS-8relay/releases)),
+> and most of what's described here has now been confirmed on a real
+> board (see [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the
+> full results), but nothing has been checked on a boat yet. Setting
+> names and some details may still change. The requirements behind this
+> manual are in [SPEC.md](SPEC.md).
 
 ## 1. What you need
 
@@ -36,7 +38,9 @@ Each GitHub release carries two files:
   network within the rollback timeout (10 minutes by default), or the
   board goes back to the previous firmware.
 
-There are no releases yet; until then, build from source (3.1).
+Releases are on [GitHub](https://github.com/BoatHacks/signalk-espOS-8relay/releases);
+grab `-merged.bin` for a first USB install, or `-ota.bin` to update a
+board that's already running. To build from source instead, see 3.1.
 
 ### 3.0 Flash a release over USB-C
 

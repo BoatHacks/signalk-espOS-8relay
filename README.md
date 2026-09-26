@@ -42,23 +42,34 @@ The full requirements are in [SPEC.md](SPEC.md).
 |---|---|
 | Specification ([SPEC.md](SPEC.md)) | Done |
 | Architecture ([ARCHITECTURE.md](ARCHITECTURE.md)) | Done, being corrected against espOS as findings come in |
-| 00 — espOS fit check | Software checks done; espOS 0.10.3 builds for the ESP32-S3. Boot test waiting for the board |
-| 01 — project scaffold | Done except the on-board check: builds for the ESP32-S3, W5500 Ethernet driver, host tests, CI |
-| 02 — settings | Done except the on-board check: all settings in espOS's web UI, host-tested |
-| 03 — relay control | Done except the on-board check: safe boot sequence, momentary pulses, fail-safe, hold-state storage; host-tested |
-| 04 — digital inputs | Done except the on-board check: debounce, invert, input-to-relay overrides; host-tested |
-| 05 — SignalK | Done except the on-board check: both path trees, relay PUTs, names, SignalK-loss fail-safe; host-tested |
-| 06 — NMEA 2000 | Done except the bus test: joins the bus as a load controller, 127501 status, 127502 control; payloads host-tested |
-| Status LED and alarm buzzer | Done except the on-board check; logic host-tested |
-| 07 — hardware bring-up and first release | Not started; waiting for the board |
+| 00 — espOS fit check | Done: espOS 0.10.3 builds for the ESP32-S3 and boots on the real board |
+| 01 — project scaffold | Done: builds for the ESP32-S3, W5500 Ethernet driver initializes on the real board (link not yet tested — no cable), host tests, CI |
+| 02 — settings | Done: all settings confirmed working through the API/web UI on the real board |
+| 03 — relay control | Done: boot sequence, momentary pulses, max on-time, fail-safe, hold-state, cold power-up and OTA reboot all confirmed on the real board |
+| 04 — digital inputs | Done: polarity, 50 ms debounce, and toggle/follow input-to-relay overrides confirmed on the real board |
+| 05 — SignalK | Done: connection, republish interval, PUT switching, and SignalK-loss fail-safe confirmed on the real board; `controls.*` tree and renaming not yet exercised |
+| 06 — NMEA 2000 | Done: on-bus operation, 127501 status, 127502 control, and address-claim collision handling confirmed against a real second device; MFD device listing not yet tested (no MFD on the bench) |
+| Status LED and alarm buzzer | Buzzer tone and live frequency change confirmed on the real board; LED colour and the alarm-triggered buzzer pattern not yet tested (the latter needs opening the case — see [espOS#137](https://github.com/signalk-espOS/espOS/issues/137)) |
+| 07 — hardware bring-up and first release | In progress: most of the bring-up checklist passed on the first physical unit (2026-09-26); see [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the full results. Ethernet-plugged-in, captive portal, MFD-listing, and a signed release are still open. |
 
 Known issues found so far:
 - espOS does not support this board's W5500 Ethernet chip, so this project
-  has its own driver (untested until the board arrives).
+  has its own driver (initializes cleanly on the real board; not yet tested
+  with a cable plugged in).
 - espOS's NMEA 2000 debug server (candump) can't run alongside our NMEA 2000
   code, so it's left out.
 - espOS's NMEA 2000 component only passes raw CAN frames, so the NMEA 2000
   protocol layer comes from a separate library.
+- espOS's WiFi station regularly retries a few times with `AUTH_EXPIRE`
+  before connecting on boot or reconnect (full channel rescan each attempt);
+  diagnosed and filed upstream as
+  [espOS#136](https://github.com/signalk-espOS/espOS/issues/136). Harmless —
+  it always connects within roughly a minute — but worth knowing if a board
+  seems slow to come up.
+- The relay outputs' three-terminal (NO/COM/NC) wiring has no way to tell
+  the firmware which contact a load is on, which matters for fail-safe
+  correctness on a load wired to NC; tracked in
+  [#13](https://github.com/BoatHacks/signalk-espOS-8relay/issues/13).
 
 ## Plans
 
@@ -100,7 +111,10 @@ anything on a boat that matters.
 
 What's on the Waveshare ESP32-S3-ETH-8DI-8RO-C and what this firmware does
 with it. Pins are from the Waveshare wiki and the community ESPHome config
-for this board, and are not yet confirmed on real hardware.
+for this board. Confirmed correct on real hardware: the I²C relay
+expander, the 8 digital inputs (GPIO4–11), the CAN transceiver, the
+status LED and the buzzer. The W5500 Ethernet SPI pins initialize
+without error but haven't been tested with a cable plugged in.
 
 | Component | Pins / interface | Used | By |
 |---|---|---|---|

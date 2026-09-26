@@ -273,6 +273,44 @@ signalk-espOS-8relay/
   names, etc.) are filled in through espOS's config web UI.
 - **Updates**: espOS's signed OTA mechanism; no separate update path.
 
+## 8a. Hardware Bring-up Findings (2026-09-26)
+
+Confirmed on the first physical unit (ESP32-S3-ETH-8DI-8RO-C), full
+procedure and results in [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md):
+
+- **Relay polarity**: active high — a set bit in `relay_ctrl`'s mask
+  energizes the coil. Matches the firmware's existing assumption; no
+  `BOARD_RELAY_ACTIVE_HIGH` change needed.
+- **Input polarity**: active low at the GPIO (current flowing pulls the
+  opto's output low), which `input_sense`'s `BOARD_DI_ACTIVE_LOW`
+  already accounts for — current flowing reads as `on` at the API level,
+  as intended. No change needed.
+- **GPIO mapping**: `BOARD_DI_PINS {4, 5, 6, 7, 8, 9, 10, 11}` confirmed
+  correct end to end (DI8 loop-back drove GPIO11 and read back correctly).
+- **Debounce**: 50 ms default confirmed clean against a real switch —
+  9 flip cycles, fast and slow, every one exactly one transition, no
+  chatter, down to ~70 ms between edges.
+- **NMEA 2000**: on-bus operation, PGN 127501/127502, and ISO Address
+  Claim collision handling (moves to the next free address immediately
+  on losing arbitration, stays fully functional) all confirmed against a
+  real second device on the bus.
+- **W5500 Ethernet**: driver initializes cleanly on boot (`eth_w5500:
+  started; waiting for a link`) on every boot this session; not yet
+  tested with a cable actually plugged in.
+- **DI input voltage**: the board's own "isolated digital input" wiki
+  page doesn't state a voltage range; confirmed separately (reseller
+  spec page and Waveshare's own product page, not the wiki) at 5–36 V,
+  bidirectional optocoupler isolation, passive or active (NPN/PNP) input.
+- **Passive-mode input wiring**: a `DIx`-to-`DGND` dry contact is the
+  correct way to trigger a passive input — the board supplies its own
+  internal bias on `DIx`. Driving `DIx` with an external supply instead
+  (as if `DGND`/`COM` were a return path for an externally-sourced
+  voltage) does not reliably register, and briefly connecting an
+  external supply onto that internally-biased node is the likely cause
+  of one board brownout during this session's bring-up. The `COM`
+  terminal on the DI block exists for the active (NPN/PNP) wiring style,
+  not for a passive dry-contact loop.
+
 ## 9. Future Considerations
 
 - Multi-relay scenes/groups and local scheduling (SPEC.md §10.2) would
