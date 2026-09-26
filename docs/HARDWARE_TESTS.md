@@ -139,7 +139,7 @@ Pass if the log shows `relay 2 on by web` then `relay 2 off by pulse`
 1.5 s later (±20 ms, from the log timestamps).
 
 **B4 [auto] Maximum on-time (#2).** `setcfg
-'"relay2_mode":"latching","relay3_max_on_s":10'`, `relay 3 true`. Pass
+'"relay3_mode":"latching","relay3_max_on_s":10'`, `relay 3 true`. Pass
 if `relay 3 off by maxOn` follows 10 s later. Repeat, and at 8 s send
 `relay 3 true` again: the off must come 10 s after that second command.
 Then `setcfg '"relay3_max_on_s":0'`.
