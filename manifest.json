@@ -4,6 +4,24 @@
   "builds": [
     {
       "target": "esp32s3",
+      "channel": "stable",
+      "version": "v0.1.0",
+      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.1.0/signalk-espOS-8relay-v0.1.0-ota.bin",
+      "size": 1576960,
+      "sha256": "b496904c0584269c80650a9df8e975a9832102423c2472c21aedcf5a22e465ae",
+      "notes": "First release tested end to end on real hardware: relays, inputs, SignalK, NMEA 2000 (bench-tested, not on a boat yet)."
+    },
+    {
+      "target": "esp32s3",
+      "channel": "beta",
+      "version": "v0.1.0",
+      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.1.0/signalk-espOS-8relay-v0.1.0-ota.bin",
+      "size": 1576960,
+      "sha256": "b496904c0584269c80650a9df8e975a9832102423c2472c21aedcf5a22e465ae",
+      "notes": "First release tested end to end on real hardware: relays, inputs, SignalK, NMEA 2000 (bench-tested, not on a boat yet)."
+    },
+    {
+      "target": "esp32s3",
       "channel": "beta",
       "version": "v0.0.10",
       "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.0.10/signalk-espOS-8relay-v0.0.10-ota.bin",
@@ -19,15 +37,6 @@
       "size": 1576960,
       "sha256": "05b6a893fb21b99bb1232d76cfc50c5765d5525c1bd9b9ee7193a1a0b33a8b1d",
       "notes": "The settings page still failed with `ESP_ERR_NO_MEM` in 0.0.8. The"
-    },
-    {
-      "target": "esp32s3",
-      "channel": "beta",
-      "version": "v0.0.8",
-      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.0.8/signalk-espOS-8relay-v0.0.8-ota.bin",
-      "size": 1576960,
-      "sha256": "c42ebaa7fba840b3851bbf51b2981ee6f689d8441af9f5cbf4e668dd9777bfb4",
-      "notes": "The settings page could fail with `ESP_ERR_NO_MEM`: espOS builds the"
     }
   ]
 }
