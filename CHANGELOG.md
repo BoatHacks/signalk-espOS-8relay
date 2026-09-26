@@ -10,10 +10,25 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-26
+
+First release tested end to end on real hardware: relays, inputs, SignalK, NMEA 2000 (bench-tested, not on a boat yet).
+
 ### Changed
 
 - Every relay's and input's settings have their descriptions again (taken
   out in 0.0.8 to save RAM; with PSRAM since 0.0.9 the schema fits).
+
+### Tested
+
+- Hardware bring-up on the first physical unit: relay and input polarity,
+  debounce, momentary pulse, max on-time, restart/hold, cold power-up, OTA
+  reboot, toggle/follow input overrides, SignalK connection/republish/PUT
+  switching/fail-safe, NMEA 2000 on-bus operation/switching/address-claim
+  collision handling, relay page, and the buzzer. Full results in
+  [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md). Not yet tested: LED
+  colour, the alarm-triggered buzzer pattern, Ethernet with a cable
+  plugged in, MFD device listing, and captive-portal provisioning.
 
 ## [0.0.10] - 2026-09-25
 
