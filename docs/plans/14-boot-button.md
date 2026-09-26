@@ -19,20 +19,36 @@ a release will trigger.
   it, and ignore a press that is already held when the firmware starts.
   Act on **release**, so the user can let go when the LED shows the
   wanted action.
-- **Feedback:** while held, the LED blinks white after 5 s ("release
-  for access point") and red after 15 s ("release for factory reset").
-  Needs a small "override pattern" input to `indicator`.
+- **Feedback:** while held, the LED blinks **white** after 5 s ("release
+  for access point") and blinks **red** after 15 s ("release for
+  factory reset") — *decided 2026-09-26.* White is a new indicator
+  state (the existing 4-color palette in `indicator_logic.c` is green/
+  blue/amber/solid-red; none of those fit "about to open the portal").
+  Red is reused for its "destructive action" association, but blinking
+  rather than solid, so it reads as distinct from `INDICATOR_ALARM`'s
+  solid red at a glance. Needs a small "override pattern" input to
+  `indicator`.
 - **Reopen the access point** — *decided 2026-09-25:* save
   `wifi.sta_enabled=false` and restart. espOS 0.10.3 has no public "start
-  portal now" call; with the station off it opens its portal. Saving a
-  network in the portal turns the station back on.
+  portal now" call; with the station off it opens its portal.
+  - **Confirmed on hardware (2026-09-26): saving a network in the portal
+    does NOT turn the station back on by itself.** The portal's page has
+    a separate "station enabled" checkbox the person must also tick; a
+    network saved without ticking it leaves the board stuck in AP mode.
+    For a board that got here by losing network access, expecting a
+    person to notice and check an unrelated box is exactly the kind of
+    friction this feature exists to remove.
+    **Decision needed:** implement the plan's own fallback — hook the
+    portal's "network saved" event and force `sta_enabled=true`
+    ourselves, so completing setup always turns the station on. This
+    can live entirely in this project (subscribe to whatever event/
+    config-change espOS exposes for a portal save) or, since the
+    behavior is arguably an espOS portal UX gap and not specific to
+    this board, also be raised upstream.
   - The risk: if nobody completes the portal, the board stays off WiFi
     (Ethernet, NMEA 2000, inputs and relays keep working). Mitigate: the
-    LED shows a distinct "portal open" colour, the buzzer (if enabled)
+    LED shows the new "portal open" colour, the buzzer (if enabled)
     beeps "ESP AP", and the manual says how to finish or undo it.
-  - Check first that the portal's save really sets `sta_enabled=true`
-    again; if it doesn't, set it from our side on the portal's
-    "network saved" event.
   - Still worth an upstream request for `espos_wifi_portal_open()`;
     switch to it when it exists.
 - **Factory reset:** `espos_config_factory_reset()` (exists in 0.10.3),
@@ -47,6 +63,17 @@ a release will trigger.
 - Access point: save the station off and restart (see Approach).
 - Factory reset forgets the SignalK token.
 
+## Decisions (2026-09-26)
+- 5 s (portal) feedback: new indicator state, blinking white.
+- 15 s (factory reset) feedback: blinking red, not solid — solid red
+  already means `INDICATOR_ALARM`.
+- Confirmed on hardware: the portal does not re-enable the station on
+  its own (separate checkbox). This project will force
+  `sta_enabled=true` on the portal's "network saved" event rather than
+  rely on the person noticing the checkbox. Whether to also report this
+  upstream (espOS's portal arguably shouldn't require it) is still
+  open — not blocking, since the fix works either way.
+
 ## Test Strategy
 - Host tests for a pure `button` state machine: debounce, held-at-boot
   ignored, 5 s / 15 s thresholds, action on release only, short press
@@ -57,9 +84,13 @@ reset follow boot rules.
 
 ## Implementation Steps
 - [x] Portal approach decided (save station off)
-- [ ] Check that the portal's save turns the station back on
+- [x] Checked whether the portal's save turns the station back on —
+      confirmed on hardware it does not; this project must force it
+      (see Decisions, 2026-09-26)
+- [ ] Force `sta_enabled=true` on the portal's "network saved" event
 - [ ] Button state machine (host-tested) and GPIO 0 input in `board`
-- [ ] Indicator override pattern
+- [ ] Indicator override pattern: new blinking-white state (portal) and
+      blinking-red pattern reusing the alarm color (factory reset)
 - [ ] Actions: portal, factory reset (+ hold state, counters), restart
 - [ ] USER_MANUAL §4, §8; README hardware table; CHANGELOG
 
