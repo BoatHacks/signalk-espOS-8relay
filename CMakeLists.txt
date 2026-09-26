@@ -45,3 +45,35 @@ if("signalk-espos__espos_n2k" IN_LIST _comps AND "signalk-espos__espos_httpd" IN
     idf_component_get_property(_httpd signalk-espos__espos_httpd COMPONENT_LIB)
     target_link_libraries(${_n2k} PRIVATE ${_httpd})
 endif()
+
+# Guard the assumption the workaround above relies on: wifi, sk, ota, n2k and
+# httpd are pinned dependencies (idf_component.yml), so they're always in
+# this build, and the =1 defines above must always land. If espOS ever
+# changes how its registry copy names components again -- fixing the bug the
+# workaround exists for, or breaking it a different way -- this notices
+# either a missing =1 define (the workaround's own IN_LIST check stopped
+# matching) or the whole workaround having become a silent no-op, instead of
+# shipping a firmware with WiFi/SignalK/OTA/N2K-diagnostics quietly missing
+# again. Full audit of this bug class: espOS#138.
+get_target_property(_core_defs ${_core} COMPILE_DEFINITIONS)
+foreach(_part WIFI SK OTA)
+    if(NOT "ESPOS_HAVE_${_part}=1" IN_LIST _core_defs)
+        message(FATAL_ERROR
+            "espos_core is missing ESPOS_HAVE_${_part}=1: the registry-naming "
+            "workaround in this file (see espOS#138) no longer matches espOS's "
+            "component names, or espos_${_part} dropped out of the build.")
+    endif()
+endforeach()
+if(NOT DEFINED _ota)
+    message(FATAL_ERROR
+        "espos_ota and/or espos_wifi are no longer both in BUILD_COMPONENTS: "
+        "the registry-naming workaround in this file (see espOS#138) has "
+        "nothing to check. Update this guard to match.")
+endif()
+get_target_property(_ota_defs ${_ota} COMPILE_DEFINITIONS)
+if(NOT "ESPOS_OTA_HAVE_WIFI=1" IN_LIST _ota_defs)
+    message(FATAL_ERROR
+        "espos_ota is missing ESPOS_OTA_HAVE_WIFI=1: the registry-naming "
+        "workaround in this file (see espOS#138) no longer matches espOS's "
+        "component names, or espos_wifi dropped out of the build.")
+endif()
