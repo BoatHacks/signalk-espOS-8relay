@@ -15,8 +15,8 @@ it as the update's notes, and *Cut release* refuses a version without one.
 - The BOOT button now does something while the firmware is running (issue
   #7): held ~5 s, it reopens the setup access point; held ~15 s, it
   factory-resets the board. The status LED blinks white or red to show
-  which action a release will trigger. Compiled and host-tested; the
-  on-board check is still open.
+  which action a release will trigger. Host-tested and confirmed on
+  real hardware (docs/plans/14-boot-button.md).
 
 ## [0.1.0] - 2026-09-26
 

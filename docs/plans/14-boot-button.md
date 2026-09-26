@@ -97,10 +97,24 @@ reset follow boot rules.
       blinking-red pattern reusing the alarm color (factory reset)
 - [x] Actions: portal, factory reset (+ hold state; no cycle counters
       exist yet, issue #4), restart
-- [ ] USER_MANUAL §4, §8; README hardware table; CHANGELOG
-- [ ] On-board check (SPEC/plan 07 style): both actions on real
-      hardware, power-up with the button held, relays after a factory
-      reset follow boot rules
+- [x] USER_MANUAL §4, §8; README hardware table; CHANGELOG
+- [x] On-board check (2026-09-26): both actions confirmed on the real
+      board. ~5s release → LED blinked white, station disabled,
+      restarted, portal opened (confirmed via the AP-side disconnect).
+      ~15s release → LED blinked red, full factory reset confirmed via
+      the serial boot log (hostname back to its `espos-<id>` default, 0
+      networks configured, portal opened immediately rather than after
+      `portal_after_s`, matching the "0 networks: immediately" schema
+      note). Power-up-with-the-button-held and the
+      relays-follow-boot-rules-after-reset sub-cases weren't
+      specifically exercised (no relay was in a non-default state at
+      reset time to check against).
+
+  Recovery after the test surfaced one thing worth flagging separately:
+  after a factory reset, SignalK discovery reverts to its default (on)
+  and can pick up a stale/unrelated device claiming to be a server
+  before the real one is re-pinned — worth remembering when restoring
+  settings post-reset, not a bug in this feature.
 
 ## Files to Create/Modify
 - `components/board/` (pin), new `components/button/` or in `main`
