@@ -1,0 +1,94 @@
+# SPDX-FileCopyrightText: 2026 Dirk Wahrheit
+# SPDX-License-Identifier: Apache-2.0
+## espos_wifi component manifest: registry metadata for signalk-espos/espos_wifi.
+## The version is espOS's (version.txt) and moves with it, see docs/releasing.md.
+##
+## TEMPORARY LOCAL VENDOR (2026-09-27): the ESP Component Registry's
+## signalk-espos/espos_wifi is still on 0.10.3, which predates upstream
+## PR #139 (fast-reconnect-to-last-known-AP fix for espOS#136,
+## https://github.com/signalk-espOS/espOS/pull/139, merged as
+## 800cbbf on signalk-espOS/espOS main). This directory is that fix,
+## vendored from commit 800cbbf, matching the registry's namespaced dir
+## name (components/signalk-espos__espos_wifi) so ESP-IDF's component
+## manager prefers it over the registry copy without any idf_component.yml
+## pin change elsewhere in this repo (see docs/plans and the top-level
+## CMakeLists.txt's registry-naming guard). `override_path` fields for
+## sibling espOS components were stripped below since this repo consumes
+## espOS via the registry, not a submodule, and those sibling checkouts
+## don't exist here.
+##
+## REMOVE THIS DIRECTORY once the registry publishes an espos_wifi release
+## that includes 800cbbf (check https://components.espressif.com/components/signalk-espos/espos_wifi
+## or `curl -s https://components.espressif.com/api/components/signalk-espos/espos_wifi`)
+## and this repo's own espos_* pins can move to that version instead.
+# x-release-please-start-version
+version: "0.10.3"
+# x-release-please-end
+description: "Station + provisioning portal, a pure-C state machine, static IP, co-processor watchdog; reports into espos_net"
+url: "https://github.com/signalk-espOS/espOS/tree/main/components/espos_wifi"
+repository: "https://github.com/signalk-espOS/espOS.git"
+documentation: "https://github.com/signalk-espOS/espOS/blob/main/docs/wifi.md"
+issues: "https://github.com/signalk-espOS/espOS/issues"
+license: "Apache-2.0"
+maintainers:
+  - "Dirk Wahrheit <dirkwahrheit@gmail.com>"
+tags:
+  - signalk
+  - marine
+  - esp-idf
+  - espos
+  - wifi
+  - provisioning
+  - captive-portal
+files:
+  exclude:
+    - "build/**/*"
+    - "build-*/**/*"
+    - "sdkconfig*"
+    - "managed_components/**/*"
+    - "dependencies.lock"
+    - "examples/*/build/**/*"
+    - "examples/*/build-*/**/*"
+    - "examples/*/managed_components/**/*"
+    - "examples/*/dependencies.lock"
+    # The GENERATED sdkconfig only. Not "sdkconfig*": that glob also matched
+    # the tracked sdkconfig.defaults[.<target>] files, which for an example
+    # without the prologue ARE the example -- a downloaded from_registry was
+    # missing the nine settings espos_core then refused to build without.
+    - "examples/*/sdkconfig"
+    - "examples/*/sdkconfig.old"
+    - "examples/*/*.pem"
+dependencies:
+  idf: ">=6.0.0,<6.1.0"
+  # Sibling espOS components. Upstream's own manifest points these at
+  # override_path: "../espos_<name>" for an in-tree/submodule build; this
+  # repo vendors espos_wifi standalone (registry consumer, not a submodule,
+  # see docs/plans and CMakeLists.txt's registry-naming guard), so those
+  # sibling checkouts don't exist here and override_path was stripped —
+  # resolved from the registry like every other espOS dependency instead.
+  signalk-espos/espos_config:
+    version: "^0.10.3"
+  signalk-espos/espos_httpd:
+    version: "^0.10.3"
+  # The network seam the station reports into; it owns the hostname, the
+  # device id and the mDNS responder (espressif/mdns is its dependency now).
+  signalk-espos/espos_net:
+    version: "^0.10.3"
+  # cJSON, exact-pinned like every other registry dependency here.
+  espressif/cjson: "==1.7.19~2"
+  # The ESP32-P4 has no radio: WiFi comes from the C6 co-processor through
+  # esp_hosted, and the co-processor watchdog includes its headers on that
+  # target. Same pin as espos_ble.
+  espressif/esp_hosted:
+    version: "^2.12.0"
+    rules:
+      - if: "target == esp32p4"
+  # esp_hosted's own manifest declares only idf, so the Wi-Fi API shim that
+  # makes esp_wifi_* calls reach the co-processor has to be named here or by
+  # every consumer; naming it once is the point of the component.
+  espressif/esp_wifi_remote:
+    version: "*"
+    rules:
+      - if: "target == esp32p4"
+  signalk-espos/espos_event:
+    version: "^0.10.3"

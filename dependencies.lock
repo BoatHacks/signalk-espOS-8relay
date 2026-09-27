@@ -136,7 +136,7 @@ dependencies:
       require: private
       version: '>=6.0.0,<6.1.0'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 0.10.3
   signalk-espos/espos_health:
@@ -334,46 +334,10 @@ dependencies:
       type: service
     version: 0.10.3
   signalk-espos/espos_wifi:
-    component_hash: e0b9991406e417a8e244ee4e3125fd806363aaae14f2593dc6149e775c608d2e
-    dependencies:
-    - name: espressif/cjson
-      registry_url: https://components.espressif.com
-      require: private
-      version: ==1.7.19~2
-    - name: espressif/esp_hosted
-      registry_url: https://components.espressif.com
-      require: private
-      rules:
-      - if: target == esp32p4
-      version: ^2.12.0
-    - name: espressif/esp_wifi_remote
-      registry_url: https://components.espressif.com
-      require: private
-      rules:
-      - if: target == esp32p4
-      version: '*'
-    - name: idf
-      require: private
-      version: '>=6.0.0,<6.1.0'
-    - name: signalk-espos/espos_config
-      registry_url: https://components.espressif.com
-      require: private
-      version: ^0.10.3
-    - name: signalk-espos/espos_event
-      registry_url: https://components.espressif.com
-      require: private
-      version: ^0.10.3
-    - name: signalk-espos/espos_httpd
-      registry_url: https://components.espressif.com
-      require: private
-      version: ^0.10.3
-    - name: signalk-espos/espos_net
-      registry_url: https://components.espressif.com
-      require: private
-      version: ^0.10.3
+    dependencies: []
     source:
-      registry_url: https://components.espressif.com
-      type: service
+      path: components/signalk-espos__espos_wifi
+      type: local
     version: 0.10.3
   ttlappalainen/nmea2000:
     component_hash: 24102e8d790203e5c50164580d991826b055298fc9d27ceff369635dc4678401
@@ -390,6 +354,7 @@ direct_dependencies:
 - idf
 - signalk-espos/espos_config
 - signalk-espos/espos_core
+- signalk-espos/espos_event
 - signalk-espos/espos_health
 - signalk-espos/espos_httpd
 - signalk-espos/espos_n2k
@@ -397,6 +362,6 @@ direct_dependencies:
 - signalk-espos/espos_ota
 - signalk-espos/espos_sk
 - ttlappalainen/nmea2000
-manifest_hash: 3ec9b7f965209cace279cbd1f3eb701bb5b990226abb5e82ae59c64fc41eb7f0
+manifest_hash: 41db761b73f908c10c189a43981296123bcb5f9d171e788cb9d67e8377b12b7f
 target: esp32s3
 version: 3.0.0
