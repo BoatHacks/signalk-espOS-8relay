@@ -48,9 +48,11 @@ blocked on two decisions, not on design or code.
 - Add LICENSE, CODE_OF_CONDUCT.md and CONTRIBUTING.md links to README's
   Documentation list.
 
-## Decisions needed (blocking — not mine to make)
-- License choice (Apache-2.0 to match espOS, or something else).
-- Code of Conduct enforcement contact.
+## Decisions (2026-09-27)
+- License: Apache-2.0, to match espOS.
+- Code of Conduct enforcement contact: not decided yet. Skipping
+  CODE_OF_CONDUCT.md for this pass rather than blocking LICENSE and
+  CONTRIBUTING.md on it; add it once a contact is chosen.
 
 ## Test Strategy
 None (no code). Verify after merging: GitHub's *Insights → Community
@@ -58,13 +60,15 @@ standards* page shows License, Code of Conduct and Contributing as
 present.
 
 ## Implementation Steps
-- [ ] Get the license decision
-- [ ] Get the enforcement-contact decision
-- [ ] Add LICENSE
-- [ ] Add CODE_OF_CONDUCT.md (Contributor Covenant 2.1 + contact)
-- [ ] Add CONTRIBUTING.md (project-specific, per Approach above)
-- [ ] README.md Documentation list links all three
-- [ ] Confirm GitHub's community-standards checklist is green
+- [x] Get the license decision (Apache-2.0)
+- [ ] Get the enforcement-contact decision — not yet made
+- [x] Add LICENSE
+- [ ] Add CODE_OF_CONDUCT.md (Contributor Covenant 2.1 + contact) —
+      blocked on the contact decision above
+- [x] Add CONTRIBUTING.md (project-specific, per Approach above)
+- [x] README.md Documentation list links LICENSE and CONTRIBUTING.md
+- [ ] Confirm GitHub's community-standards checklist is green — will
+      still show Code of Conduct missing until that's added
 
 ## Files to Create/Modify
 - `LICENSE` (new)

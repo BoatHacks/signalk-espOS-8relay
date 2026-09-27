@@ -127,6 +127,9 @@ Work is split into stages, each with its own plan in
   is worked through
 - [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) — how to test a release
   on the real board
+- [CONTRIBUTING.md](CONTRIBUTING.md) — how to build, test and propose a
+  change
+- [LICENSE](LICENSE) — Apache-2.0
 
 ## Safety
 
