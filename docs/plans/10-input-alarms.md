@@ -47,7 +47,9 @@ turns off. The typical use is a bilge float switch.
   leave a stale "alarm" notification on the server until the next physical
   transition, and turning one on for an already-tripped switch wouldn't
   alarm until the next transition either. Not explicitly asked for; flagged
-  for review.
+  for review. **Decided 2026-09-27: keep it.** Reviewed and confirmed —
+  without it a disabled alarm could sit stale on the server for an
+  arbitrarily long time on a slowly-refilling bilge.
 
 ## Test Strategy
 Host tests in `sk_bridge_test`:
