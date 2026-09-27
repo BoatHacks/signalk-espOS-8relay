@@ -79,6 +79,16 @@ it as the update's notes, and *Cut release* refuses a version without one.
   `inputs` and `cfg <ns> <key> <value>`, for exercising relays/inputs and
   setting arbitrary config over USB serial without network reachability.
 
+### Changed
+
+- RTTTL parsing, the named tone library and the chirp/preview priority
+  gate moved out of `components/indicator/` into a new
+  `components/espos_tone/` (issue #17), first step towards making #14's
+  event-chirp system reusable by other espOS boards. Purely internal:
+  `indicator.h`'s public API and all observable behavior are unchanged.
+  Not yet vendored into espOS itself — that's tracked separately as
+  [espOS#143](https://github.com/signalk-espOS/espOS/issues/143).
+
 ### Fixed
 
 - The `indicator` task's stack (3072 bytes) was too tight once event
