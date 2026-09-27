@@ -246,7 +246,10 @@ static void io_task(void *arg)
         espos_health_kick();
         s_io_alive_us = esp_timer_get_time();
         if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(TICK_MS)) > 0) {
-            device_config_t cfg;
+            // static: device_config_t now carries the tone_patterns table
+            // (up to ~4 KB), far too big for a local on this task's 4 KB
+            // stack. io_task is the only caller, so this is safe unshared.
+            static device_config_t cfg;
             if (device_config_load(&cfg) == ESP_OK) {
                 relay_ctrl_update_config(&cfg);
                 input_sense_update_config(&cfg);

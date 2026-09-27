@@ -56,7 +56,7 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 6.0.3
+    version: 6.0.2
   joltwallet/littlefs:
     component_hash: 3af20a3d75c49db9dc2286fd50862c34055c9f578419ad1f2bf7ed3ed01391fe
     dependencies:
@@ -397,6 +397,6 @@ direct_dependencies:
 - signalk-espos/espos_ota
 - signalk-espos/espos_sk
 - ttlappalainen/nmea2000
-manifest_hash: 030c228f36f61c8e469234985a7f054e28248d28e30a2f3ed729dd4cb91da02c
+manifest_hash: 3ec9b7f965209cace279cbd1f3eb701bb5b990226abb5e82ae59c64fc41eb7f0
 target: esp32s3
 version: 3.0.0

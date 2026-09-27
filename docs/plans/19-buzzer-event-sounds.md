@@ -165,10 +165,9 @@ dropdowns pick it up.
       scoped to the MVP spec, and neither #7 (BOOT button) nor #10 (buzzer
       test/frequency) touched it either — CHANGELOG is where this kind of
       addition is recorded.
-- [ ] Host tests actually run (`test/host/run_all.sh`) once on a machine
-      with the ESP-IDF toolchain — the pure RTTTL/tone-table logic was
-      cross-checked with a standalone `gcc` harness in the meantime, but
-      that's not a substitute for the real Unity/idf.py run
+- [x] Host tests actually run (`test/host/run_all.sh`): all 9 host-test
+      projects pass (58 test cases, 0 failures), including the new ones. A
+      full `idf.py build` for the real board target also succeeds.
 - [ ] On-board check: all boot-family + relay + input chirps, non-
       interference with the alarm and the BOOT-button override, and the
       Tones page's CRUD + dropdowns

@@ -204,7 +204,12 @@ void indicator_update_config(const device_config_t *cfg)
     atomic_store(&s.freq_hz, cfg->buzzer_freq_hz);
     atomic_store(&s.event_enabled, cfg->buzzer_on_event);
 
-    indicator_tone_t tones[INDICATOR_MAX_TONES];
+    // `indicator_tone_t` is too big (RTTTL_MAX_NOTES notes each) for a whole
+    // array of them to be a stack local -- indicator_update_config() runs on
+    // the I/O task's small stack -- so the parse buffer is static instead.
+    // Safe without its own lock: this function is only ever called from one
+    // task at a time (main_task once at boot, then only the I/O task).
+    static indicator_tone_t tones[INDICATOR_MAX_TONES];
     const size_t n = indicator_parse_tones(cfg->tone_patterns, tones, INDICATOR_MAX_TONES);
     taskENTER_CRITICAL(&s_tone_mux);
     memcpy(s.tones, tones, n * sizeof(tones[0]));
