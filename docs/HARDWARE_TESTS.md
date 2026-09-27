@@ -163,6 +163,22 @@ Follow `…/api/v1/ota/status`. Pass if it downloads, reboots, logs
 `espos_ota: new image confirmed`, and relay 4 (hold, on) stays on
 without an off line, as in B5.
 
+**B8 [human] Wired to NC (#13).** With one relay's load wired to its NC
+terminal and another wired NO as usual (same board), `setcfg
+'"relay<NC-channel>_wired_nc":1'` on the NC one only. Pass if: the relay
+page/`relays`/SignalK report `on` for the NC relay whenever its load is
+actually powered (idle after boot: NC relay's load on, NO relay's load
+off); commanding each relay on/off via the web page or SignalK correctly
+switches its own load (not the coil-inverted one); triggering B5's
+`sk_lost`/fail-safe path (or the grace-period timeout) de-energizes both
+coils, which is a visible *off* click for the NO relay and a silent *on*
+transition (no click, since the coil was already de-energized) for the
+NC one, and each then reports correctly for its wiring. Then
+factory-reset the board and confirm *Wired to NC* reverts to off for
+that relay (it must not remember or infer the physical wiring) while
+the actual wiring, and therefore the load's real behavior, is
+unchanged.
+
 ## C. Inputs
 
 **C1 [loop] Input polarity.** As B1, from the input side: with relay 8

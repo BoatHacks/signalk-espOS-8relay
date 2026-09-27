@@ -529,6 +529,163 @@ TEST_CASE("max on-time: a hold relay restored at boot gets a fresh timer", "[rel
     TEST_ASSERT_FALSE(relay_ctrl_get(1));
 }
 
+// --------------------------------------------------------- wiredNC (#13)
+
+TEST_CASE("wiredNC translates every read path: reports the opposite of the coil", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].wired_nc = true;
+    start();
+    // Idle after a cold boot: coil off (de-energised), NC relay reports on.
+    TEST_ASSERT_EQUAL_HEX8(0x00, chip.regs[TCA9554_REG_OUTPUT]);
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));
+    TEST_ASSERT_EQUAL_HEX8(0x01, relay_ctrl_get_mask());
+
+    // A plain (non-NC) relay on the same mask is unaffected.
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));
+    TEST_ASSERT_TRUE(relay_ctrl_get(2));
+    TEST_ASSERT_EQUAL_HEX8(0x03, relay_ctrl_get_mask());  // relay 1 (NC, idle) + relay 2
+}
+
+TEST_CASE("wiredNC translates every write path: commanding on drives the coil off", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].wired_nc = true;
+    start();
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));  // idle: reports on
+
+    TEST_ESP_OK(relay_ctrl_set(1, false, RELAY_SRC_SK));  // "turn the load off"
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));
+    TEST_ASSERT_EQUAL_HEX8(0x01, chip.regs[TCA9554_REG_OUTPUT]);  // coil energised
+
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));  // "turn the load on"
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));
+    TEST_ASSERT_EQUAL_HEX8(0x00, chip.regs[TCA9554_REG_OUTPUT]);  // coil de-energised
+}
+
+TEST_CASE("wiredNC: toggle flips the reported state and the coil together", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].wired_nc = true;
+    start();
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));  // idle: on
+
+    TEST_ESP_OK(relay_ctrl_toggle(1, RELAY_SRC_INPUT));
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));
+    TEST_ASSERT_EQUAL_HEX8(0x01, chip.regs[TCA9554_REG_OUTPUT]);
+
+    TEST_ESP_OK(relay_ctrl_toggle(1, RELAY_SRC_INPUT));
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));
+    TEST_ASSERT_EQUAL_HEX8(0x00, chip.regs[TCA9554_REG_OUTPUT]);
+}
+
+TEST_CASE("wiredNC: listeners see the reported (logical) state, not the coil", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].wired_nc = true;
+    start();
+    n_events = 0;
+    TEST_ESP_OK(relay_ctrl_set(1, false, RELAY_SRC_SK));  // coil goes on
+    TEST_ASSERT_EQUAL(1, n_events);
+    TEST_ASSERT_EQUAL(1, events[0].channel);
+    TEST_ASSERT_FALSE(events[0].on);  // reported: load off, even though the coil energised
+}
+
+// ---------------------------------- the critical invariant: coil bypasses wiredNC
+
+TEST_CASE("cold boot's coil write is unaffected by wiredNC", "[relay_ctrl]")
+{
+    for (int wnc = 0; wnc <= 1; wnc++) {
+        fresh();
+        cfg.relays[0].wired_nc = wnc;
+        TEST_ESP_OK(relay_ctrl_init(&hw, &cfg));
+        // Cold boot, default-safe: coil always ends up off, whatever wiredNC
+        // says -- that's the fail-safe policy, matching an actual power loss.
+        TEST_ASSERT_EQUAL_HEX8(0x00, chip.regs[TCA9554_REG_OUTPUT]);
+        TEST_ASSERT_EQUAL_HEX8(0x00, chip.writes[0].val);
+        // The report differs: a NC relay is powered by that de-energised coil.
+        TEST_ASSERT_EQUAL(wnc ? true : false, relay_ctrl_get(1));
+    }
+}
+
+TEST_CASE("SignalK-loss fail-safe writes the coil off directly, unaffected by wiredNC", "[relay_ctrl]")
+{
+    for (int wnc = 0; wnc <= 1; wnc++) {
+        fresh();
+        cfg.relays[0].wired_nc = wnc;
+        start();
+        // Drive the coil energised: whichever public request maps to that,
+        // depending on wiredNC.
+        TEST_ESP_OK(relay_ctrl_set(1, wnc ? false : true, RELAY_SRC_SK));
+        TEST_ASSERT_EQUAL_HEX8(0x01, chip.regs[TCA9554_REG_OUTPUT]);
+        n_events = 0;
+        relay_ctrl_sk_lost();
+        // The coil write itself: always de-energised, never translated.
+        TEST_ASSERT_EQUAL_HEX8(0x00, chip.regs[TCA9554_REG_OUTPUT]);
+        // What gets reported: on for a NC relay (its load is now powered).
+        TEST_ASSERT_EQUAL(wnc ? true : false, relay_ctrl_get(1));
+        TEST_ASSERT_EQUAL(1, n_events);
+        TEST_ASSERT_EQUAL(wnc ? true : false, events[0].on);
+    }
+}
+
+TEST_CASE("a momentary pulse's coil write is unaffected by wiredNC; only the report flips", "[relay_ctrl]")
+{
+    for (int wnc = 0; wnc <= 1; wnc++) {
+        fresh();
+        cfg.relays[0].mode = RELAY_MODE_MOMENTARY;
+        cfg.relays[0].wired_nc = wnc;
+        start();
+        // The request that starts a pulse (coil energised) depends on
+        // wiredNC; the coil-level pulse mechanics themselves do not.
+        TEST_ESP_OK(relay_ctrl_set(1, wnc ? false : true, RELAY_SRC_SK));
+        TEST_ASSERT_EQUAL_HEX8(0x01, chip.regs[TCA9554_REG_OUTPUT]);
+        clock_ms += 999;
+        relay_ctrl_tick();
+        TEST_ASSERT_EQUAL_HEX8(0x01, chip.regs[TCA9554_REG_OUTPUT]);  // still mid-pulse
+        clock_ms += 1;
+        relay_ctrl_tick();
+        // Pulse timer always switches the coil back off, unconditionally.
+        TEST_ASSERT_EQUAL_HEX8(0x00, chip.regs[TCA9554_REG_OUTPUT]);
+        // Report: a NC-wired momentary relay's pulse is a brief load-OFF
+        // blip, ending back at load-on (idle, coil de-energised).
+        TEST_ASSERT_EQUAL(wnc ? true : false, relay_ctrl_get(1));
+    }
+}
+
+TEST_CASE("hold-restore reads/writes the coil bit unchanged; the report reflects wiredNC", "[relay_ctrl]")
+{
+    for (int wnc = 0; wnc <= 1; wnc++) {
+        fresh();
+        cfg.relays[0].failsafe = FAILSAFE_HOLD;
+        cfg.relays[0].wired_nc = wnc;
+        store.has_value = true;
+        store.value = 0x01;  // relay 1 was held on (coil level, as stored)
+        TEST_ESP_OK(relay_ctrl_init(&hw, &cfg));
+        // The coil write restores exactly the stored bit, whatever wiredNC is.
+        TEST_ASSERT_EQUAL_HEX8(0x01, chip.regs[TCA9554_REG_OUTPUT]);
+        // The report differs: coil energised reads as off for a NC relay.
+        TEST_ASSERT_EQUAL(wnc ? false : true, relay_ctrl_get(1));
+    }
+}
+
+TEST_CASE("flipping wiredNC live changes the report without switching anything", "[relay_ctrl]")
+{
+    fresh();
+    start();
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));  // coil on, reports on
+    TEST_ASSERT_TRUE(relay_ctrl_get(1));
+    TEST_ASSERT_EQUAL_HEX8(0x01, chip.regs[TCA9554_REG_OUTPUT]);
+    chip.n_writes = 0;
+
+    cfg.relays[0].wired_nc = true;
+    relay_ctrl_update_config(&cfg);
+
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));                          // same coil, new meaning
+    TEST_ASSERT_EQUAL_HEX8(0x01, chip.regs[TCA9554_REG_OUTPUT]);   // coil untouched
+    TEST_ASSERT_EQUAL(0, chip.n_writes);                           // no I2C traffic at all
+}
+
 // ------------------------------------------------------- event chirps (#14)
 
 TEST_CASE("event chirps: only direct commands, not automatic changes", "[relay_ctrl]")

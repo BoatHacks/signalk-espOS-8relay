@@ -184,6 +184,7 @@ overrides.
 | Mode | Latching | *Latching* stays as set; *momentary* switches off by itself after the pulse time |
 | Pulse time | 1 s | For momentary relays |
 | When SignalK is lost or the board restarts | Switch off | *Keep last state*, or *switch off*. Momentary relays always switch off. |
+| Wired to NC | Off | Turn on if this relay's load is wired to its NC (normally-closed) terminal instead of NO. SignalK, NMEA 2000 and the relay page then report and command the *load's* state, not the coil's -- see the warning below. |
 | Controlled by input | None | An input (1–8) that switches this relay directly |
 | Input link | Follow | *Follow*: the relay copies its input. *Toggle*: each press of a push button on the input switches the relay over (section 7.4). |
 | Maximum on-time | 0 (no limit) | Switch off automatically after this long, however the relay was switched on. Ignored in momentary mode. |
@@ -191,6 +192,30 @@ overrides.
 | Off chirp | relay-off | As above, for switching off. |
 | Pulse-start chirp | pulse-start | Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above. |
 | Pulse-stop chirp | pulse-stop | Momentary mode only: tone to play when a pulse ends -- its timer running out counts too, unlike the off chirp above, since that's the normal way a pulse finishes. |
+
+> **Wired to NC, and what "switch off" means for it.** This setting only
+> changes what *on*/*off* mean when reported or commanded -- it never
+> changes what "switch off" *does*. "When SignalK is lost or the board
+> restarts: switch off" (and every other automatic switch-off above)
+> always de-energizes the relay's coil, exactly like a real power loss
+> would. For a normally-wired (NO) relay that turns its load off. For a
+> relay wired to NC, a de-energized coil is what *powers* the load -- so
+> after one of these automatic transitions, a `wiredNC` relay correctly
+> *reports as on*. That is the point of wiring a bilge pump or a nav light
+> to NC in the first place: it keeps running through exactly the kind of
+> event `switch off`/`default-safe` is built to survive. Set *Wired to
+> NC* to match how the relay is actually wired, not to change how it
+> behaves on loss of power or SignalK -- it can't do that.
+>
+> A momentary relay's pulse still always means "energize the coil for the
+> pulse time, then release it" -- for a `wiredNC` momentary relay this is
+> a brief *load-off* blip (e.g. to momentarily kill power to reset
+> something downstream), not a load-on pulse.
+>
+> A factory reset returns *Wired to NC* to *Off* along with every other
+> setting -- it does not know or guess how a relay is physically wired.
+> Check this setting after any factory reset on a board with NC-wired
+> relays.
 
 ### 6.4 Each input
 
@@ -342,6 +367,11 @@ that moment.
   stay as they were, without switching; the rest switch off.
 - **Power loss:** all relays drop out. When power returns, relays set to
   *keep last state* switch back on to their last state.
+
+"Switch off" and "drop out" always mean the coil de-energizes -- for a
+relay set to *Wired to NC* (section 6.3), that's the state its load is
+*powered* in, so it correctly reports as on afterwards. See the warning
+in section 6.3.
 
 ### 7.6 Status LED and buzzer
 

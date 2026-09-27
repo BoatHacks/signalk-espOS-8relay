@@ -44,6 +44,20 @@ it as the update's notes, and *Cut release* refuses a version without one.
   queued. Host-tested (RTTTL parsing, the tone library, gating/priority,
   which relay sources chirp, momentary-mode detection)
   (docs/plans/19-buzzer-event-sounds.md).
+- New per-relay *Wired to NC* setting (issue #13, off by default): for a
+  load wired to a relay's NC terminal instead of NO (e.g. a bilge pump or
+  nav light meant to keep running through total power loss), reported and
+  commanded on/off (SignalK, NMEA 2000, the relay page) now mean the
+  load's state, not the coil's. **This never changes what an automatic
+  switch-off does**: SignalK-loss fail-safe, boot/restart defaults, a
+  momentary relay's pulse ending, and `hold` persistence all still
+  energize/de-energize the coil directly, exactly like a real power
+  loss — a `wiredNC` relay then correctly *reports* on right after one of
+  those, since that's the state its load is powered in. A `wiredNC`
+  momentary relay's pulse is therefore a brief load-*off* blip rather
+  than load-on. Host-tested, including the coil-level fail-safe/boot/
+  momentary/hold paths proven unaffected by the setting
+  (docs/plans/18-relay-nc-no-wiring.md).
 - *Buzzer frequency*'s range widened from 1000–5000 Hz to 42–10000 Hz.
 - The debug console (issue #16) gained `relay <1-8> <on|off|toggle>`,
   `inputs` and `cfg <ns> <key> <value>`, for exercising relays/inputs and
