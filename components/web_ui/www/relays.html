@@ -52,6 +52,8 @@ h1 small { font-size: 13px; font-weight: 400; color: var(--muted); }
 .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--off); flex: none; }
 .dot.is-on { background: var(--on); border-color: var(--on); }
 .dot.unknown { border-style: dashed; }
+.alarm { font-size: 12px; font-weight: 700; color: var(--err); background: var(--err-bg);
+  border-radius: 999px; padding: 1px 8px; }
 @media (min-width: 640px) {
   .row { grid-template-columns: minmax(0, 1fr) auto minmax(150px, 190px); }
   .input { grid-column: auto; }
@@ -135,10 +137,12 @@ function build(n) {
   const input = el("div", "input");
   const dot = el("span", "dot unknown");
   const inText = el("span");
-  input.append(dot, inText);
+  const alarm = el("span", "alarm", "ALARM");
+  alarm.hidden = true;
+  input.append(dot, inText, alarm);
   row.append(info, ctl, input);
   list.append(row);
-  return { name, meta, last, pill, on, off, dot, inText };
+  return { name, meta, last, pill, on, off, dot, inText, alarm };
 }
 
 function render(s) {
@@ -166,6 +170,7 @@ function render(s) {
     const label = "Input " + input.channel;
     row.inText.textContent = (input.name === label ? label : label + " · " + input.name) + ": " +
       (known ? (input.on ? "on" : "off") : "settling");
+    row.alarm.hidden = !input.alarm;
   });
   setBusy(busy);
 }

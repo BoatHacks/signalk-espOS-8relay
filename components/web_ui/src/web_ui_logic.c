@@ -38,11 +38,15 @@ char *web_ui_state_json(const web_ui_view_t *view)
         cJSON_AddItemToArray(inputs, in);
         cJSON_AddNumberToObject(in, "channel", i + 1);
         cJSON_AddStringToObject(in, "name", view->cfg->inputs[i].name);
+        const bool input_on = view->inputs_ready && ((view->input_mask >> i) & 1);
         if (view->inputs_ready) {
-            cJSON_AddBoolToObject(in, "on", (view->input_mask >> i) & 1);
+            cJSON_AddBoolToObject(in, "on", input_on);
         } else {
             cJSON_AddNullToObject(in, "on");
         }
+        // Plan 10 (issue #3): mark an input whose alarm is currently
+        // raised, same condition sk_bridge uses to raise it.
+        cJSON_AddBoolToObject(in, "alarm", input_on && view->cfg->inputs[i].alarm != INPUT_ALARM_OFF);
     }
     cJSON_AddBoolToObject(root, "inputsReady", view->inputs_ready);
     char *out = cJSON_PrintUnformatted(root);
