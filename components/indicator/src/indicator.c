@@ -386,8 +386,12 @@ esp_err_t indicator_start(const device_config_t *cfg)
         return err;
     }
 
-    // Lowest priority of the firmware's tasks: this only shows state.
-    if (xTaskCreate(indicator_task, "indicator", 3072, NULL, 2, NULL) != pdPASS) {
+    // Lowest priority of the firmware's tasks: this only shows state. 3072
+    // was too tight once event chirps (plan 19) added two indicator_tone_t
+    // locals (current_chirp/current_preview, ~300 bytes each) on top of the
+    // existing Morse segment buffer -- caused a real stack overflow
+    // (TG1WDT-style corruption, caught on hardware playing a relay chirp).
+    if (xTaskCreate(indicator_task, "indicator", 4096, NULL, 2, NULL) != pdPASS) {
         return ESP_ERR_NO_MEM;
     }
     atomic_store(&s.started, true);

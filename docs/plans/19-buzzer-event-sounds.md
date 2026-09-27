@@ -205,11 +205,23 @@ dropdowns pick it up.
       validation error from key names over the 15-char limit
       (`relay1_pulse_start_tone` etc.) during this step -- all key names
       audited afterwards.
-- [ ] On-board check (needs a person at the board — network reachability
-      and audible chirps aren't checkable from here): all boot-family +
-      relay + input chirps, pulse-start/pulse-stop on a momentary relay,
-      the Play button, non-interference with the alarm and the
-      BOOT-button override, and the Tones page's CRUD + dropdowns
+- [x] On-board check, part 1 (audible chirps, no network needed): boot
+      chirp confirmed by ear. Added `relay <1-8> <on|off|toggle>`,
+      `inputs` and `cfg <ns> <key> <value>` to the debug console (no
+      network path to the board during this check) to exercise the rest
+      without a browser: a latching relay's on/off chirp (four rapid
+      toggles, no crash), a momentary relay's pulse-start/pulse-stop
+      (both a manual early stop and the pulse timer running out on its
+      own), and a physical input's on/off chirp (including its own
+      relay's chirp firing right after, since an input override counts
+      as a direct source) -- all confirmed by ear, no crash. Caught and
+      fixed a real stack overflow in the `indicator` task doing this
+      (see Files/CHANGELOG).
+- [ ] On-board check, part 2 (needs network reachability, not available
+      from this board right now -- see issue #15/espOS#136): the Play
+      button, non-interference with the alarm and the BOOT-button
+      override, and the Tones page's CRUD + dropdowns (including the
+      momentary-vs-latching conditional layout)
 
 ## Files to Create/Modify
 - `components/indicator/` (`rtttl.h`/`.c` new; `indicator_logic.*`,

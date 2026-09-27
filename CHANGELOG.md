@@ -35,6 +35,16 @@ it as the update's notes, and *Cut release* refuses a version without one.
   which relay sources chirp, momentary-mode detection)
   (docs/plans/19-buzzer-event-sounds.md).
 - *Buzzer frequency*'s range widened from 1000–5000 Hz to 42–10000 Hz.
+- The debug console (issue #16) gained `relay <1-8> <on|off|toggle>`,
+  `inputs` and `cfg <ns> <key> <value>`, for exercising relays/inputs and
+  setting arbitrary config over USB serial without network reachability.
+
+### Fixed
+
+- The `indicator` task's stack (3072 bytes) was too tight once event
+  chirps (issue #14) added two `indicator_tone_t` locals on top of its
+  existing Morse buffer: playing a relay chirp could overflow it and
+  crash the board. Found on real hardware; raised to 4096 bytes.
 
 ## [0.1.0] - 2026-09-26
 

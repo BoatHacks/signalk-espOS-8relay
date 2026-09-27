@@ -381,6 +381,66 @@ static int cmd_wifi_sta(int argc, char **argv)
     return err == ESP_OK ? 0 : 1;
 }
 
+static int cmd_buzz(int argc, char **argv)
+{
+    if (argc != 2 || (strcmp(argv[1], "on") != 0 && strcmp(argv[1], "off") != 0)) {
+        printf("usage: buzz <on|off>\n");
+        return 1;
+    }
+    esp_err_t err = espos_config_set_bool("swbank", "buzzer_event", strcmp(argv[1], "on") == 0);
+    printf("buzz %s: %s\n", argv[1], esp_err_to_name(err));
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_relay(int argc, char **argv)
+{
+    if (argc != 3) {
+        printf("usage: relay <1-8> <on|off|toggle>\n");
+        return 1;
+    }
+    char *end = NULL;
+    long ch = strtol(argv[1], &end, 10);
+    if (*end != '\0' || ch < 1 || ch > 8) {
+        printf("usage: relay <1-8> <on|off|toggle>\n");
+        return 1;
+    }
+    esp_err_t err;
+    if (strcmp(argv[2], "toggle") == 0) {
+        err = relay_ctrl_toggle((uint8_t)ch, RELAY_SRC_WEB);
+    } else if (strcmp(argv[2], "on") == 0) {
+        err = relay_ctrl_set((uint8_t)ch, true, RELAY_SRC_WEB);
+    } else if (strcmp(argv[2], "off") == 0) {
+        err = relay_ctrl_set((uint8_t)ch, false, RELAY_SRC_WEB);
+    } else {
+        printf("usage: relay <1-8> <on|off|toggle>\n");
+        return 1;
+    }
+    printf("relay %ld %s: %s\n", ch, argv[2], esp_err_to_name(err));
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_cfg(int argc, char **argv)
+{
+    if (argc != 4) {
+        printf("usage: cfg <ns> <key> <string-value>\n");
+        return 1;
+    }
+    esp_err_t err = espos_config_set_str(argv[1], argv[2], argv[3]);
+    printf("cfg %s.%s = %s: %s\n", argv[1], argv[2], argv[3], esp_err_to_name(err));
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_inputs(int argc, char **argv)
+{
+    uint8_t mask = input_sense_get_mask();
+    printf("inputs:");
+    for (int i = 0; i < 8; i++) {
+        printf(" %d=%s", i + 1, (mask & (1 << i)) ? "on" : "off");
+    }
+    printf("\n");
+    return 0;
+}
+
 static void start_debug_console(void)
 {
     esp_console_repl_t *repl = NULL;
@@ -395,6 +455,30 @@ static void start_debug_console(void)
         .func = cmd_wifi_sta,
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&wifi_sta_cmd));
+    const esp_console_cmd_t buzz_cmd = {
+        .command = "buzz",
+        .help = "buzz <on|off>: toggle swbank.buzzer_event",
+        .func = cmd_buzz,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&buzz_cmd));
+    const esp_console_cmd_t relay_cmd = {
+        .command = "relay",
+        .help = "relay <1-8> <on|off|toggle>: switch a relay, as if from the relay page",
+        .func = cmd_relay,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&relay_cmd));
+    const esp_console_cmd_t cfg_cmd = {
+        .command = "cfg",
+        .help = "cfg <ns> <key> <string-value>: set any string/enum config key",
+        .func = cmd_cfg,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cfg_cmd));
+    const esp_console_cmd_t inputs_cmd = {
+        .command = "inputs",
+        .help = "inputs: report each digital input's current state",
+        .func = cmd_inputs,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&inputs_cmd));
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
 }
 #endif // CONFIG_APP_DEBUG_CONSOLE
