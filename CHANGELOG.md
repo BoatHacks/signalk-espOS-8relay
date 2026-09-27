@@ -45,6 +45,17 @@ it as the update's notes, and *Cut release* refuses a version without one.
   chirps (issue #14) added two `indicator_tone_t` locals on top of its
   existing Morse buffer: playing a relay chirp could overflow it and
   crash the board. Found on real hardware; raised to 4096 bytes.
+- WiFi station reconnects paid a ~2.3 s full-channel rescan on every
+  single attempt, including a reconnect to the AP the board just lost
+  ([espOS#136](https://github.com/signalk-espOS/espOS/issues/136)).
+  Vendored espOS's upstream fix
+  ([PR #139](https://github.com/signalk-espOS/espOS/pull/139)) locally
+  under `components/signalk-espos__espos_wifi`, since the ESP Component
+  Registry hasn't published a release containing it yet: the first 3
+  attempts after boot/link-loss now try the last-known AP/channel
+  directly before falling back to a full scan. Does not fix the
+  underlying AUTH_EXPIRE timing miss itself, only the scan overhead on
+  each retry.
 
 ## [0.1.0] - 2026-09-26
 
