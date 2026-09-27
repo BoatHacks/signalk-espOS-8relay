@@ -49,7 +49,8 @@ The full requirements are in [SPEC.md](SPEC.md).
 | 04 — digital inputs | Done: polarity, 50 ms debounce, and toggle/follow input-to-relay overrides confirmed on the real board |
 | 05 — SignalK | Done: connection, republish interval, PUT switching, and SignalK-loss fail-safe confirmed on the real board; `controls.*` tree and renaming not yet exercised |
 | 06 — NMEA 2000 | Done: on-bus operation, 127501 status, 127502 control, and address-claim collision handling confirmed against a real second device; MFD device listing not yet tested (no MFD on the bench) |
-| Status LED and alarm buzzer | Buzzer tone and live frequency change confirmed on the real board; LED colour and the alarm-triggered buzzer pattern not yet tested (the latter needs opening the case — see [espOS#137](https://github.com/signalk-espOS/espOS/issues/137)) |
+| Status LED and alarm buzzer | Buzzer tone and live frequency change confirmed on the real board; LED colour and the alarm-triggered buzzer pattern not yet tested (the latter needs opening the case — see [espOS#137](https://github.com/signalk-espOS/espOS/issues/137)). Buzzer chirps on notable events (boot, BOOT-button actions, relay/input changes) confirmed by ear on real hardware; the `/tones` web page that manages them is not yet verified (issue [#14](https://github.com/BoatHacks/signalk-espOS-8relay/issues/14), open) |
+| BOOT-button setup/reset and debug console | Confirmed on real hardware: BOOT button reopens the setup portal (~5 s) or factory-resets (~15 s) (issue [#7](https://github.com/BoatHacks/signalk-espOS-8relay/issues/7), closed). A USB serial debug console (`relay`, `inputs`, `cfg`, `wifi_sta` commands) is also on `main`, useful for bench-testing without network reachability (issue [#16](https://github.com/BoatHacks/signalk-espOS-8relay/issues/16), closed) |
 | 07 — hardware bring-up and first release | In progress: most of the bring-up checklist passed on the first physical unit (2026-09-26); see [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the full results. Ethernet-plugged-in, captive portal, MFD-listing, and a signed release are still open. |
 
 Known issues found so far:
@@ -61,11 +62,21 @@ Known issues found so far:
 - espOS's NMEA 2000 component only passes raw CAN frames, so the NMEA 2000
   protocol layer comes from a separate library.
 - espOS's WiFi station regularly retries a few times with `AUTH_EXPIRE`
-  before connecting on boot or reconnect (full channel rescan each attempt);
-  diagnosed and filed upstream as
-  [espOS#136](https://github.com/signalk-espOS/espOS/issues/136). Harmless —
-  it always connects within roughly a minute — but worth knowing if a board
-  seems slow to come up.
+  before connecting on boot or reconnect; diagnosed and filed upstream as
+  [espOS#136](https://github.com/signalk-espOS/espOS/issues/136). Usually
+  resolves within about a minute, but a board that got here by losing
+  network access and re-enabling the station while the setup portal was
+  still open was once observed stuck for several minutes before recovering
+  (investigated as [#15](https://github.com/BoatHacks/signalk-espOS-8relay/issues/15),
+  closed as tracking the same upstream root cause). Upstream shipped a
+  partial fix ([PR #139](https://github.com/signalk-espOS/espOS/pull/139),
+  merged): it removes the ~2.3 s full-channel rescan on the first few
+  retries by reconnecting to the last-known AP/channel directly, but does
+  **not** fix the underlying `AUTH_EXPIRE` timing miss itself. That fix
+  hasn't reached an `espos_wifi` release on the ESP Component Registry yet
+  (still 0.10.3 as of 2026-09-27), so this repo vendors it locally under
+  `components/signalk-espos__espos_wifi` in the meantime — see that
+  directory's `idf_component.yml` for how/when to remove the override.
 - The relay outputs' three-terminal (NO/COM/NC) wiring has no way to tell
   the firmware which contact a load is on, which matters for fail-safe
   correctness on a load wired to NC; tracked in
@@ -79,6 +90,13 @@ Known issues found so far:
   goes nowhere and the PUT fails after ~20 s with "Did not receive change
   confirmation". Disable that plugin (or fix its N2K connection) if relay
   switching from SignalK hangs or times out.
+- Most of issue #14's buzzer-chirp system (RTTTL parsing, the named tone
+  library, priority/gating) isn't specific to relays or digital inputs and
+  would work on any espOS device with a buzzer; it currently lives entirely
+  in `components/indicator/` here. Extracting the reusable parts into an
+  espOS core component is tracked in
+  [#17](https://github.com/BoatHacks/signalk-espOS-8relay/issues/17), not
+  urgent while this is the only board using it.
 
 ## Plans
 
