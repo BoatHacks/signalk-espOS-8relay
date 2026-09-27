@@ -14,6 +14,7 @@
 #include "freertos/task.h"
 #include "indicator_logic.h"
 #include "led_strip.h"
+#include "tone.h"
 
 static const char *TAG = "indicator";
 
@@ -43,7 +44,7 @@ static struct {
     // s_tone_mux protects both. Everything else here is a plain index,
     // updated the same way but small enough to be a single atomic.
     atomic_bool event_enabled;  // buzzer_on_event
-    indicator_tone_t tones[INDICATOR_MAX_TONES];
+    tone_t tones[TONE_MAX_TONES];
     size_t n_tones;
     atomic_int boot_idx, portal_idx, reset_idx;  // -1 = no tone assigned
     atomic_int relay_on_idx[BOARD_CHANNELS];
@@ -57,7 +58,7 @@ static struct {
     // Tones page "Play" button (plan 19 follow-up): an arbitrary one-shot
     // RTTTL string, not looked up from the library. `preview` is guarded by
     // s_tone_mux like `tones` above.
-    indicator_tone_t preview;
+    tone_t preview;
     atomic_bool preview_requested;
 } s;
 
@@ -90,11 +91,11 @@ static void indicator_task(void *arg)
     bool chirping = false;
     int64_t chirp_start_us = 0;
     uint32_t chirp_len_ms = 0;
-    indicator_tone_t current_chirp = {0};
+    tone_t current_chirp = {0};
     bool previewing = false;
     int64_t preview_start_us = 0;
     uint32_t preview_len_ms = 0;
-    indicator_tone_t current_preview = {0};
+    tone_t current_preview = {0};
 
     for (;;) {
         const espos_health_state_t health = espos_health_worst();
@@ -118,8 +119,13 @@ static void indicator_task(void *arg)
         // Priority, highest first (plan 19): the BOOT-button override (LED
         // only, checked above) > alarm > test tone > event chirp. A chirp is
         // skipped entirely, never queued, while the override or alarm is
-        // active; one already playing is cut off if the alarm starts.
-        const bool suppress_chirp = !indicator_chirp_allowed(override, alarm);
+        // active; one already playing is cut off if the alarm starts. Both
+        // the override and a real alarm collapse to the same TONE_PRIORITY_HIGH
+        // tier -- this device has no need to distinguish between them for
+        // chirp gating.
+        const tone_priority_t active_priority =
+            override != INDICATOR_OVERRIDE_NONE || alarm ? TONE_PRIORITY_HIGH : TONE_PRIORITY_NONE;
+        const bool suppress_chirp = !tone_priority_allowed(TONE_PRIORITY_CHIRP, active_priority);
         if (suppress_chirp) {
             atomic_store(&s.chirp_request, -1);
             chirping = false;
@@ -245,28 +251,28 @@ void indicator_update_config(const device_config_t *cfg)
     atomic_store(&s.freq_hz, cfg->buzzer_freq_hz);
     atomic_store(&s.event_enabled, cfg->buzzer_on_event);
 
-    // `indicator_tone_t` is too big (RTTTL_MAX_NOTES notes each) for a whole
+    // `tone_t` is too big (RTTTL_MAX_NOTES notes each) for a whole
     // array of them to be a stack local -- indicator_update_config() runs on
     // the I/O task's small stack -- so the parse buffer is static instead.
     // Safe without its own lock: this function is only ever called from one
     // task at a time (main_task once at boot, then only the I/O task).
-    static indicator_tone_t tones[INDICATOR_MAX_TONES];
-    const size_t n = indicator_parse_tones(cfg->tone_patterns, tones, INDICATOR_MAX_TONES);
+    static tone_t tones[TONE_MAX_TONES];
+    const size_t n = tone_library_parse(cfg->tone_patterns, tones, TONE_MAX_TONES);
     taskENTER_CRITICAL(&s_tone_mux);
     memcpy(s.tones, tones, n * sizeof(tones[0]));
     s.n_tones = n;
     taskEXIT_CRITICAL(&s_tone_mux);
 
-    atomic_store(&s.boot_idx, indicator_find_tone(tones, n, cfg->boot_tone));
-    atomic_store(&s.portal_idx, indicator_find_tone(tones, n, cfg->portal_tone));
-    atomic_store(&s.reset_idx, indicator_find_tone(tones, n, cfg->factory_reset_tone));
+    atomic_store(&s.boot_idx, tone_library_find(tones, n, cfg->boot_tone));
+    atomic_store(&s.portal_idx, tone_library_find(tones, n, cfg->portal_tone));
+    atomic_store(&s.reset_idx, tone_library_find(tones, n, cfg->factory_reset_tone));
     for (int i = 0; i < BOARD_CHANNELS; i++) {
-        atomic_store(&s.relay_on_idx[i], indicator_find_tone(tones, n, cfg->relays[i].on_tone));
-        atomic_store(&s.relay_off_idx[i], indicator_find_tone(tones, n, cfg->relays[i].off_tone));
-        atomic_store(&s.pulse_start_idx[i], indicator_find_tone(tones, n, cfg->relays[i].pulse_start_tone));
-        atomic_store(&s.pulse_stop_idx[i], indicator_find_tone(tones, n, cfg->relays[i].pulse_stop_tone));
-        atomic_store(&s.input_on_idx[i], indicator_find_tone(tones, n, cfg->inputs[i].on_tone));
-        atomic_store(&s.input_off_idx[i], indicator_find_tone(tones, n, cfg->inputs[i].off_tone));
+        atomic_store(&s.relay_on_idx[i], tone_library_find(tones, n, cfg->relays[i].on_tone));
+        atomic_store(&s.relay_off_idx[i], tone_library_find(tones, n, cfg->relays[i].off_tone));
+        atomic_store(&s.pulse_start_idx[i], tone_library_find(tones, n, cfg->relays[i].pulse_start_tone));
+        atomic_store(&s.pulse_stop_idx[i], tone_library_find(tones, n, cfg->relays[i].pulse_stop_tone));
+        atomic_store(&s.input_on_idx[i], tone_library_find(tones, n, cfg->inputs[i].on_tone));
+        atomic_store(&s.input_off_idx[i], tone_library_find(tones, n, cfg->inputs[i].off_tone));
     }
 }
 
@@ -327,7 +333,7 @@ esp_err_t indicator_test_buzzer(void)
 
 esp_err_t indicator_play_rtttl(const char *rtttl)
 {
-    indicator_tone_t tone = {0};
+    tone_t tone = {0};
     tone.n_notes = rtttl_parse(rtttl, tone.notes, RTTTL_MAX_NOTES);
     if (tone.n_notes == 0) {
         return ESP_ERR_INVALID_ARG;
@@ -387,7 +393,7 @@ esp_err_t indicator_start(const device_config_t *cfg)
     }
 
     // Lowest priority of the firmware's tasks: this only shows state. 3072
-    // was too tight once event chirps (plan 19) added two indicator_tone_t
+    // was too tight once event chirps (plan 19) added two tone_t
     // locals (current_chirp/current_preview, ~300 bytes each) on top of the
     // existing Morse segment buffer -- caused a real stack overflow
     // (TG1WDT-style corruption, caught on hardware playing a relay chirp).

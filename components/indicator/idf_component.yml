@@ -1,6 +1,5 @@
 dependencies:
   idf: ">=6.0.0,<6.1.0"
-  espressif/cjson: "1.7.19~2"
   espressif/led_strip:
     version: "3.0.3"
     rules:
