@@ -66,6 +66,14 @@ static esp_err_t send_state(httpd_req_t *req)
         view.last_change_ago_s[i] = (uint32_t)((now - s_last_change_us[i]) / 1000000);
     }
     taskEXIT_CRITICAL(&s_mux);
+    for (uint8_t ch = 1; ch <= BOARD_CHANNELS; ch++) {
+        if (s_io->relay_counters) {
+            s_io->relay_counters(ch, &view.relay_cycles[ch - 1], &view.relay_runtime_s[ch - 1]);
+        }
+        if (s_io->input_counters) {
+            s_io->input_counters(ch, &view.input_cycles[ch - 1], &view.input_runtime_s[ch - 1]);
+        }
+    }
     char *json = web_ui_state_json(&view);
     free(cfg);
     if (!json) {
@@ -234,6 +242,32 @@ static esp_err_t put_all(httpd_req_t *req)
     return send_state(req);
 }
 
+// POST /api/v1/relays/<n>/counters/reset and the input equivalent (plan 11,
+// issue #4): no body needed, but the JSON content type is the CSRF guard,
+// like the buzzer test/preview endpoints.
+static esp_err_t post_reset_counters(httpd_req_t *req, const char *prefix, void (*reset)(uint8_t))
+{
+    const uint8_t ch = web_ui_parse_reset_channel(req->uri, prefix);
+    if (ch == 0 || !reset) {
+        return espos_httpd_send_error(req, "404 Not Found", "no_such_channel", "channels are numbered 1-8");
+    }
+    if (!espos_httpd_require_json(req)) {
+        return ESP_OK;
+    }
+    reset(ch);
+    return send_state(req);
+}
+
+static esp_err_t post_reset_relay_counters(httpd_req_t *req)
+{
+    return post_reset_counters(req, API_PATH, s_io->reset_relay_counters);
+}
+
+static esp_err_t post_reset_input_counters(httpd_req_t *req)
+{
+    return post_reset_counters(req, "/api/v1/inputs", s_io->reset_input_counters);
+}
+
 esp_err_t web_ui_start(const web_ui_io_t *io, const device_config_t *cfg)
 {
     s_io = io;
@@ -251,6 +285,10 @@ esp_err_t web_ui_start(const web_ui_io_t *io, const device_config_t *cfg)
          ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH, .method = HTTP_PUT, .handler = put_all}, ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH "/*", .method = HTTP_PUT, .handler = put_one}, ESPOS_HTTPD_PROTECTED},
+        {{.uri = API_PATH "/*", .method = HTTP_POST, .handler = post_reset_relay_counters},
+         ESPOS_HTTPD_PROTECTED},
+        {{.uri = "/api/v1/inputs/*", .method = HTTP_POST, .handler = post_reset_input_counters},
+         ESPOS_HTTPD_PROTECTED},
     };
     for (size_t i = 0; i < sizeof(routes) / sizeof(routes[0]); i++) {
         esp_err_t err = espos_httpd_register_ex(&routes[i].uri, routes[i].flags);

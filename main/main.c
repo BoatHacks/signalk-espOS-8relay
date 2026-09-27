@@ -29,6 +29,8 @@
 #include "board.h"
 #include "button_hw.h"
 #include "button_logic.h"
+#include "counters.h"
+#include "counters_hw.h"
 #include "device_config.h"
 #include "eth_w5500.h"
 #include "espos_wifi.h"
@@ -135,9 +137,41 @@ static void web_status(web_ui_status_t *out)
     out->n2k_traffic = n2k.traffic;
 }
 
+// Counters getters for sk_bridge / web_ui (plan 11, issue #4): every source
+// that can switch a relay or report an input goes through the listeners
+// below, so counters_on_change() there sees every one of them.
+static void relay_counters_get(uint8_t channel, uint32_t *cycles, uint32_t *runtime_s)
+{
+    counters_get(COUNTERS_RELAY, channel, now_ms(), cycles, runtime_s);
+}
+
+static void input_counters_get(uint8_t channel, uint32_t *cycles, uint32_t *runtime_s)
+{
+    counters_get(COUNTERS_INPUT, channel, now_ms(), cycles, runtime_s);
+}
+
+static void reset_relay_counters(uint8_t channel)
+{
+    counters_reset(COUNTERS_RELAY, channel, now_ms());
+}
+
+static void reset_input_counters(uint8_t channel)
+{
+    counters_reset(COUNTERS_INPUT, channel, now_ms());
+}
+
+// A clean restart (OTA, a settings restart): flush counters now rather than
+// wait for the periodic throttle, so a deliberate restart never loses
+// counting (plan 11).
+static void counters_shutdown_flush(void)
+{
+    counters_flush_now(now_ms());
+}
+
 static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_t mask, void *arg)
 {
     ESP_LOGI(TAG, "relay %u %s by %s", channel, on ? "on" : "off", source_name(src));
+    counters_on_change(COUNTERS_RELAY, channel, on, now_ms());
     web_ui_relay_changed(channel, source_name(src));
     sk_bridge_relay_changed(channel, on);
     n2k_bridge_state_changed();
@@ -157,6 +191,11 @@ static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_
 
 static void on_input_change(uint8_t channel, bool on, uint8_t mask, void *arg)
 {
+    // input_sense's first settled reading after boot arrives here too (its
+    // listeners have no separate "boot" call): counters_on_change() treats
+    // a channel's first-ever report as a seed, not a cycle, so that's
+    // handled without special-casing it here.
+    counters_on_change(COUNTERS_INPUT, channel, on, now_ms());
     sk_bridge_input_changed(channel, on);
     n2k_bridge_state_changed();
     indicator_play_input_tone(channel, on);
@@ -272,6 +311,7 @@ static void io_task(void *arg)
         input_sense_poll();
         button_poll();
         sk_bridge_tick();
+        counters_tick(now_ms());
     }
 }
 
@@ -496,6 +536,12 @@ static esp_err_t start_io(void *arg)
     // SignalK bridge long before sk_bridge_start(), which needs the network.
     ESP_ERROR_CHECK(sk_bridge_init());
 
+    counters_hw_t counters_hw;
+    if (counters_hw_create(&counters_hw) != ESP_OK || counters_init(&counters_hw) != ESP_OK) {
+        ESP_LOGE(TAG, "counters unavailable; cycles/runtime will not be counted or persisted");
+    }
+    ESP_ERROR_CHECK(esp_register_shutdown_handler(counters_shutdown_flush));
+
     relay_ctrl_hw_t hw;
     ESP_ERROR_CHECK(relay_hw_create(&hw));
     // A dead expander is reported through espOS health; keep booting so the
@@ -504,8 +550,12 @@ static esp_err_t start_io(void *arg)
         ESP_LOGE(TAG, "relay expander did not respond; relays unavailable");
     }
     // Every relay's state now is its start-up state (off, or held).
+    // relay_ctrl never notifies listeners of it (there is no listener yet),
+    // so counters is seeded here explicitly, the same way web_ui is seeded
+    // with "boot" below: this is a starting point, not a cycle.
     for (uint8_t ch = 1; ch <= BOARD_CHANNELS; ch++) {
         web_ui_relay_changed(ch, "boot");
+        counters_on_change(COUNTERS_RELAY, ch, relay_ctrl_get(ch), now_ms());
     }
     ESP_ERROR_CHECK(relay_ctrl_add_listener(on_relay_change, NULL));
 
@@ -566,6 +616,8 @@ void app_main(void)
         .input_mask = input_sense_get_mask,
         .sk_lost = relay_ctrl_sk_lost,
         .now_ms = now_ms,
+        .relay_counters = relay_counters_get,
+        .input_counters = input_counters_get,
     };
     ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_CONNECTED, on_sk_stream, NULL));
     ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_DISCONNECTED, on_sk_stream, NULL));
@@ -590,6 +642,10 @@ void app_main(void)
         .get_status = web_status,
         .test_buzzer = indicator_test_buzzer,
         .preview_tone = indicator_play_rtttl,
+        .relay_counters = relay_counters_get,
+        .input_counters = input_counters_get,
+        .reset_relay_counters = reset_relay_counters,
+        .reset_input_counters = reset_input_counters,
     };
     // The relay page is a convenience; SignalK and NMEA 2000 don't need it.
     if (web_ui_start(&web_io, &cfg) != ESP_OK) {

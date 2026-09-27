@@ -264,6 +264,14 @@ for them.
 States are `1` (on) and `0` (off). To switch a relay, send `1`/`0` or
 `true`/`false`.
 
+**Cycle counters and runtime.** Each relay and input also publishes
+`electrical.switches.bank.B.n.cycles` (how many times it has switched on)
+and `.runTime` (total seconds it has been on), and the same under
+`electrical.controls.*` when that tree is on. These update with the
+SignalK republish interval, not on every change, and count every source
+(SignalK, NMEA 2000, the relay page, an input override, a pulse ending,
+the fail-safe, the maximum on-time) -- not just direct SignalK commands.
+
 **Names.** The first time the board connects, each relay's and input's
 name becomes its display name in SignalK. After that, the SignalK server's
 own setting wins: to rename a channel later, change its display name on
@@ -316,12 +324,31 @@ momentary relay switched on turns itself off after its pulse time, and a
 relay that follows an input keeps the page's command until that input
 changes.
 
+**Cycle counters and runtime hours.** Each relay and its paired input also
+show how many times they have switched on ("cycles") and their total
+runtime ("3 h 12 min", etc.), counting every source: SignalK, NMEA 2000,
+this page, an input override, a pulse ending, the fail-safe and the
+maximum on-time. A *Reset* button next to each clears that channel's
+count back to zero (it asks first, and can't be undone) -- resetting one
+relay or input never affects any other. The same reset is available to
+scripts: `POST /api/v1/relays/<n>/counters/reset` and
+`POST /api/v1/inputs/<n>/counters/reset`, `Content-Type: application/json`,
+no body needed.
+
+Counters are kept in memory and written to flash at most every 10
+minutes, and once more on a clean restart (an update, a settings change):
+a power cut can lose up to that last 10 minutes of counting, so a channel
+that was on right up to a sudden power loss may show slightly less
+runtime than it actually had. A reset, being a deliberate action, is
+always written to flash immediately.
+
 If an API key is set in espOS's security settings, log in on the
 device's main page first. Without a key, anyone on the network can switch
 the relays from this page, so set one on a shared network.
 
 The same actions are available to scripts: `GET /api/v1/relays` returns
-the state, `GET /api/v1/relays/status` the status line, and
+the state (including each channel's `cycles` and `runTime`),
+`GET /api/v1/relays/status` the status line, and
 `PUT /api/v1/relays/<n>` (one relay) or `PUT
 /api/v1/relays` (all) with the body `{"on": true}` or `{"on": false}` and
 `Content-Type: application/json` switch them.
@@ -366,7 +393,9 @@ that moment.
 - **Board restart (e.g. after an update):** relays set to *keep last state*
   stay as they were, without switching; the rest switch off.
 - **Power loss:** all relays drop out. When power returns, relays set to
-  *keep last state* switch back on to their last state.
+  *keep last state* switch back on to their last state. Cycle counters and
+  runtime (section 7.2) survive too, minus up to 10 minutes of counting
+  not yet written to flash when the power went (section 7.2).
 
 "Switch off" and "drop out" always mean the coil de-energizes -- for a
 relay set to *Wired to NC* (section 6.3), that's the state its load is

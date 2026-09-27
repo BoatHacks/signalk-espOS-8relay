@@ -159,6 +159,30 @@ static void declare_names(tree_t t, bool input, uint8_t ch)
         make_path(path, t, input, ch, "name");
         s.api.publish_string(path, name_of(input, ch));
     }
+    // Cycle count and runtime hours (plan 11, issue #4): informational, not
+    // proof the device is alive, so no timeout period.
+    make_path(path, t, input, ch, "runTime");
+    s.api.declare_meta(path, "{\"units\":\"s\"}", 0);
+}
+
+// Cycles and runtime: published with the state, on the republish interval
+// (never per-change -- that would defeat the point of throttling counters,
+// plan 11).
+static void publish_counters(tree_t t, bool input, uint8_t ch)
+{
+    uint32_t cycles = 0, runtime_s = 0;
+    if (input) {
+        if (s.io.input_counters) {
+            s.io.input_counters(ch, &cycles, &runtime_s);
+        }
+    } else if (s.io.relay_counters) {
+        s.io.relay_counters(ch, &cycles, &runtime_s);
+    }
+    char path[PATH_MAX_LEN];
+    make_path(path, t, input, ch, "cycles");
+    s.api.publish_number(path, cycles);
+    make_path(path, t, input, ch, "runTime");
+    s.api.publish_number(path, runtime_s);
 }
 
 // Everything but the state: fixed values that describe the channel.
@@ -187,9 +211,11 @@ static void publish_states_locked(void)
     for (tree_t t = TREE_SWITCHES; t <= TREE_CONTROLS; t++) {
         for (uint8_t ch = 1; tree_on(t) && ch <= BOARD_CHANNELS; ch++) {
             publish_state(t, false, ch, relays & (1u << (ch - 1)));
+            publish_counters(t, false, ch);
             if (inputs_on() && inputs_ready) {
                 const bool on = inputs & (1u << (ch - 1));
                 publish_state(t, true, ch, on);
+                publish_counters(t, true, ch);
                 if (on && alarm_configured(ch)) {
                     publish_notification(t, ch, true);
                 }
@@ -211,10 +237,12 @@ static void publish_all_locked(void)
         for (uint8_t ch = 1; ch <= BOARD_CHANNELS; ch++) {
             publish_description(t, false, ch);
             publish_state(t, false, ch, relays & (1u << (ch - 1)));
+            publish_counters(t, false, ch);
             if (inputs_on() && inputs_ready) {
                 publish_description(t, true, ch);
                 const bool on = inputs & (1u << (ch - 1));
                 publish_state(t, true, ch, on);
+                publish_counters(t, true, ch);
                 if (on && alarm_configured(ch)) {
                     publish_notification(t, ch, true);
                 }

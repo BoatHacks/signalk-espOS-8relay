@@ -22,12 +22,18 @@ typedef struct {
     // known yet) and how many seconds ago.
     const char *last_source[BOARD_CHANNELS];
     uint32_t last_change_ago_s[BOARD_CHANNELS];
+    // Cycle count and total runtime, seconds (counters, plan 11).
+    uint32_t relay_cycles[BOARD_CHANNELS];
+    uint32_t relay_runtime_s[BOARD_CHANNELS];
+    uint32_t input_cycles[BOARD_CHANNELS];
+    uint32_t input_runtime_s[BOARD_CHANNELS];
 } web_ui_view_t;
 
 // {"relays":[{"channel":1,"name":"…","on":false,"momentary":false,
 //   "input":0,"inputToggle":false,"maxOnS":0,"lastSource":"boot",
-//   "lastChangeAgoS":12},…],"inputs":[{"channel":1,"name":"…","on":false,
-//   "alarm":false},…],"inputsReady":true}; an input's "on" is null until
+//   "lastChangeAgoS":12,"cycles":3,"runTime":120},…],
+//  "inputs":[{"channel":1,"name":"…","on":false,"alarm":false,"cycles":3,
+//   "runTime":120},…],"inputsReady":true}; an input's "on" is null until
 // inputs_ready. "alarm" is true only once settled, while the input reads on
 // and its alarm setting isn't "off" (plan 10, issue #3).
 // Returns a malloc'ed string, or NULL when out of memory.
@@ -57,6 +63,10 @@ char *web_ui_status_json(const web_ui_status_t *st);
 // Relay channel from a request path "<prefix>/<n>", n = 1..BOARD_CHANNELS
 // written as one digit. 0 for anything else (a query string is ignored).
 uint8_t web_ui_parse_channel(const char *uri, const char *prefix);
+
+// Channel from a reset request path "<prefix>/<n>/counters/reset" (plan 11,
+// issue #4), same digit rule as web_ui_parse_channel(). 0 for anything else.
+uint8_t web_ui_parse_reset_channel(const char *uri, const char *prefix);
 
 // {"on": true|false} → *on. False for anything else.
 bool web_ui_parse_on(const char *body, bool *on);

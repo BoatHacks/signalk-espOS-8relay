@@ -22,6 +22,22 @@ it as the update's notes, and *Cut release* refuses a version without one.
   at start-up; resent on the SignalK republish interval while active and
   after every reconnect. The relay page marks an input currently in alarm.
   Host-tested (docs/plans/10-input-alarms.md).
+- Cycle counters and runtime hours for every relay and input (issue #4):
+  `electrical.switches.bank.B.n.cycles` and `.runTime` (seconds), also
+  under `electrical.controls.*` when that tree is on, published with the
+  SignalK republish interval rather than on every change, and counting
+  every source (SignalK, NMEA 2000, the relay page, an input override, a
+  pulse ending, the SignalK-loss fail-safe, the maximum on-time) — not
+  just direct commands. `GET /api/v1/relays` reports each channel's
+  `cycles`/`runTime`, and `POST /api/v1/relays/<n>/counters/reset` /
+  `POST /api/v1/inputs/<n>/counters/reset` zero one channel. The relay
+  page shows both and has a *Reset* button per channel. Kept in RAM and
+  flushed to flash at most every 10 minutes (plus once on a clean
+  restart), like the existing `hold` relay-state pattern, so a power cut
+  can lose up to that much counting; a reset itself is always flushed at
+  once. New `counters` component, host-tested (counting from every
+  source, save throttling, restore after a restart, per-channel reset)
+  (docs/plans/11-counters-and-runtime.md).
 - The BOOT button now does something while the firmware is running (issue
   #7): held ~5 s, it reopens the setup access point; held ~15 s, it
   factory-resets the board. The status LED blinks white or red to show
