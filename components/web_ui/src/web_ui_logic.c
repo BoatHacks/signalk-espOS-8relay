@@ -33,6 +33,8 @@ char *web_ui_state_json(const web_ui_view_t *view)
             cJSON_AddNullToObject(o, "lastSource");
             cJSON_AddNullToObject(o, "lastChangeAgoS");
         }
+        cJSON_AddNumberToObject(o, "cycles", view->relay_cycles[i]);
+        cJSON_AddNumberToObject(o, "runTime", view->relay_runtime_s[i]);
 
         cJSON *in = cJSON_CreateObject();
         cJSON_AddItemToArray(inputs, in);
@@ -43,6 +45,8 @@ char *web_ui_state_json(const web_ui_view_t *view)
         } else {
             cJSON_AddNullToObject(in, "on");
         }
+        cJSON_AddNumberToObject(in, "cycles", view->input_cycles[i]);
+        cJSON_AddNumberToObject(in, "runTime", view->input_runtime_s[i]);
     }
     cJSON_AddBoolToObject(root, "inputsReady", view->inputs_ready);
     char *out = cJSON_PrintUnformatted(root);
@@ -58,6 +62,27 @@ uint8_t web_ui_parse_channel(const char *uri, const char *prefix)
     }
     const char *p = uri + n + 1;
     if (p[0] < '1' || p[0] > '0' + BOARD_CHANNELS || (p[1] != '\0' && p[1] != '?')) {
+        return 0;
+    }
+    return (uint8_t)(p[0] - '0');
+}
+
+uint8_t web_ui_parse_reset_channel(const char *uri, const char *prefix)
+{
+    const size_t n = strlen(prefix);
+    if (strncmp(uri, prefix, n) != 0 || uri[n] != '/') {
+        return 0;
+    }
+    const char *p = uri + n + 1;
+    if (p[0] < '1' || p[0] > '0' + BOARD_CHANNELS) {
+        return 0;
+    }
+    static const char suffix[] = "/counters/reset";
+    if (strncmp(p + 1, suffix, sizeof(suffix) - 1) != 0) {
+        return 0;
+    }
+    const char *end = p + 1 + (sizeof(suffix) - 1);
+    if (*end != '\0' && *end != '?') {
         return 0;
     }
     return (uint8_t)(p[0] - '0');

@@ -83,6 +83,25 @@ TEST_CASE("state: names are escaped; mode and input link reported", "[web_ui]")
     cJSON_Delete(root);
 }
 
+TEST_CASE("state: cycles and runTime per relay and input", "[web_ui]")
+{
+    fresh();
+    web_ui_view_t v = {.cfg = &cfg, .inputs_ready = true};
+    v.relay_cycles[2] = 7;
+    v.relay_runtime_s[2] = 1234;
+    v.input_cycles[5] = 3;
+    v.input_runtime_s[5] = 42;
+    char *json = web_ui_state_json(&v);
+    cJSON *root = cJSON_Parse(json);
+    free(json);
+    TEST_ASSERT_EQUAL(7, cJSON_GetObjectItem(item(root, "relays", 2), "cycles")->valueint);
+    TEST_ASSERT_EQUAL(1234, cJSON_GetObjectItem(item(root, "relays", 2), "runTime")->valueint);
+    TEST_ASSERT_EQUAL(0, cJSON_GetObjectItem(item(root, "relays", 0), "cycles")->valueint);
+    TEST_ASSERT_EQUAL(3, cJSON_GetObjectItem(item(root, "inputs", 5), "cycles")->valueint);
+    TEST_ASSERT_EQUAL(42, cJSON_GetObjectItem(item(root, "inputs", 5), "runTime")->valueint);
+    cJSON_Delete(root);
+}
+
 TEST_CASE("channel from path: 1-8 only", "[web_ui]")
 {
     const char *p = "/api/v1/relays";
@@ -97,6 +116,23 @@ TEST_CASE("channel from path: 1-8 only", "[web_ui]")
     TEST_ASSERT_EQUAL(0, web_ui_parse_channel("/api/v1/relays", p));
     TEST_ASSERT_EQUAL(0, web_ui_parse_channel("/api/v1/relaysX/1", p));
     TEST_ASSERT_EQUAL(0, web_ui_parse_channel("/other/1", p));
+}
+
+TEST_CASE("channel from a reset path: <prefix>/<n>/counters/reset", "[web_ui]")
+{
+    const char *p = "/api/v1/relays";
+    TEST_ASSERT_EQUAL(1, web_ui_parse_reset_channel("/api/v1/relays/1/counters/reset", p));
+    TEST_ASSERT_EQUAL(8, web_ui_parse_reset_channel("/api/v1/relays/8/counters/reset", p));
+    TEST_ASSERT_EQUAL(3, web_ui_parse_reset_channel("/api/v1/relays/3/counters/reset?x=1", p));
+    TEST_ASSERT_EQUAL(0, web_ui_parse_reset_channel("/api/v1/relays/0/counters/reset", p));
+    TEST_ASSERT_EQUAL(0, web_ui_parse_reset_channel("/api/v1/relays/9/counters/reset", p));
+    TEST_ASSERT_EQUAL(0, web_ui_parse_reset_channel("/api/v1/relays/1", p));  // no suffix: not a reset
+    TEST_ASSERT_EQUAL(0, web_ui_parse_reset_channel("/api/v1/relays/1/counters", p));
+    TEST_ASSERT_EQUAL(0, web_ui_parse_reset_channel("/api/v1/relays/1x/counters/reset", p));
+    TEST_ASSERT_EQUAL(0, web_ui_parse_reset_channel("/other/1/counters/reset", p));
+
+    const char *ip = "/api/v1/inputs";
+    TEST_ASSERT_EQUAL(4, web_ui_parse_reset_channel("/api/v1/inputs/4/counters/reset", ip));
 }
 
 TEST_CASE("body: only a boolean \"on\" is accepted", "[web_ui]")

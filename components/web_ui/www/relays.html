@@ -52,6 +52,8 @@ h1 small { font-size: 13px; font-weight: 400; color: var(--muted); }
 .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--off); flex: none; }
 .dot.is-on { background: var(--on); border-color: var(--on); }
 .dot.unknown { border-style: dashed; }
+.counters { display: flex; align-items: center; gap: 6px; }
+.reset { padding: 2px 8px; min-height: auto; font-size: 12px; font-weight: 400; color: var(--muted); }
 @media (min-width: 640px) {
   .row { grid-template-columns: minmax(0, 1fr) auto minmax(150px, 190px); }
   .input { grid-column: auto; }
@@ -109,6 +111,16 @@ function fmtDuration(s) {
   return s + " s";
 }
 
+// Total runtime hours (plan 11, issue #4): arbitrary seconds, so this
+// doesn't round to a clean unit like fmtDuration does for settings values.
+function fmtRuntime(s) {
+  if (s < 60) return s + " s";
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h === 0) return m + " min";
+  return h + " h" + (m ? " " + m + " min" : "");
+}
+
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -117,13 +129,21 @@ function el(tag, cls, text) {
 }
 
 // One row per channel: relay n with its buttons, and input n's state.
+// Both also show their cycle counter and runtime hours, with a per-channel
+// reset button (plan 11, issue #4).
 function build(n) {
   const row = el("div", "row");
   const info = el("div");
   const name = el("div", "name");
   const meta = el("div", "meta");
   const last = el("div", "meta");
-  info.append(name, meta, last);
+  const counters = el("div", "meta counters");
+  const cText = el("span");
+  const cReset = el("button", "off reset", "Reset");
+  cReset.type = "button";
+  cReset.onclick = () => resetCounters(API + "/" + n + "/counters/reset", "relay " + n);
+  counters.append(cText, cReset);
+  info.append(name, meta, last, counters);
   const ctl = el("div", "ctl");
   const pill = el("span", "pill", "–");
   const on = el("button", "on", "On");
@@ -135,10 +155,16 @@ function build(n) {
   const input = el("div", "input");
   const dot = el("span", "dot unknown");
   const inText = el("span");
-  input.append(dot, inText);
+  const iCounters = el("span", "counters");
+  const iCText = el("span");
+  const iReset = el("button", "off reset", "Reset");
+  iReset.type = "button";
+  iReset.onclick = () => resetCounters("/api/v1/inputs/" + n + "/counters/reset", "input " + n);
+  iCounters.append(iCText, iReset);
+  input.append(dot, inText, iCounters);
   row.append(info, ctl, input);
   list.append(row);
-  return { name, meta, last, pill, on, off, dot, inText };
+  return { name, meta, last, pill, on, off, dot, inText, cText, cReset, iCText, iReset };
 }
 
 function render(s) {
@@ -159,6 +185,7 @@ function render(s) {
     row.off.textContent = r.momentary ? "Stop" : "Off";
     row.pill.textContent = r.on ? "ON" : "OFF";
     row.pill.classList.toggle("is-on", r.on);
+    row.cText.textContent = r.cycles + " cycles · " + fmtRuntime(r.runTime);
     const input = s.inputs[i];
     const known = input.on !== null;
     row.dot.classList.toggle("unknown", !known);
@@ -166,13 +193,14 @@ function render(s) {
     const label = "Input " + input.channel;
     row.inText.textContent = (input.name === label ? label : label + " · " + input.name) + ": " +
       (known ? (input.on ? "on" : "off") : "settling");
+    row.iCText.textContent = input.cycles + " cycles · " + fmtRuntime(input.runTime);
   });
   setBusy(busy);
 }
 
 function setBusy(b) {
   busy = b;
-  for (const r of rows) r.on.disabled = r.off.disabled = b;
+  for (const r of rows) r.on.disabled = r.off.disabled = r.cReset.disabled = r.iReset.disabled = b;
   allOn.disabled = allOff.disabled = b;
 }
 
@@ -221,6 +249,25 @@ async function send(url, on) {
     showStatus("Done");
   } catch (e) {
     showStatus("Failed: " + e.message, true);
+  }
+  setBusy(false);
+}
+
+// Cycle counter / runtime reset (plan 11, issue #4): a deliberate,
+// infrequent action, so it asks for confirmation like "All on" does.
+async function resetCounters(url, label) {
+  if (!confirm("Reset the cycle counter and runtime for " + label + "? This can't be undone.")) return;
+  setBusy(true);
+  showStatus("Resetting…");
+  try {
+    render(await handle(await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    })));
+    showStatus("Reset");
+  } catch (e) {
+    showStatus("Reset failed: " + e.message, true);
   }
   setBusy(false);
 }
