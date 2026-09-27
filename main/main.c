@@ -12,6 +12,7 @@
 #include "esp_heap_caps.h"
 #include "esp_psram.h"
 #endif
+#include "esp_console.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -359,6 +360,36 @@ static void default_ota_manifest(void)
     nvs_close(h);
 }
 
+#if CONFIG_APP_DEBUG_CONSOLE
+static int cmd_wifi_sta(int argc, char **argv)
+{
+    if (argc != 2 || (strcmp(argv[1], "on") != 0 && strcmp(argv[1], "off") != 0)) {
+        printf("usage: wifi_sta <on|off>\n");
+        return 1;
+    }
+    esp_err_t err = espos_config_set_bool("wifi", "sta_enabled", strcmp(argv[1], "on") == 0);
+    printf("wifi_sta %s: %s\n", argv[1], esp_err_to_name(err));
+    return err == ESP_OK ? 0 : 1;
+}
+
+static void start_debug_console(void)
+{
+    esp_console_repl_t *repl = NULL;
+    esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
+    repl_config.prompt = "espos>";
+    esp_console_dev_usb_serial_jtag_config_t usb_jtag_config = ESP_CONSOLE_DEV_USB_SERIAL_JTAG_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_console_new_repl_usb_serial_jtag(&usb_jtag_config, &repl_config, &repl));
+
+    const esp_console_cmd_t wifi_sta_cmd = {
+        .command = "wifi_sta",
+        .help = "wifi_sta <on|off>: toggle wifi.sta_enabled",
+        .func = cmd_wifi_sta,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&wifi_sta_cmd));
+    ESP_ERROR_CHECK(esp_console_start_repl(repl));
+}
+#endif // CONFIG_APP_DEBUG_CONSOLE
+
 // Runs after espOS has the config store up and before any networking, so
 // relays reach their boot state (SPEC.md section 3.2) as early as possible:
 // after a warm reset, default-safe relays would otherwise stay on until the
@@ -424,6 +455,10 @@ void app_main(void)
     opts.before_network = start_io;
     opts.arg = &cfg;
     ESP_ERROR_CHECK(espos_start(&opts));
+
+#if CONFIG_APP_DEBUG_CONSOLE
+    start_debug_console();
+#endif
 
     default_ota_manifest();
 

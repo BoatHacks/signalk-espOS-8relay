@@ -1,0 +1,11 @@
+menu "espOS-8relay debug console"
+
+    config APP_DEBUG_CONSOLE
+        bool "Enable interactive debug console (esp_console REPL over USB serial/JTAG)"
+        default y
+        help
+            Runs an esp_console REPL over the native USB serial/JTAG port
+            alongside normal logging, with commands to inspect and toggle
+            device state without needing network reachability. See issue #16.
+
+endmenu

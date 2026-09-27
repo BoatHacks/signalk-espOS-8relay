@@ -49,3 +49,18 @@ CONFIG_ESP_TASK_WDT_PANIC=y
 # was on the setup page as SignalK connected ("Failed to create socket"),
 # and espOS's SignalK task then overflowed its stack on the error path.
 CONFIG_LWIP_MAX_SOCKETS=16
+
+# Debug console (issue #16): this board only exposes the native USB port, so
+# the REPL runs over USB serial/JTAG rather than IDF's UART default -- this
+# is IDF's own documented pattern (examples/system/console), not a peripheral
+# conflict. Secondary console off so it does not interleave raw log bytes
+# with the REPL on the same port.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# The REPL's line-editing/history buffers were enough allocation pressure
+# on this chip's small internal SRAM to trip the low-memory alarm and
+# stack-overflow the indicator task under load. Lowering this from the
+# 16 KB default routes those buffers to PSRAM instead; verified across
+# repeated clean boots (issue #16) that this does not hang the board.
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=512
