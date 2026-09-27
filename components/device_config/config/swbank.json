@@ -109,8 +109,8 @@
       "name": "buzzer_freq_hz",
       "type": "int",
       "default": 2700,
-      "min": 1000,
-      "max": 5000,
+      "min": 42,
+      "max": 10000,
       "unit": "Hz",
       "group": "General",
       "title": "Buzzer frequency",
@@ -127,7 +127,7 @@
     {
       "name": "tone_patterns",
       "type": "string",
-      "default": "[{\"name\":\"boot\",\"rtttl\":\"boot:d=16,o=5,b=200:c,e,g\"},{\"name\":\"portal\",\"rtttl\":\"portal:d=8,o=5,b=180:e,c,e,c\"},{\"name\":\"reset\",\"rtttl\":\"reset:d=8,o=5,b=120:g,e,c\"},{\"name\":\"relay-on\",\"rtttl\":\"relay-on:d=16,o=6,b=250:c\"},{\"name\":\"relay-off\",\"rtttl\":\"relay-off:d=16,o=4,b=250:c\"},{\"name\":\"input\",\"rtttl\":\"input:d=16,o=5,b=250:c,c\"}]",
+      "default": "[{\"name\":\"boot\",\"rtttl\":\"boot:d=16,o=7,b=200:c,e,g\"},{\"name\":\"portal\",\"rtttl\":\"portal:d=8,o=7,b=180:e,c,e,c\"},{\"name\":\"reset\",\"rtttl\":\"reset:d=8,o=7,b=120:g,e,c\"},{\"name\":\"relay-on\",\"rtttl\":\"relay-on:d=16,o=7,b=250:c\"},{\"name\":\"relay-off\",\"rtttl\":\"relay-off:d=16,o=6,b=250:c\"},{\"name\":\"input\",\"rtttl\":\"input:d=16,o=6,b=250:c,c\"}]",
       "maxLength": 3999,
       "x": {
         "format": "table",

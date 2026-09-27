@@ -123,8 +123,8 @@ TEST_CASE("the store rejects out-of-range values", "[device_config]")
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_str("swbank", "relay1_mode", "toggle"));
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_str("swbank", "relay1_link", "latch"));
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "relay1_max_on_s", 86401));
-    TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "buzzer_freq_hz", 999));
-    TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "buzzer_freq_hz", 5001));
+    TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "buzzer_freq_hz", 41));
+    TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "buzzer_freq_hz", 10001));
     store_down();
 }
 

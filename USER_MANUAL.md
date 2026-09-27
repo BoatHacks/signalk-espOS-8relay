@@ -207,7 +207,7 @@ overrides.
 | SignalK republish interval | 10 s | Resend every relay and input state this often even when nothing changed, so SignalK apps don't show them as stale. 0 = send changes only. |
 | Status LED brightness | 10 % | 0 turns the LED off (section 7.6) |
 | Buzzer on alarm | Off | Beep in Morse while an alarm is active (section 7.6) |
-| Buzzer frequency | 2700 Hz | Tone of the buzzer, 1000–5000 Hz. Applies at once; try it with *Test buzzer* on the relay page. |
+| Buzzer frequency | 2700 Hz | Tone of the buzzer, 42–10000 Hz. Applies at once; try it with *Test buzzer* on the relay page. |
 | Buzzer on events | Off | Chirp on boot, a BOOT-button action, a relay switching on/off, or an input changing (section 7.7). Separate from *Buzzer on alarm*. |
 | Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
 
