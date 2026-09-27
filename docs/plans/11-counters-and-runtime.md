@@ -51,13 +51,40 @@ Host tests for `counters` (new `counters_test`):
 `web_ui_test`: JSON fields.
 
 ## Implementation Steps
-- [ ] `counters` component and store interface (NVS on device, fake in
+- [x] `counters` component and store interface (NVS on device, fake in
       tests)
-- [ ] Wire listeners and tick in `main.c`; shutdown handler
-- [ ] SignalK publishing (bridge gets a counters getter)
-- [ ] REST fields and reset endpoints; relay page display and reset
-- [ ] Host tests
-- [ ] USER_MANUAL §7; CHANGELOG
+- [x] Wire listeners and tick in `main.c`; shutdown handler
+- [x] SignalK publishing (bridge gets a counters getter)
+- [x] REST fields and reset endpoints; relay page display and reset
+- [x] Host tests
+- [x] USER_MANUAL §7; CHANGELOG
+
+## Implementation notes (2026-09-27)
+
+- **The first report for a channel seeds it, uncounted.** `relay_ctrl`
+  never notifies listeners of a relay's boot state (only `main.c`'s own
+  `web_ui_relay_changed(ch, "boot")` loop knows it), while `input_sense`'s
+  first settled reading after boot *does* arrive as an ordinary listener
+  call. To treat both the same way without special-casing either,
+  `counters_on_change()`'s very first call for a channel is always a seed
+  (record the state, start runtime if on, count no cycle) rather than an
+  edge. `main.c` calls it once per relay right after `relay_ctrl_init()`,
+  mirroring the existing `web_ui_relay_changed(ch, "boot")` seeding; inputs
+  get seeded automatically by their first real listener call. This isn't
+  spelled out in the plan's own test strategy, so it's worth a second look.
+- **Reset flushes immediately**, ahead of the usual throttle: it's a rare,
+  deliberate user action (not the automatic counting the throttle exists
+  to protect the flash from), and the UX of "I reset it and a moment later
+  it reappeared" seemed worse than one extra flash write. Not explicit in
+  the plan.
+- **Factory reset (plan 14) does not clear counters.** Plan 14 was written
+  before this component existed and only notes "no cycle counters exist
+  yet, issue #4" for its own future reference; it isn't wired up here.
+  Counters are treated as belonging to the physical channel (the plan's
+  own open question about bank-id changes points the same way), so a
+  factory reset — which does forget the SignalK token and `hold` state —
+  leaves counters alone; only the per-channel Reset button clears them.
+  This is a judgment call, not a decision recorded anywhere.
 
 ## Files to Create/Modify
 - `components/counters/` (new)
