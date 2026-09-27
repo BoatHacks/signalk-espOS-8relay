@@ -77,10 +77,13 @@ Known issues found so far:
   (still 0.10.3 as of 2026-09-27), so this repo vendors it locally under
   `components/signalk-espos__espos_wifi` in the meantime — see that
   directory's `idf_component.yml` for how/when to remove the override.
-- The relay outputs' three-terminal (NO/COM/NC) wiring has no way to tell
-  the firmware which contact a load is on, which matters for fail-safe
-  correctness on a load wired to NC; tracked in
-  [#13](https://github.com/BoatHacks/signalk-espOS-8relay/issues/13).
+- The relay outputs' three-terminal (NO/COM/NC) wiring has a per-relay
+  `wiredNC` setting so reporting/commanding reflect the load, not the
+  coil, while fail-safe/boot/momentary-auto-off/hold-restore still always
+  operate on the coil directly (issue
+  [#13](https://github.com/BoatHacks/signalk-espOS-8relay/issues/13),
+  merged, host-tested; on-board check with a real NC-wired relay still
+  pending).
 - If the `signalk-n2k-switching` plugin is installed on the SignalK server,
   it registers itself as a generic PUT handler for every
   `electrical.switches.bank.*` path and can win over the board's own
