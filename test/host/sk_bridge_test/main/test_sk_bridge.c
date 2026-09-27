@@ -107,7 +107,21 @@ static uint8_t get_inputs(void) { return input_mask; }
 static void on_sk_lost(void) { sk_lost_calls++; }
 static uint32_t now(void) { return clock_ms; }
 
-static const sk_bridge_io_t io = {set_relay, get_relays, get_ready, get_inputs, on_sk_lost, now};
+// Cycles/runTime (counters, plan 11): channel n -> cycles n*10, runtime
+// n*100, so tests can tell channels apart.
+static void relay_counters(uint8_t ch, uint32_t *cycles, uint32_t *runtime_s)
+{
+    *cycles = ch * 10;
+    *runtime_s = ch * 100;
+}
+static void input_counters(uint8_t ch, uint32_t *cycles, uint32_t *runtime_s)
+{
+    *cycles = ch * 11;
+    *runtime_s = ch * 111;
+}
+
+static const sk_bridge_io_t io = {set_relay,  get_relays, get_ready,      get_inputs,
+                                   on_sk_lost, now,        relay_counters, input_counters};
 
 // --------------------------------------------------------------- fixtures
 
@@ -154,7 +168,7 @@ TEST_CASE("default: switches tree only, a PUT handler per relay", "[sk_bridge]")
     TEST_ASSERT_EQUAL(8, count(CALL_PUT_REG));
     TEST_ASSERT_TRUE(find(CALL_PUT_REG, "electrical.switches.bank.0.1.state") >= 0);
     TEST_ASSERT_TRUE(find(CALL_PUT_REG, "electrical.switches.bank.0.8.state") >= 0);
-    TEST_ASSERT_EQUAL(16, count(CALL_META));  // 8 relays + 8 inputs
+    TEST_ASSERT_EQUAL(32, count(CALL_META));  // (8 relays + 8 inputs) * (state + runTime)
     int i = find(CALL_NUMBER, "electrical.switches.bank.0.3.state");
     TEST_ASSERT_TRUE(i >= 0);
     TEST_ASSERT_EQUAL(1, calls[i].number);
@@ -164,6 +178,12 @@ TEST_CASE("default: switches tree only, a PUT handler per relay", "[sk_bridge]")
     for (int k = 0; k < n_calls; k++) {
         TEST_ASSERT_NULL(strstr(calls[k].path, "electrical.controls"));
     }
+    // Cycles/runTime (counters, plan 11) are published as part of the
+    // start-up declare, from the io getters.
+    TEST_ASSERT_EQUAL(30, calls[find(CALL_NUMBER, "electrical.switches.bank.0.3.cycles")].number);
+    TEST_ASSERT_EQUAL(300, calls[find(CALL_NUMBER, "electrical.switches.bank.0.3.runTime")].number);
+    TEST_ASSERT_EQUAL(5 * 11, calls[find(CALL_NUMBER, "electrical.switches.bank.1.5.cycles")].number);
+    TEST_ASSERT_EQUAL(5 * 111, calls[find(CALL_NUMBER, "electrical.switches.bank.1.5.runTime")].number);
 }
 
 // Boot order: the I/O task and relay/input listeners run before the network
@@ -224,7 +244,7 @@ TEST_CASE("controls tree uses espOS-instance identifiers from each bank", "[sk_b
     TEST_ASSERT_EQUAL_STRING("ESP32-S3-ETH-8DI-8RO-C", calls[i].text);
     i = find(CALL_STRING, "electrical.controls.espOS-instance13-input2.name");
     TEST_ASSERT_EQUAL_STRING("Input 2", calls[i].text);
-    TEST_ASSERT_EQUAL(32, count(CALL_META));
+    TEST_ASSERT_EQUAL(64, count(CALL_META));  // (8 relays + 8 inputs) * (state + runTime) * 2 trees
     TEST_ASSERT_EQUAL(-1, find(CALL_PUT_REG, "electrical.controls.espOS-instance13-input1.state"));
 }
 
@@ -327,7 +347,7 @@ TEST_CASE("clashing bank ids: the input bank is never published", "[sk_bridge]")
     cfg.input_bank_id = cfg.bank_id;
     input_mask = 0xFF;
     start();
-    TEST_ASSERT_EQUAL(8, count(CALL_META));  // relays only
+    TEST_ASSERT_EQUAL(16, count(CALL_META));  // relays only, state + runTime
     // With equal ids the input paths would be the relay paths; none of the
     // inputs' "on" states may reach them.
     for (int k = 0; k < n_calls; k++) {
@@ -362,7 +382,7 @@ TEST_CASE("a rename re-declares metadata, escaped", "[sk_bridge]")
     device_config_t next = cfg;
     snprintf(next.relays[1].name, sizeof(next.relays[1].name), "Deck \"flood\" light");
     sk_bridge_update_config(&next);
-    TEST_ASSERT_EQUAL(2, count(CALL_META));
+    TEST_ASSERT_EQUAL(4, count(CALL_META));  // state + runTime, each tree
     int i = find(CALL_META, "electrical.switches.bank.0.2.state");
     TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"displayName\":\"Deck \\\"flood\\\" light\""));
     i = find(CALL_STRING, "electrical.controls.espOS-instance0-relay2.name");
@@ -455,14 +475,15 @@ TEST_CASE("republish: every state, every interval, while connected", "[sk_bridge
     clock_ms += 1;
     sk_bridge_tick();
     TEST_ASSERT_EQUAL(16, count_state_numbers());  // 8 relays + 8 inputs
-    TEST_ASSERT_EQUAL(16, n_calls);                // states only
+    TEST_ASSERT_EQUAL(48, n_calls);  // states + cycles + runTime, 8 relays + 8 inputs
     TEST_ASSERT_EQUAL(1, calls[find(CALL_NUMBER, "electrical.switches.bank.0.3.state")].number);
+    TEST_ASSERT_EQUAL(30, calls[find(CALL_NUMBER, "electrical.switches.bank.0.3.cycles")].number);
     n_calls = 0;
     sk_bridge_tick();
     TEST_ASSERT_EQUAL(0, n_calls);
     clock_ms += 10000;
     sk_bridge_tick();
-    TEST_ASSERT_EQUAL(16, n_calls);
+    TEST_ASSERT_EQUAL(48, n_calls);
 }
 
 TEST_CASE("republish: nothing before a connection or while it is down", "[sk_bridge]")
@@ -504,7 +525,7 @@ TEST_CASE("republish: the interval is the metadata period, and follows changes",
     n_calls = 0;
     cfg.sk_republish_s = 30;
     sk_bridge_update_config(&cfg);
-    TEST_ASSERT_EQUAL(16, count(CALL_META));
+    TEST_ASSERT_EQUAL(32, count(CALL_META));
     TEST_ASSERT_EQUAL(30000, calls[find(CALL_META, "electrical.switches.bank.0.1.state")].number);
     n_calls = 0;
     sk_bridge_update_config(&cfg);  // unchanged: no re-declare

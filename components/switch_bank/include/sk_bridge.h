@@ -1,6 +1,8 @@
 // SignalK side of the switch bank (SPEC.md §6.1, §6.1a; plan 05): publishes
 // relay and input state on the enabled path trees, accepts relay PUTs on
 // each, declares names, and reports a lost SignalK server to relay control.
+// Also publishes each channel's cycle counter and runtime hours (plan 11,
+// issue #4) on the republish interval, not per-change.
 #pragma once
 
 #include <stdbool.h>
@@ -31,6 +33,10 @@ typedef struct {
     uint8_t (*input_mask)(void);
     void (*sk_lost)(void);
     uint32_t (*now_ms)(void);
+    // Live cycle count and runtime seconds for one relay/input channel
+    // (counters, plan 11).
+    void (*relay_counters)(uint8_t channel, uint32_t *cycles, uint32_t *runtime_s);
+    void (*input_counters)(uint8_t channel, uint32_t *cycles, uint32_t *runtime_s);
 } sk_bridge_io_t;
 
 // Create the bridge's lock. Call before anything that can call into the
