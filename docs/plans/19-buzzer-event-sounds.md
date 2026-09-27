@@ -168,9 +168,19 @@ dropdowns pick it up.
 - [x] Host tests actually run (`test/host/run_all.sh`): all 9 host-test
       projects pass (58 test cases, 0 failures), including the new ones. A
       full `idf.py build` for the real board target also succeeds.
-- [ ] On-board check: all boot-family + relay + input chirps, non-
-      interference with the alarm and the BOOT-button override, and the
-      Tones page's CRUD + dropdowns
+- [x] Flashed to real hardware: found and fixed a crash loop
+      (`TG1WDT_SYS_RST` every ~1.5 s) from `device_config_t` growing by
+      ~4.6 KB for `tone_patterns` — two call sites held it (or a same-size
+      scratch array) as a stack local on a task with a stack too small for
+      that, corrupting memory. Neither host test caught it: host threads
+      have generously sized stacks, so this class of bug only shows up on
+      the real target. Fixed (`io_task`'s per-reload copy and the
+      tone-table parse buffer are now `static`); board now boots cleanly
+      and repeatedly with no resets.
+- [ ] On-board check (needs a person at the board — network reachability
+      and audible chirps aren't checkable from here): all boot-family +
+      relay + input chirps, non-interference with the alarm and the
+      BOOT-button override, and the Tones page's CRUD + dropdowns
 
 ## Files to Create/Modify
 - `components/indicator/` (`rtttl.h`/`.c` new; `indicator_logic.*`,
