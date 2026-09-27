@@ -217,11 +217,20 @@ dropdowns pick it up.
       as a direct source) -- all confirmed by ear, no crash. Caught and
       fixed a real stack overflow in the `indicator` task doing this
       (see Files/CHANGELOG).
-- [ ] On-board check, part 2 (needs network reachability, not available
-      from this board right now -- see issue #15/espOS#136): the Play
-      button, non-interference with the alarm and the BOOT-button
-      override, and the Tones page's CRUD + dropdowns (including the
-      momentary-vs-latching conditional layout)
+- [x] On-board check, part 2 (network reachability restored): the Play
+      button previews a tone correctly; the Tones page's CRUD (add/rename/
+      delete library rows, save, reload) and dropdowns work, including the
+      momentary-vs-latching conditional layout (relay 3 is momentary and
+      showed pulse-start/pulse-stop; the other 7, latching, showed on/off)
+      -- confirmed live in a browser. Alarm/BOOT-override non-interference
+      confirmed by code review, the existing `indicator_chirp_allowed`
+      host tests (all four override x alarm combinations), and a live
+      serial confirmation that the running firmware's `indicator` task
+      logs the exact gated `chirp:`/`preview:`/`alarm:` lines the code
+      predicts -- the real alarm (a health fault) and the BOOT-button
+      override (a physical press) weren't triggered live on the shared
+      board, since neither can be done remotely without either inducing a
+      fault or physical access.
 
 ## Files to Create/Modify
 - `components/indicator/` (`rtttl.h`/`.c` new; `indicator_logic.*`,
