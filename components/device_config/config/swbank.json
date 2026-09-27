@@ -222,6 +222,14 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "relay1_wired_nc",
+      "type": "bool",
+      "default": false,
+      "group": "Relays",
+      "title": "Relay 1: wired to NC (normally-closed) terminal",
+      "description": "Turn on when the load is wired to this relay's NC terminal instead of NO. Reported and commanded on/off then mean the load, not the coil: on SignalK loss or a fail-safe restart the coil still de-energizes as normal, which is *on* for a NC-wired load."
+    },
+    {
       "name": "relay1_link",
       "type": "string",
       "default": "follow",
@@ -333,6 +341,14 @@
       "group": "Relays",
       "title": "Relay 2: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "relay2_wired_nc",
+      "type": "bool",
+      "default": false,
+      "group": "Relays",
+      "title": "Relay 2: wired to NC (normally-closed) terminal",
+      "description": "Turn on when the load is wired to this relay's NC terminal instead of NO. Reported and commanded on/off then mean the load, not the coil: on SignalK loss or a fail-safe restart the coil still de-energizes as normal, which is *on* for a NC-wired load."
     },
     {
       "name": "relay2_link",
@@ -448,6 +464,14 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "relay3_wired_nc",
+      "type": "bool",
+      "default": false,
+      "group": "Relays",
+      "title": "Relay 3: wired to NC (normally-closed) terminal",
+      "description": "Turn on when the load is wired to this relay's NC terminal instead of NO. Reported and commanded on/off then mean the load, not the coil: on SignalK loss or a fail-safe restart the coil still de-energizes as normal, which is *on* for a NC-wired load."
+    },
+    {
       "name": "relay3_link",
       "type": "string",
       "default": "follow",
@@ -559,6 +583,14 @@
       "group": "Relays",
       "title": "Relay 4: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "relay4_wired_nc",
+      "type": "bool",
+      "default": false,
+      "group": "Relays",
+      "title": "Relay 4: wired to NC (normally-closed) terminal",
+      "description": "Turn on when the load is wired to this relay's NC terminal instead of NO. Reported and commanded on/off then mean the load, not the coil: on SignalK loss or a fail-safe restart the coil still de-energizes as normal, which is *on* for a NC-wired load."
     },
     {
       "name": "relay4_link",
@@ -674,6 +706,14 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "relay5_wired_nc",
+      "type": "bool",
+      "default": false,
+      "group": "Relays",
+      "title": "Relay 5: wired to NC (normally-closed) terminal",
+      "description": "Turn on when the load is wired to this relay's NC terminal instead of NO. Reported and commanded on/off then mean the load, not the coil: on SignalK loss or a fail-safe restart the coil still de-energizes as normal, which is *on* for a NC-wired load."
+    },
+    {
       "name": "relay5_link",
       "type": "string",
       "default": "follow",
@@ -785,6 +825,14 @@
       "group": "Relays",
       "title": "Relay 6: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "relay6_wired_nc",
+      "type": "bool",
+      "default": false,
+      "group": "Relays",
+      "title": "Relay 6: wired to NC (normally-closed) terminal",
+      "description": "Turn on when the load is wired to this relay's NC terminal instead of NO. Reported and commanded on/off then mean the load, not the coil: on SignalK loss or a fail-safe restart the coil still de-energizes as normal, which is *on* for a NC-wired load."
     },
     {
       "name": "relay6_link",
@@ -900,6 +948,14 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "relay7_wired_nc",
+      "type": "bool",
+      "default": false,
+      "group": "Relays",
+      "title": "Relay 7: wired to NC (normally-closed) terminal",
+      "description": "Turn on when the load is wired to this relay's NC terminal instead of NO. Reported and commanded on/off then mean the load, not the coil: on SignalK loss or a fail-safe restart the coil still de-energizes as normal, which is *on* for a NC-wired load."
+    },
+    {
       "name": "relay7_link",
       "type": "string",
       "default": "follow",
@@ -1011,6 +1067,14 @@
       "group": "Relays",
       "title": "Relay 8: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "relay8_wired_nc",
+      "type": "bool",
+      "default": false,
+      "group": "Relays",
+      "title": "Relay 8: wired to NC (normally-closed) terminal",
+      "description": "Turn on when the load is wired to this relay's NC terminal instead of NO. Reported and commanded on/off then mean the load, not the coil: on SignalK loss or a fail-safe restart the coil still de-energizes as normal, which is *on* for a NC-wired load."
     },
     {
       "name": "relay8_link",

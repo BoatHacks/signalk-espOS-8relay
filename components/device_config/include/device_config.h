@@ -34,6 +34,11 @@ typedef struct {
     // As stored. Use device_config_effective_failsafe() to act on it.
     failsafe_policy_t failsafe;
     uint8_t override_di;  // 0 = none, else input channel 1-8
+    // The load sits on the NC terminal, not NO: relay_ctrl's public
+    // get/set/PUT surface reports and commands the load's state (coil
+    // inverted), while every fail-safe/boot/momentary/hold path keeps
+    // driving the coil directly, unaffected by this.
+    bool wired_nc;
     input_link_t link;
     uint32_t max_on_s;    // 0 = no limit; latching relays only
     // Tone library entry to chirp on a direct-command on/off (plan 19).
