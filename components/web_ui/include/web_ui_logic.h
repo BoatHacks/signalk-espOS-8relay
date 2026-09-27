@@ -26,8 +26,10 @@ typedef struct {
 
 // {"relays":[{"channel":1,"name":"…","on":false,"momentary":false,
 //   "input":0,"inputToggle":false,"maxOnS":0,"lastSource":"boot",
-//   "lastChangeAgoS":12},…],"inputs":[{"channel":1,"name":"…","on":false},…],
-//  "inputsReady":true}; an input's "on" is null until inputs_ready.
+//   "lastChangeAgoS":12},…],"inputs":[{"channel":1,"name":"…","on":false,
+//   "alarm":false},…],"inputsReady":true}; an input's "on" is null until
+// inputs_ready. "alarm" is true only once settled, while the input reads on
+// and its alarm setting isn't "off" (plan 10, issue #3).
 // Returns a malloc'ed string, or NULL when out of memory.
 char *web_ui_state_json(const web_ui_view_t *view);
 

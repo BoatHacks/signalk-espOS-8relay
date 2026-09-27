@@ -12,6 +12,16 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ### Added
 
+- Per-input alarms (issue #3): a new *Alarm* setting per input
+  (`off`/`warn`/`alarm`/`emergency`, off by default) raises a SignalK
+  notification on the input's own path (e.g.
+  `notifications.electrical.switches.bank.1.3.state` for a bilge float
+  switch on input 3) while it reads on, with a custom or default message,
+  and clears it back to `normal` when it reads off. Raised only once the
+  input has settled after boot, so an already-tripped switch still alarms
+  at start-up; resent on the SignalK republish interval while active and
+  after every reconnect. The relay page marks an input currently in alarm.
+  Host-tested (docs/plans/10-input-alarms.md).
 - The BOOT button now does something while the firmware is running (issue
   #7): held ~5 s, it reopens the setup access point; held ~15 s, it
   factory-resets the board. The status LED blinks white or red to show

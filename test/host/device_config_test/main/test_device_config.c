@@ -73,6 +73,8 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
         TEST_ASSERT_EQUAL_STRING("pulse-stop", c.relays[i].pulse_stop_tone);
         TEST_ASSERT_EQUAL_STRING("input", c.inputs[i].on_tone);
         TEST_ASSERT_EQUAL_STRING("input", c.inputs[i].off_tone);
+        TEST_ASSERT_EQUAL(INPUT_ALARM_OFF, c.inputs[i].alarm);
+        TEST_ASSERT_EQUAL_STRING("", c.inputs[i].alarm_msg);
     }
     store_down();
 }
@@ -98,6 +100,9 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ESP_OK(espos_config_set_str("swbank", "relay3_pe_tone", "custom-pulse-stop"));
     TEST_ESP_OK(espos_config_set_str("swbank", "input2_on_tone", "custom-input-on"));
     TEST_ESP_OK(espos_config_set_str("swbank", "input2_off_tone", "custom-input-off"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "input4_alarm", "alarm"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "input4_alm_msg", "Bilge water high"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "input7_alarm", "emergency"));
 
     device_config_t c;
     TEST_ESP_OK(device_config_load(&c));
@@ -121,6 +126,17 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ASSERT_EQUAL_STRING("custom-pulse-stop", c.relays[2].pulse_stop_tone);
     TEST_ASSERT_EQUAL_STRING("custom-input-on", c.inputs[1].on_tone);
     TEST_ASSERT_EQUAL_STRING("custom-input-off", c.inputs[1].off_tone);
+    TEST_ASSERT_EQUAL(INPUT_ALARM_ALARM, c.inputs[3].alarm);
+    TEST_ASSERT_EQUAL_STRING("Bilge water high", c.inputs[3].alarm_msg);
+    TEST_ASSERT_EQUAL(INPUT_ALARM_EMERGENCY, c.inputs[6].alarm);
+    TEST_ASSERT_EQUAL(INPUT_ALARM_OFF, c.inputs[0].alarm);
+    store_down();
+}
+
+TEST_CASE("the store rejects an invalid alarm level", "[device_config]")
+{
+    store_up();
+    TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_str("swbank", "input1_alarm", "critical"));
     store_down();
 }
 

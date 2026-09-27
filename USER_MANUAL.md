@@ -200,6 +200,8 @@ overrides.
 | Invert | Off | Turn on for normally-closed switches |
 | On chirp | input | Tone (from the Tones page, section 7.7) to play when this input's reported state changes to on. *(none)* = no chirp. |
 | Off chirp | input | As above, for changing to off. |
+| Alarm | Off | Raise a SignalK notification (section 7.1) while this input reads on, e.g. a bilge float switch. `off`/`warn`/`alarm`/`emergency` set the notification's severity; `off` raises nothing. |
+| Alarm message | *(none)* | Notification text. Empty = "*name* active". |
 
 ### 6.5 Other
 
@@ -241,6 +243,19 @@ States are `1` (on) and `0` (off). To switch a relay, send `1`/`0` or
 name becomes its display name in SignalK. After that, the SignalK server's
 own setting wins: to rename a channel later, change its display name on
 the server (or clear it there, and the board's name is used again).
+
+**Input alarms.** An input with its *Alarm* setting (section 6.4) not
+*off* raises a SignalK notification on its own path, e.g. a bilge float
+switch on input 3 of input bank 1 raises
+`notifications.electrical.switches.bank.1.3.state` (and the matching
+`electrical.controls.*` path when that tree is on) as
+`{"state":"warn"|"alarm"|"emergency","method":["visual","sound"],
+"message":"…"}` while the input reads on, and clears it back to
+`{"state":"normal",...}` as soon as it reads off. It's raised only once the
+input has settled after boot (section 4), so a float switch that's already
+tripped when the board starts up still raises its alarm; it's resent with
+the *SignalK republish interval* while it stays active, and again after
+every reconnect, same as relay and input states.
 
 **If your SignalK server also reads the NMEA 2000 bus**, it already gets
 the relays and inputs from the bus, under the same

@@ -92,6 +92,15 @@ esp_err_t device_config_load(device_config_t *out)
         get_str(key, in->on_tone, sizeof(in->on_tone));
         snprintf(key, sizeof(key), "input%d_off_tone", n);
         get_str(key, in->off_tone, sizeof(in->off_tone));
+        snprintf(key, sizeof(key), "input%d_alarm", n);
+        get_str(key, val, sizeof(val));
+        in->alarm = strcmp(val, "warn") == 0     ? INPUT_ALARM_WARN
+                    : strcmp(val, "alarm") == 0   ? INPUT_ALARM_ALARM
+                    : strcmp(val, "emergency") == 0 ? INPUT_ALARM_EMERGENCY
+                                                     : INPUT_ALARM_OFF;
+        // "alm_msg": espOS key names cap at 15 chars.
+        snprintf(key, sizeof(key), "input%d_alm_msg", n);
+        get_str(key, in->alarm_msg, sizeof(in->alarm_msg));
     }
     return ESP_OK;
 }

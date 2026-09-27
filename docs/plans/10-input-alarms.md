@@ -38,6 +38,16 @@ turns off. The typical use is a bilge float switch.
 ## Open questions
 - Should `emergency` be allowed for a plain input? SignalK allows it;
   keep it, default off.
+- Not covered by the plan, resolved during implementation: editing an
+  input's alarm setting live (portal/settings page, no restart) while the
+  input is already on. Implemented so `sk_bridge_update_config()` compares
+  old vs. new alarm level/message per input and, if the input currently
+  reads on, republishes (or clears) its notification immediately --
+  otherwise turning an alarm off while its float switch is still up would
+  leave a stale "alarm" notification on the server until the next physical
+  transition, and turning one on for an already-tripped switch wouldn't
+  alarm until the next transition either. Not explicitly asked for; flagged
+  for review.
 
 ## Test Strategy
 Host tests in `sk_bridge_test`:
@@ -51,12 +61,14 @@ Host tests in `sk_bridge_test`:
 On the board: float switch on DI → alarm on a SignalK display.
 
 ## Implementation Steps
-- [ ] Settings and `input_cfg_t` fields
-- [ ] Notification publish/clear in `sk_bridge` (input change, settle,
+- [x] Settings and `input_cfg_t` fields
+- [x] Notification publish/clear in `sk_bridge` (input change, settle,
       reconnect, republish)
-- [ ] Host tests
-- [ ] Relay page marker (small)
-- [ ] USER_MANUAL §6.4, §7.1; CHANGELOG
+- [x] Host tests
+- [x] Relay page marker (small)
+- [x] USER_MANUAL §6.4, §7.1; CHANGELOG
+- [ ] On-board check: float switch on a DI raises the alarm on a SignalK
+      display (not done in this worktree -- see report)
 
 ## Files to Create/Modify
 - `components/device_config/`

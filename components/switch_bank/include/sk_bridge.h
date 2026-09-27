@@ -21,6 +21,9 @@ typedef struct {
     esp_err_t (*publish_string)(const char *path, const char *value);
     esp_err_t (*declare_meta)(const char *path, const char *meta_json, uint32_t period_ms);
     esp_err_t (*put_register)(const char *path, sk_put_handler_t cb, void *arg);
+    // Input alarms (plan 10, issue #3): raw JSON, used for the
+    // notifications.*.state SignalK Notification object.
+    esp_err_t (*publish_json)(const char *path, const char *value_json);
 } sk_api_t;
 
 // Relays, inputs and the clock (relay_ctrl / input_sense on the device).

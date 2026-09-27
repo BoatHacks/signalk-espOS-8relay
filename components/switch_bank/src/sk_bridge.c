@@ -57,6 +57,38 @@ static const char *name_of(bool input, uint8_t ch)
     return input ? s.cfg.inputs[ch - 1].name : s.cfg.relays[ch - 1].name;
 }
 
+// "notifications.<base path>" for an input's alarm (plan 10, issue #3). A
+// few bytes longer than PATH_MAX_LEN for the "notifications." prefix.
+#define NOTIF_PATH_MAX_LEN (PATH_MAX_LEN + 16)
+
+static void make_notif_path(char *buf, size_t size, tree_t t, uint8_t ch, const char *leaf)
+{
+    char base[PATH_MAX_LEN];
+    make_path(base, t, true, ch, leaf);
+    snprintf(buf, size, "notifications.%s", base);
+}
+
+// Whether input `ch` has an alarm configured at all (its own setting isn't
+// "off", and the input bank is actually published).
+static bool alarm_configured(uint8_t ch)
+{
+    return inputs_on() && s.cfg.inputs[ch - 1].alarm != INPUT_ALARM_OFF;
+}
+
+static const char *alarm_state_str(input_alarm_t a)
+{
+    switch (a) {
+    case INPUT_ALARM_WARN:
+        return "warn";
+    case INPUT_ALARM_ALARM:
+        return "alarm";
+    case INPUT_ALARM_EMERGENCY:
+        return "emergency";
+    default:
+        return "normal";
+    }
+}
+
 // ------------------------------------------------------------- publishing
 
 static void json_escape(char *out, size_t size, const char *in)
@@ -83,6 +115,32 @@ static void publish_state(tree_t t, bool input, uint8_t ch, bool on)
     // n2k-signalk publishes PGN 127501 channels as 1/0; so do we, so apps
     // see one format whichever way the data arrives.
     s.api.publish_number(path, on ? 1 : 0);
+}
+
+// The alarm's SignalK Notification object (SPEC.md §6, plan 10, issue #3):
+// active raises it at the input's own severity with a message; inactive
+// clears it back to "normal".
+static void publish_notification(tree_t t, uint8_t ch, bool active)
+{
+    char path[NOTIF_PATH_MAX_LEN];
+    make_notif_path(path, sizeof(path), t, ch, "state");
+    char json[2 * DEVICE_CONFIG_NAME_MAX + 96];
+    if (active) {
+        const input_cfg_t *in = &s.cfg.inputs[ch - 1];
+        char raw[DEVICE_CONFIG_NAME_MAX + 16];
+        if (in->alarm_msg[0]) {
+            snprintf(raw, sizeof(raw), "%s", in->alarm_msg);
+        } else {
+            snprintf(raw, sizeof(raw), "%s active", in->name);
+        }
+        char msg[2 * DEVICE_CONFIG_NAME_MAX + 16];
+        json_escape(msg, sizeof(msg), raw);
+        snprintf(json, sizeof(json), "{\"state\":\"%s\",\"method\":[\"visual\",\"sound\"],\"message\":\"%s\"}",
+                 alarm_state_str(in->alarm), msg);
+    } else {
+        snprintf(json, sizeof(json), "{\"state\":\"normal\",\"method\":[],\"message\":\"\"}");
+    }
+    s.api.publish_json(path, json);
 }
 
 static void declare_names(tree_t t, bool input, uint8_t ch)
@@ -130,7 +188,11 @@ static void publish_states_locked(void)
         for (uint8_t ch = 1; tree_on(t) && ch <= BOARD_CHANNELS; ch++) {
             publish_state(t, false, ch, relays & (1u << (ch - 1)));
             if (inputs_on() && inputs_ready) {
-                publish_state(t, true, ch, inputs & (1u << (ch - 1)));
+                const bool on = inputs & (1u << (ch - 1));
+                publish_state(t, true, ch, on);
+                if (on && alarm_configured(ch)) {
+                    publish_notification(t, ch, true);
+                }
             }
         }
     }
@@ -151,7 +213,11 @@ static void publish_all_locked(void)
             publish_state(t, false, ch, relays & (1u << (ch - 1)));
             if (inputs_on() && inputs_ready) {
                 publish_description(t, true, ch);
-                publish_state(t, true, ch, inputs & (1u << (ch - 1)));
+                const bool on = inputs & (1u << (ch - 1));
+                publish_state(t, true, ch, on);
+                if (on && alarm_configured(ch)) {
+                    publish_notification(t, ch, true);
+                }
             }
         }
     }
@@ -273,6 +339,26 @@ void sk_bridge_update_config(const device_config_t *cfg)
                 declare_names(t, true, i + 1);
             }
         }
+        // Alarm settings apply live too. If the input is currently on, its
+        // notification (raised, cleared, or never raised) may need to
+        // change under the new setting right away -- otherwise a float
+        // switch that's already tripped would keep its old alarm (or lack
+        // of one) until the next physical transition, which could be a long
+        // time coming for a bilge that's slowly refilling.
+        const bool old_configured = inputs_on() && s.cfg.inputs[i].alarm != INPUT_ALARM_OFF;
+        const bool alarm_setting_changed = s.cfg.inputs[i].alarm != cfg->inputs[i].alarm ||
+                                            strcmp(s.cfg.inputs[i].alarm_msg, cfg->inputs[i].alarm_msg) != 0;
+        s.cfg.inputs[i].alarm = cfg->inputs[i].alarm;
+        memcpy(s.cfg.inputs[i].alarm_msg, cfg->inputs[i].alarm_msg, sizeof(s.cfg.inputs[i].alarm_msg));
+        const bool new_configured = alarm_configured(i + 1);
+        if (alarm_setting_changed && (old_configured || new_configured) && s.started && inputs_on() &&
+            s.io.inputs_ready() && ((s.io.input_mask() >> i) & 1)) {
+            for (tree_t t = TREE_SWITCHES; t <= TREE_CONTROLS; t++) {
+                if (tree_on(t)) {
+                    publish_notification(t, i + 1, new_configured);
+                }
+            }
+        }
     }
     s.cfg.sk_loss_grace_s = cfg->sk_loss_grace_s;
     if (s.cfg.sk_republish_s != cfg->sk_republish_s) {
@@ -314,6 +400,16 @@ void sk_bridge_input_changed(uint8_t channel, bool on)
         if (tree_on(t)) {
             publish_description(t, true, channel);
             publish_state(t, true, channel, on);
+        }
+    }
+    // Raise on -> on (after debounce and invert, since this only runs once
+    // the input has settled -- see input_sense's notify()); clear on -> off.
+    // Nothing at all while the alarm setting is "off".
+    if (s.started && alarm_configured(channel)) {
+        for (tree_t t = TREE_SWITCHES; t <= TREE_CONTROLS; t++) {
+            if (tree_on(t)) {
+                publish_notification(t, channel, on);
+            }
         }
     }
     xSemaphoreGive(s.lock);

@@ -49,6 +49,25 @@ TEST_CASE("state: relay and input bits map to channels 1-8", "[web_ui]")
     cJSON_Delete(root);
 }
 
+TEST_CASE("state: an input's alarm marker follows its setting and level", "[web_ui]")
+{
+    fresh();
+    cfg.inputs[1].alarm = INPUT_ALARM_ALARM;  // input 2
+    cJSON *root = state(0, 0x06, true);       // inputs 2 and 3 on, alarm only set on 2
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(item(root, "inputs", 1), "alarm")));
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(item(root, "inputs", 2), "alarm")));  // no alarm setting
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(item(root, "inputs", 0), "alarm")));  // off
+    cJSON_Delete(root);
+
+    root = state(0, 0x00, true);  // input 2 now off: no longer alarming
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(item(root, "inputs", 1), "alarm")));
+    cJSON_Delete(root);
+
+    root = state(0, 0x02, false);  // not settled: never shown as alarming
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(item(root, "inputs", 1), "alarm")));
+    cJSON_Delete(root);
+}
+
 TEST_CASE("state: inputs are null until they have settled", "[web_ui]")
 {
     fresh();
