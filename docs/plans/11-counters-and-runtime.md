@@ -72,11 +72,13 @@ Host tests for `counters` (new `counters_test`):
   mirroring the existing `web_ui_relay_changed(ch, "boot")` seeding; inputs
   get seeded automatically by their first real listener call. This isn't
   spelled out in the plan's own test strategy, so it's worth a second look.
+  **Decided 2026-09-27: keep it** — without it, every boot would register
+  a spurious +1 cycle on every relay/input.
 - **Reset flushes immediately**, ahead of the usual throttle: it's a rare,
   deliberate user action (not the automatic counting the throttle exists
   to protect the flash from), and the UX of "I reset it and a moment later
   it reappeared" seemed worse than one extra flash write. Not explicit in
-  the plan.
+  the plan. **Decided 2026-09-27: keep it.**
 - **Factory reset (plan 14) does not clear counters.** Plan 14 was written
   before this component existed and only notes "no cycle counters exist
   yet, issue #4" for its own future reference; it isn't wired up here.
@@ -84,7 +86,8 @@ Host tests for `counters` (new `counters_test`):
   own open question about bank-id changes points the same way), so a
   factory reset — which does forget the SignalK token and `hold` state —
   leaves counters alone; only the per-channel Reset button clears them.
-  This is a judgment call, not a decision recorded anywhere.
+  **Decided 2026-09-27: leave counters alone on factory reset** — they're
+  device wear-history, not configuration.
 
 ## Files to Create/Modify
 - `components/counters/` (new)
