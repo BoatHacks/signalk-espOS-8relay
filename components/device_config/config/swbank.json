@@ -1107,6 +1107,29 @@
       "description": "As above, for changing to off."
     },
     {
+      "name": "input1_alarm",
+      "type": "string",
+      "default": "off",
+      "enum": [
+        "off",
+        "warn",
+        "alarm",
+        "emergency"
+      ],
+      "group": "Inputs",
+      "title": "Input 1: alarm",
+      "description": "Raise a SignalK notification on this input's own path while it reads on (e.g. a bilge float switch), cleared when it reads off. off = no notification."
+    },
+    {
+      "name": "input1_alm_msg",
+      "type": "string",
+      "default": "",
+      "maxLength": 32,
+      "group": "Inputs",
+      "title": "Input 1: alarm message",
+      "description": "Notification message. Empty = \"<input name> active\"."
+    },
+    {
       "name": "input2_name",
       "type": "string",
       "default": "Input 2",
@@ -1140,6 +1163,29 @@
       "group": "Tones",
       "title": "Input 2: off chirp",
       "description": "As above, for changing to off."
+    },
+    {
+      "name": "input2_alarm",
+      "type": "string",
+      "default": "off",
+      "enum": [
+        "off",
+        "warn",
+        "alarm",
+        "emergency"
+      ],
+      "group": "Inputs",
+      "title": "Input 2: alarm",
+      "description": "Raise a SignalK notification on this input's own path while it reads on (e.g. a bilge float switch), cleared when it reads off. off = no notification."
+    },
+    {
+      "name": "input2_alm_msg",
+      "type": "string",
+      "default": "",
+      "maxLength": 32,
+      "group": "Inputs",
+      "title": "Input 2: alarm message",
+      "description": "Notification message. Empty = \"<input name> active\"."
     },
     {
       "name": "input3_name",
@@ -1177,6 +1223,29 @@
       "description": "As above, for changing to off."
     },
     {
+      "name": "input3_alarm",
+      "type": "string",
+      "default": "off",
+      "enum": [
+        "off",
+        "warn",
+        "alarm",
+        "emergency"
+      ],
+      "group": "Inputs",
+      "title": "Input 3: alarm",
+      "description": "Raise a SignalK notification on this input's own path while it reads on (e.g. a bilge float switch), cleared when it reads off. off = no notification."
+    },
+    {
+      "name": "input3_alm_msg",
+      "type": "string",
+      "default": "",
+      "maxLength": 32,
+      "group": "Inputs",
+      "title": "Input 3: alarm message",
+      "description": "Notification message. Empty = \"<input name> active\"."
+    },
+    {
       "name": "input4_name",
       "type": "string",
       "default": "Input 4",
@@ -1210,6 +1279,29 @@
       "group": "Tones",
       "title": "Input 4: off chirp",
       "description": "As above, for changing to off."
+    },
+    {
+      "name": "input4_alarm",
+      "type": "string",
+      "default": "off",
+      "enum": [
+        "off",
+        "warn",
+        "alarm",
+        "emergency"
+      ],
+      "group": "Inputs",
+      "title": "Input 4: alarm",
+      "description": "Raise a SignalK notification on this input's own path while it reads on (e.g. a bilge float switch), cleared when it reads off. off = no notification."
+    },
+    {
+      "name": "input4_alm_msg",
+      "type": "string",
+      "default": "",
+      "maxLength": 32,
+      "group": "Inputs",
+      "title": "Input 4: alarm message",
+      "description": "Notification message. Empty = \"<input name> active\"."
     },
     {
       "name": "input5_name",
@@ -1247,6 +1339,29 @@
       "description": "As above, for changing to off."
     },
     {
+      "name": "input5_alarm",
+      "type": "string",
+      "default": "off",
+      "enum": [
+        "off",
+        "warn",
+        "alarm",
+        "emergency"
+      ],
+      "group": "Inputs",
+      "title": "Input 5: alarm",
+      "description": "Raise a SignalK notification on this input's own path while it reads on (e.g. a bilge float switch), cleared when it reads off. off = no notification."
+    },
+    {
+      "name": "input5_alm_msg",
+      "type": "string",
+      "default": "",
+      "maxLength": 32,
+      "group": "Inputs",
+      "title": "Input 5: alarm message",
+      "description": "Notification message. Empty = \"<input name> active\"."
+    },
+    {
       "name": "input6_name",
       "type": "string",
       "default": "Input 6",
@@ -1280,6 +1395,29 @@
       "group": "Tones",
       "title": "Input 6: off chirp",
       "description": "As above, for changing to off."
+    },
+    {
+      "name": "input6_alarm",
+      "type": "string",
+      "default": "off",
+      "enum": [
+        "off",
+        "warn",
+        "alarm",
+        "emergency"
+      ],
+      "group": "Inputs",
+      "title": "Input 6: alarm",
+      "description": "Raise a SignalK notification on this input's own path while it reads on (e.g. a bilge float switch), cleared when it reads off. off = no notification."
+    },
+    {
+      "name": "input6_alm_msg",
+      "type": "string",
+      "default": "",
+      "maxLength": 32,
+      "group": "Inputs",
+      "title": "Input 6: alarm message",
+      "description": "Notification message. Empty = \"<input name> active\"."
     },
     {
       "name": "input7_name",
@@ -1317,6 +1455,29 @@
       "description": "As above, for changing to off."
     },
     {
+      "name": "input7_alarm",
+      "type": "string",
+      "default": "off",
+      "enum": [
+        "off",
+        "warn",
+        "alarm",
+        "emergency"
+      ],
+      "group": "Inputs",
+      "title": "Input 7: alarm",
+      "description": "Raise a SignalK notification on this input's own path while it reads on (e.g. a bilge float switch), cleared when it reads off. off = no notification."
+    },
+    {
+      "name": "input7_alm_msg",
+      "type": "string",
+      "default": "",
+      "maxLength": 32,
+      "group": "Inputs",
+      "title": "Input 7: alarm message",
+      "description": "Notification message. Empty = \"<input name> active\"."
+    },
+    {
       "name": "input8_name",
       "type": "string",
       "default": "Input 8",
@@ -1350,6 +1511,29 @@
       "group": "Tones",
       "title": "Input 8: off chirp",
       "description": "As above, for changing to off."
+    },
+    {
+      "name": "input8_alarm",
+      "type": "string",
+      "default": "off",
+      "enum": [
+        "off",
+        "warn",
+        "alarm",
+        "emergency"
+      ],
+      "group": "Inputs",
+      "title": "Input 8: alarm",
+      "description": "Raise a SignalK notification on this input's own path while it reads on (e.g. a bilge float switch), cleared when it reads off. off = no notification."
+    },
+    {
+      "name": "input8_alm_msg",
+      "type": "string",
+      "default": "",
+      "maxLength": 32,
+      "group": "Inputs",
+      "title": "Input 8: alarm message",
+      "description": "Notification message. Empty = \"<input name> active\"."
     }
   ]
 }

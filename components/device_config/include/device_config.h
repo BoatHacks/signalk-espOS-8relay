@@ -47,12 +47,21 @@ typedef struct {
     char pulse_stop_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
 } relay_cfg_t;
 
+// SignalK notification severity for an input alarm (plan 10, issue #3).
+// Order matches the "off"/"warn"/"alarm"/"emergency" setting strings.
+typedef enum { INPUT_ALARM_OFF, INPUT_ALARM_WARN, INPUT_ALARM_ALARM, INPUT_ALARM_EMERGENCY } input_alarm_t;
+
 typedef struct {
     char name[DEVICE_CONFIG_NAME_MAX + 1];
     bool invert;
     // Tone library entry to chirp on a debounced level change (plan 19).
     char on_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
     char off_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
+    // SignalK notification alarm (plan 10, issue #3): off by default. Raised
+    // when the input reads on, cleared when it reads off.
+    input_alarm_t alarm;
+    // Empty = "<name> active".
+    char alarm_msg[DEVICE_CONFIG_NAME_MAX + 1];
 } input_cfg_t;
 
 typedef struct {
