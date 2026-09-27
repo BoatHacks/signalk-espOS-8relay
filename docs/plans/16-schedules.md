@@ -13,7 +13,7 @@ network.
   reversed first)
 - README "Board hardware" (PCF85063 on the relay I²C bus, unused)
 
-## Decision (2026-09-25)
+## Decision (2026-09-25, reconfirmed 2026-09-27)
 **On the board.** Schedules must keep working without a SignalK server.
 SPEC.md §10.2 updated. The cost is a schedule UI that fits espOS's flat
 key/value settings (or a page of our own, like the relay page).
