@@ -70,6 +70,15 @@ Known issues found so far:
   the firmware which contact a load is on, which matters for fail-safe
   correctness on a load wired to NC; tracked in
   [#13](https://github.com/BoatHacks/signalk-espOS-8relay/issues/13).
+- If the `signalk-n2k-switching` plugin is installed on the SignalK server,
+  it registers itself as a generic PUT handler for every
+  `electrical.switches.bank.*` path and can win over the board's own
+  SignalK PUT handling, sending an NMEA 2000 PGN 127502 command instead of
+  talking to the board directly. If the server has no working N2K
+  connection at the time (or the board isn't on the bus), that command
+  goes nowhere and the PUT fails after ~20 s with "Did not receive change
+  confirmation". Disable that plugin (or fix its N2K connection) if relay
+  switching from SignalK hangs or times out.
 
 ## Plans
 
