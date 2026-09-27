@@ -82,13 +82,14 @@ to defaults (which must NOT retroactively re-wire; `wiredNC` and the
 physical wiring are independent facts).
 
 ## Implementation Steps
-- [ ] `wiredNC` setting in `device_config` / `RelayChannel`
-- [ ] Translation at `relay_ctrl`'s report/PUT boundary
-- [ ] Confirm every fail-safe/boot/momentary/`hold` path bypasses the
+- [x] `wiredNC` setting in `device_config` / `RelayChannel`
+- [x] Translation at `relay_ctrl`'s report/PUT boundary
+- [x] Confirm every fail-safe/boot/momentary/`hold` path bypasses the
       translation (audit, don't just add a flag and hope)
-- [ ] Host tests (translation + the coil-level fail-safe invariant)
-- [ ] SPEC.md §4, USER_MANUAL settings reference; CHANGELOG
-- [ ] On-board check with one NC-wired and one NO-wired relay
+- [x] Host tests (translation + the coil-level fail-safe invariant)
+- [x] SPEC.md §4, USER_MANUAL settings reference; CHANGELOG
+- [ ] On-board check with one NC-wired and one NO-wired relay (handled
+      separately, on the shared physical board, alongside issues #3/#4)
 
 ## Files to Create/Modify
 - `components/device_config/`

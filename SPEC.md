@@ -119,6 +119,13 @@ control regardless of SignalK connectivity).
   `default-safe` policy transition to `off`; `hold` relays are unaffected.
   Reconnection does not itself change relay state (the server must
   re-PUT/re-sync if it wants a particular state).
+- Every transition above acts on the relay's coil directly. For a
+  `wiredNC` relay (§4), "coil off" is what a real power loss produces, and
+  is what keeps that relay's load powered through one — so a `default-safe`
+  transition, a boot default, or a de-energized cold-boot coil correctly
+  *reports* as `on` for a `wiredNC` relay, not `off`; that report is a
+  translation applied only where state is read or commanded, never a
+  change to which physical transition happens (§12).
 
 ## 4. Data Model
 
@@ -131,7 +138,19 @@ control regardless of SignalK connectivity).
   default 1000 ms)
 - `failSafe`: `hold` | `default-safe` (default `default-safe`)
 - `overrideDI`: optional DI channel number that force-drives this relay
-- `state`: `on` | `off` (runtime, persisted per `failSafe` policy)
+- `wiredNC`: bool, default `false` — the load is wired to this relay's NC
+  (normally-closed) terminal instead of NO. When set, every reported and
+  commanded `state` (SignalK, NMEA2000, web UI) is the *load's* state, the
+  opposite of the coil: a de-energized coil reads/commands as `on`. This
+  translation applies only at that reporting/command boundary — fail-safe
+  transitions (§3.2), boot restore, momentary auto-off and `hold`
+  persistence all act on the coil directly and are completely unaffected
+  by `wiredNC` (see §12). A momentary relay's pulse still just means "flip
+  the coil for `pulseMs`"; for a `wiredNC` momentary relay this is a brief
+  load-*off* blip rather than load-on.
+- `state`: `on` | `off` (runtime, persisted per `failSafe` policy; coil
+  level internally, translated for `wiredNC` at the reporting/command
+  boundary as above)
 
 **DigitalInputChannel** (1 per DI, 8 total)
 - `channel`: 1–8
@@ -299,7 +318,8 @@ firmware does not ship its own control UI.
 
 - **Persisted (NVS, via espOS config store)**: device config (bank id,
   network preference, per-channel name/mode/pulseMs/failSafe/overrideDI/
-  invert), and the last commanded state of each `hold`-policy relay.
+  wiredNC/invert), and the last commanded state of each `hold`-policy
+  relay (coil level, not translated for `wiredNC` — see §4, §12).
 - **Ephemeral**: digital input readings, `default-safe` relay state across
   reboot (always resets to off), connectivity state.
 
@@ -319,7 +339,8 @@ User-tunable (via config store, §6.3):
   point stays available either way. `ethEnabled` depends on this firmware
   providing its own W5500 driver, since espOS doesn't support the W5500.
 - Per-relay: name, mode (latching/momentary), pulse duration, fail-safe
-  policy, optional DI override source
+  policy, optional DI override source, `wiredNC` (load wired to the NC
+  terminal instead of NO; §4, §12)
 - Per-input: name, invert (NC vs NO sensor)
 - `publishSwitchesTree`: bool, default `true` — the
   `electrical.switches.bank.*` tree (§6.1)
@@ -440,3 +461,20 @@ Fixed (not user-tunable, board/firmware constants):
   horn or pump-test relay could stick on for an unbounded time with no
   bus activity — treated as unsafe by construction rather than a
   configuration a user could accidentally select.
+- **`wiredNC` translates only at the reporting/command boundary, never in
+  fail-safe/boot/momentary/`hold` logic** (issue #13): a NC-wired load
+  (e.g. a bilge pump or nav light meant to keep running through total
+  power loss) depends on "coil de-energized" to stay powered exactly the
+  way a real power loss leaves it. If `default-safe`, boot restore,
+  momentary auto-off or `hold` persistence routed through the `wiredNC`
+  translation instead of driving the coil directly, a NC-wired relay
+  would lose exactly the protection it was wired that way to get — and
+  only surface the mistake during a real emergency. So `relay_ctrl`'s
+  internal coil-level state (`s.mask`) is never translated; only its
+  public get/set/PUT surface is, mirroring `invert`'s existing translation
+  in `input_sense`. `wiredNC` + momentary is allowed and translated the
+  same way, with no special-casing: a pulse always means "flip the coil
+  for `pulseMs`", which for a `wiredNC` momentary relay is a brief
+  load-off blip rather than load-on (e.g. momentarily killing power to
+  reset something downstream) — unusual but real, and more predictable
+  than rejecting or silently reinterpreting the combination.
