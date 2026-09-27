@@ -179,6 +179,15 @@ that relay (it must not remember or infer the physical wiring) while
 the actual wiring, and therefore the load's real behavior, is
 unchanged.
 
+**B9 [auto] Cycle counters and runtime (#4).** Note relay 1's current
+`cycles`/`runTime` from `relays`. `relay 1 true`, wait 2 s, `relay 1
+false`, wait 2 s; repeat 3×. Pass if `cycles` increased by exactly 3 and
+`runTime` increased by ~6 s (±1 s, on-time only). Restart (`system/
+reboot`) and confirm both values survived (not reset to 0 — they're
+flushed to flash on a clean restart, not just every 10 min). Then
+`curl -s -X POST -H "$H" $B/api/v1/relays/1/counters/reset` → both back
+to 0. Repeat channel/`cycles`/`runTime` check for one input.
+
 ## C. Inputs
 
 **C1 [loop] Input polarity.** As B1, from the input side: with relay 8
@@ -207,6 +216,16 @@ reset relays 1 and 7's settings.
 `relay 8 true` → relay 2 on `by input`; `relay 8 false` → relay 2 off.
 Then `relay 2 true` from the web (override) → stays on until relay 8
 changes again.
+
+**C6 [human] Input alarm notification (#3).** Reuse C2's float-switch (or
+any mechanical switch) wiring on DI1. `setcfg
+'"input1_alarm":"alarm"'`. On the SignalK server, watch
+`notifications.electrical.switches.bank.0.1.state` (a SignalK app, or
+`GET /signalk/v1/api/vessels/self/notifications/electrical/switches/bank/0/1/state`).
+Flip the switch on: pass if a notification with `"state":"alarm"` and a
+message appears within the SignalK republish interval; flip off: pass
+if it clears to `"state":"normal"`. Then `setcfg
+'"input1_alarm":"off"'`.
 
 ## D. SignalK
 
