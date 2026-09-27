@@ -116,6 +116,21 @@ TEST_CASE("body: only a boolean \"on\" is accepted", "[web_ui]")
     TEST_ASSERT_TRUE(on);  // untouched by the failures
 }
 
+TEST_CASE("body: rtttl preview accepts a non-empty string only", "[web_ui]")
+{
+    char out[32];
+    TEST_ASSERT_TRUE(web_ui_parse_rtttl("{\"rtttl\":\"boot:d=4,o=5,b=63:c\"}", out, sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("boot:d=4,o=5,b=63:c", out);
+    TEST_ASSERT_FALSE(web_ui_parse_rtttl("{\"rtttl\":\"\"}", out, sizeof(out)));
+    TEST_ASSERT_FALSE(web_ui_parse_rtttl("{\"rtttl\":1}", out, sizeof(out)));
+    TEST_ASSERT_FALSE(web_ui_parse_rtttl("{}", out, sizeof(out)));
+    TEST_ASSERT_FALSE(web_ui_parse_rtttl("not json", out, sizeof(out)));
+    // Truncated, not overflowed, into a too-small buffer.
+    char small[5];
+    TEST_ASSERT_TRUE(web_ui_parse_rtttl("{\"rtttl\":\"abcdef\"}", small, sizeof(small)));
+    TEST_ASSERT_EQUAL_STRING("abcd", small);
+}
+
 TEST_CASE("state: last source and age per relay, null until known", "[web_ui]")
 {
     fresh();

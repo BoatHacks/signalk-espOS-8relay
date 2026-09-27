@@ -187,8 +187,10 @@ overrides.
 | Controlled by input | None | An input (1–8) that switches this relay directly |
 | Input link | Follow | *Follow*: the relay copies its input. *Toggle*: each press of a push button on the input switches the relay over (section 7.4). |
 | Maximum on-time | 0 (no limit) | Switch off automatically after this long, however the relay was switched on. Ignored in momentary mode. |
-| On chirp | relay-on | Tone (from the Tones page, section 7.7) to play when this relay switches on by a direct command (SignalK, NMEA 2000, the relay page, or an input override) -- not for an automatic change. *(none)* = no chirp. |
+| On chirp | relay-on | Latching mode only: tone (from the Tones page, section 7.7) to play when this relay switches on by a direct command (SignalK, NMEA 2000, the relay page, or an input override) -- not for an automatic change. *(none)* = no chirp. |
 | Off chirp | relay-off | As above, for switching off. |
+| Pulse-start chirp | pulse-start | Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above. |
+| Pulse-stop chirp | pulse-stop | Momentary mode only: tone to play when a pulse ends -- its timer running out counts too, unlike the off chirp above, since that's the normal way a pulse finishes. |
 
 ### 6.4 Each input
 
@@ -196,7 +198,8 @@ overrides.
 |---|---|---|
 | Name | Input *n* | Shown in SignalK apps |
 | Invert | Off | Turn on for normally-closed switches |
-| Chirp | input | Tone (from the Tones page, section 7.7) to play when this input's reported state changes. *(none)* = no chirp. |
+| On chirp | input | Tone (from the Tones page, section 7.7) to play when this input's reported state changes to on. *(none)* = no chirp. |
+| Off chirp | input | As above, for changing to off. |
 
 ### 6.5 Other
 
@@ -359,12 +362,17 @@ chirp on:
 - **A BOOT-button action** (section 8), just before the board restarts: a
   distinct chirp for reopening the setup access point, and another for a
   factory reset.
-- **A relay switching on or off** by a direct command (SignalK, NMEA 2000,
-  the relay page, or an input override) -- not for an automatic change
-  (a momentary pulse ending, the SignalK-loss fail-safe, or the maximum
-  on-time running out), which would be noise rather than useful feedback.
-- **An input's reported state changing** (after debouncing, never on a
-  raw bounce).
+- **A latching relay switching on or off** by a direct command (SignalK,
+  NMEA 2000, the relay page, or an input override) -- not for an
+  automatic change (the SignalK-loss fail-safe, or the maximum on-time
+  running out), which would be noise rather than useful feedback.
+- **A momentary relay's pulse starting or ending**: starting always means
+  a direct on-command; ending includes the pulse's own timer running out,
+  since that's the normal, expected way it finishes, not a surprise.
+  These use their own pulse-start/pulse-stop chirps (section 6.3), not
+  the on/off chirps above.
+- **An input's reported state changing** to on or off (after debouncing,
+  never on a raw bounce; each direction has its own chirp, section 6.4).
 
 A chirp never plays over, or gets queued behind, the alarm or the
 BOOT-button's LED override (section 8): it's silently skipped while either
@@ -375,12 +383,15 @@ Open `http://<board address>/tones` to manage this. It has:
 - A **tone library**: named tones written as RTTTL (Ring Tone Text Transfer
   Language, the format used by old ringtone-composer tools) --
   `name:d=<default duration>,o=<default octave>,b=<tempo>:<notes>`, e.g.
-  `boot:d=16,o=5,b=200:c,e,g`. Add, edit or delete entries, then *Save tone
-  library*. The board ships with six: `boot`, `portal`, `reset`,
-  `relay-on`, `relay-off`, `input`.
+  `boot:d=16,o=7,b=200:c,e,g`. Add, edit or delete entries, then *Save tone
+  library*. Each entry has a *Play* button to hear it immediately, without
+  saving first -- handy while writing or tweaking an RTTTL string. The
+  board ships with eight: `boot`, `portal`, `reset`, `relay-on`,
+  `relay-off`, `pulse-start`, `pulse-stop`, `input`.
 - A **dropdown per event** (boot, setup portal, factory reset, each
-  relay's on/off, each input) to pick which library tone plays for it, or
-  *(none)* for silence. Changes here apply immediately.
+  relay's on/off and pulse-start/pulse-stop, each input's on/off) to pick
+  which library tone plays for it, or *(none)* for silence. Changes here
+  apply immediately.
 
 ## 8. Troubleshooting
 

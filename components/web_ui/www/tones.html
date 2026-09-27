@@ -42,16 +42,18 @@ select { min-width: 140px; }
   padding: 10px 14px; border-top: 1px solid var(--line); }
 .row:first-child { border-top: 0; }
 .row.single { grid-template-columns: minmax(0, 1fr) auto; }
+.wrap { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.wrap > div { display: flex; align-items: center; gap: 6px; }
 .name { font-weight: 600; overflow-wrap: anywhere; }
 .meta { font-size: 13px; color: var(--muted); }
 .toggle-row { padding: 12px 14px; }
-.lib-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: 8px;
+.lib-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto auto; gap: 8px;
   padding: 10px 14px; border-top: 1px solid var(--line); align-items: center; }
 .lib-row:first-child { border-top: 0; }
 .lib-row input { width: 100%; }
 .add { padding: 10px 14px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; }
 @media (min-width: 640px) {
-  .lib-row { grid-template-columns: 160px 1fr auto; }
+  .lib-row { grid-template-columns: 160px 1fr auto auto; }
 }
 </style>
 </head>
@@ -177,23 +179,36 @@ function renderBootList() {
   }
 }
 
+function labeledTone(label, key, current) {
+  const div = el("div");
+  const sel = toneSelect(current, (v) => setKey(key, v, label));
+  div.append(document.createTextNode(label + ": "), sel);
+  return div;
+}
+
 function renderRelayList() {
   const list = document.getElementById("relay-list");
   list.replaceChildren();
   for (let n = 1; n <= 8; n++) {
-    const row = el("div", "row");
+    const row = el("div", "row single");
     const name = cfg["relay" + n + "_name"] || ("Relay " + n);
+    const momentary = cfg["relay" + n + "_mode"] === "momentary";
     const info = el("div");
-    info.append(el("div", "name", n + " · " + name));
-    const onSel = toneSelect(cfg["relay" + n + "_on_tone"] || "",
-      (v) => setKey("relay" + n + "_on_tone", v, "relay " + n + " on chirp"));
-    const offSel = toneSelect(cfg["relay" + n + "_off_tone"] || "",
-      (v) => setKey("relay" + n + "_off_tone", v, "relay " + n + " off chirp"));
-    const ctl = el("div");
-    ctl.append(document.createTextNode("on: "), onSel);
-    const ctl2 = el("div");
-    ctl2.append(document.createTextNode("off: "), offSel);
-    row.append(info, ctl, ctl2);
+    info.append(el("div", "name", n + " · " + name),
+      el("div", "meta", momentary ? "momentary" : "latching"));
+    const wrap = el("div", "wrap");
+    if (momentary) {
+      wrap.append(
+        labeledTone("pulse-start", "relay" + n + "_ps_tone", cfg["relay" + n + "_ps_tone"] || ""),
+        labeledTone("pulse-stop", "relay" + n + "_pe_tone", cfg["relay" + n + "_pe_tone"] || ""),
+      );
+    } else {
+      wrap.append(
+        labeledTone("on", "relay" + n + "_on_tone", cfg["relay" + n + "_on_tone"] || ""),
+        labeledTone("off", "relay" + n + "_off_tone", cfg["relay" + n + "_off_tone"] || ""),
+      );
+    }
+    row.append(info, wrap);
     list.append(row);
   }
 }
@@ -202,13 +217,19 @@ function renderInputList() {
   const list = document.getElementById("input-list");
   list.replaceChildren();
   for (let n = 1; n <= 8; n++) {
-    const row = el("div", "row single");
+    const row = el("div", "row");
     const name = cfg["input" + n + "_name"] || ("Input " + n);
     const info = el("div");
     info.append(el("div", "name", n + " · " + name));
-    const sel = toneSelect(cfg["input" + n + "_tone"] || "",
-      (v) => setKey("input" + n + "_tone", v, "input " + n + " chirp"));
-    row.append(info, sel);
+    const onSel = toneSelect(cfg["input" + n + "_on_tone"] || "",
+      (v) => setKey("input" + n + "_on_tone", v, "input " + n + " on chirp"));
+    const offSel = toneSelect(cfg["input" + n + "_off_tone"] || "",
+      (v) => setKey("input" + n + "_off_tone", v, "input " + n + " off chirp"));
+    const ctl = el("div");
+    ctl.append(document.createTextNode("on: "), onSel);
+    const ctl2 = el("div");
+    ctl2.append(document.createTextNode("off: "), offSel);
+    row.append(info, ctl, ctl2);
     list.append(row);
   }
 }
@@ -228,10 +249,13 @@ function renderLibrary() {
     rtttlInput.value = t.rtttl;
     rtttlInput.placeholder = "name:d=4,o=5,b=63:c,e,g";
     rtttlInput.oninput = () => { t.rtttl = rtttlInput.value; };
+    const play = el("button", "", "Play");
+    play.type = "button";
+    play.onclick = () => playTone(rtttlInput.value, play);
     const del = el("button", "danger", "Delete");
     del.type = "button";
     del.onclick = () => { library.splice(i, 1); renderAll(); };
-    row.append(nameInput, rtttlInput, del);
+    row.append(nameInput, rtttlInput, play, del);
     list.append(row);
   });
   if (library.length === 0) {
@@ -246,6 +270,26 @@ function renderAll() {
   renderRelayList();
   renderInputList();
   renderLibrary();
+}
+
+async function playTone(rtttl, button) {
+  if (!rtttl.trim()) {
+    showStatus("Nothing to play: the RTTTL field is empty", true);
+    return;
+  }
+  button.disabled = true;
+  showStatus("Playing…");
+  try {
+    await handle(await fetch("/api/v1/buzzer/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rtttl }),
+    }));
+    showStatus("Playing");
+  } catch (e) {
+    showStatus("Play failed: " + e.message, true);
+  }
+  button.disabled = false;
 }
 
 async function load() {

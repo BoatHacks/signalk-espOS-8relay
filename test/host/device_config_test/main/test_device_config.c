@@ -69,7 +69,10 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
         TEST_ASSERT_FALSE(c.inputs[i].invert);
         TEST_ASSERT_EQUAL_STRING("relay-on", c.relays[i].on_tone);
         TEST_ASSERT_EQUAL_STRING("relay-off", c.relays[i].off_tone);
-        TEST_ASSERT_EQUAL_STRING("input", c.inputs[i].tone);
+        TEST_ASSERT_EQUAL_STRING("pulse-start", c.relays[i].pulse_start_tone);
+        TEST_ASSERT_EQUAL_STRING("pulse-stop", c.relays[i].pulse_stop_tone);
+        TEST_ASSERT_EQUAL_STRING("input", c.inputs[i].on_tone);
+        TEST_ASSERT_EQUAL_STRING("input", c.inputs[i].off_tone);
     }
     store_down();
 }
@@ -91,7 +94,10 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ESP_OK(espos_config_set_str("swbank", "boot_tone", "custom-boot"));
     TEST_ESP_OK(espos_config_set_str("swbank", "relay3_on_tone", "custom-on"));
     TEST_ESP_OK(espos_config_set_str("swbank", "relay3_off_tone", ""));
-    TEST_ESP_OK(espos_config_set_str("swbank", "input2_tone", "custom-input"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "relay3_ps_tone", "custom-pulse-start"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "relay3_pe_tone", "custom-pulse-stop"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "input2_on_tone", "custom-input-on"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "input2_off_tone", "custom-input-off"));
 
     device_config_t c;
     TEST_ESP_OK(device_config_load(&c));
@@ -111,7 +117,10 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ASSERT_EQUAL_STRING("custom-boot", c.boot_tone);
     TEST_ASSERT_EQUAL_STRING("custom-on", c.relays[2].on_tone);
     TEST_ASSERT_EQUAL_STRING("", c.relays[2].off_tone);
-    TEST_ASSERT_EQUAL_STRING("custom-input", c.inputs[1].tone);
+    TEST_ASSERT_EQUAL_STRING("custom-pulse-start", c.relays[2].pulse_start_tone);
+    TEST_ASSERT_EQUAL_STRING("custom-pulse-stop", c.relays[2].pulse_stop_tone);
+    TEST_ASSERT_EQUAL_STRING("custom-input-on", c.inputs[1].on_tone);
+    TEST_ASSERT_EQUAL_STRING("custom-input-off", c.inputs[1].off_tone);
     store_down();
 }
 

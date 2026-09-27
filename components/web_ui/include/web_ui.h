@@ -4,9 +4,10 @@
 // GET /api/v1/relays/status for the page's status line, and
 // POST /api/v1/buzzer/test. Also GET /tones (plan 19, issue #14): CRUD for
 // the named RTTTL tone library and the event/channel chirp settings, built
-// entirely on espOS's existing GET/PUT /api/v1/config. Endpoints are
-// protected by espOS's API key like its own; the pages are public and show
-// a login hint when the API refuses it.
+// entirely on espOS's existing GET/PUT /api/v1/config, plus
+// POST /api/v1/buzzer/preview with {"rtttl": "..."} for the Tones page's
+// per-tone Play button. Endpoints are protected by espOS's API key like its
+// own; the pages are public and show a login hint when the API refuses it.
 #pragma once
 
 #include <stdbool.h>
@@ -30,6 +31,10 @@ typedef struct {
     // Play the buzzer's alarm pattern once; ESP_ERR_INVALID_STATE while it
     // is already sounding.
     esp_err_t (*test_buzzer)(void);
+    // Play an arbitrary RTTTL string once (Tones page preview).
+    // ESP_ERR_INVALID_ARG if it has no playable notes, ESP_ERR_INVALID_STATE
+    // while the buzzer is already sounding.
+    esp_err_t (*preview_tone)(const char *rtttl);
 } web_ui_io_t;
 
 // Register the page and endpoints. Call after espos_start(), which starts

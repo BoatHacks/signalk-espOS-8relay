@@ -164,6 +164,37 @@ static esp_err_t post_buzzer_test(httpd_req_t *req)
     return espos_httpd_send_json(req, "202 Accepted", "{\"started\":true}");
 }
 
+static esp_err_t post_buzzer_preview(httpd_req_t *req)
+{
+    if (!espos_httpd_require_json(req)) {
+        return ESP_OK;
+    }
+    char *body = NULL;
+    size_t len = 0;
+    esp_err_t err = espos_httpd_read_body(req, &body, &len);
+    if (err != ESP_OK) {
+        return ESP_FAIL;  // 413 already sent, or the socket is gone
+    }
+    char rtttl[256];
+    const bool ok = web_ui_parse_rtttl(body, rtttl, sizeof(rtttl));
+    free(body);
+    if (!ok) {
+        return espos_httpd_send_error(req, "400 Bad Request", "bad_body", "expected {\"rtttl\": \"...\"}");
+    }
+    err = s_io->preview_tone(rtttl);
+    if (err == ESP_ERR_INVALID_ARG) {
+        return espos_httpd_send_error(req, "400 Bad Request", "bad_rtttl", "no playable notes in that RTTTL string");
+    }
+    if (err == ESP_ERR_INVALID_STATE) {
+        return espos_httpd_send_error(req, "409 Conflict", "buzzer_busy",
+                                      "the buzzer is already sounding (an alarm, a test or another chirp)");
+    }
+    if (err != ESP_OK) {
+        return espos_httpd_send_error(req, "503 Service Unavailable", "buzzer_failed", esp_err_to_name(err));
+    }
+    return espos_httpd_send_json(req, "202 Accepted", "{\"started\":true}");
+}
+
 static esp_err_t put_one(httpd_req_t *req)
 {
     const uint8_t ch = web_ui_parse_channel(req->uri, API_PATH);
@@ -216,6 +247,8 @@ esp_err_t web_ui_start(const web_ui_io_t *io, const device_config_t *cfg)
         {{.uri = API_PATH, .method = HTTP_GET, .handler = get_state}, ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH "/status", .method = HTTP_GET, .handler = get_status}, ESPOS_HTTPD_PROTECTED},
         {{.uri = "/api/v1/buzzer/test", .method = HTTP_POST, .handler = post_buzzer_test}, ESPOS_HTTPD_PROTECTED},
+        {{.uri = "/api/v1/buzzer/preview", .method = HTTP_POST, .handler = post_buzzer_preview},
+         ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH, .method = HTTP_PUT, .handler = put_all}, ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH "/*", .method = HTTP_PUT, .handler = put_one}, ESPOS_HTTPD_PROTECTED},
     };

@@ -541,3 +541,18 @@ TEST_CASE("event chirps: only direct commands, not automatic changes", "[relay_c
     TEST_ASSERT_FALSE(relay_ctrl_source_chirps(RELAY_SRC_FAILSAFE));
     TEST_ASSERT_FALSE(relay_ctrl_source_chirps(RELAY_SRC_MAX_ON));
 }
+
+TEST_CASE("is_momentary reports each relay's current mode", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[2].mode = RELAY_MODE_MOMENTARY;
+    start();
+    TEST_ASSERT_FALSE(relay_ctrl_is_momentary(1));
+    TEST_ASSERT_TRUE(relay_ctrl_is_momentary(3));
+    TEST_ASSERT_FALSE(relay_ctrl_is_momentary(0));
+    TEST_ASSERT_FALSE(relay_ctrl_is_momentary(9));
+
+    cfg.relays[2].mode = RELAY_MODE_LATCHING;
+    relay_ctrl_update_config(&cfg);
+    TEST_ASSERT_FALSE(relay_ctrl_is_momentary(3));
+}

@@ -76,14 +76,22 @@ esp_err_t device_config_load(device_config_t *out)
         get_str(key, r->on_tone, sizeof(r->on_tone));
         snprintf(key, sizeof(key), "relay%d_off_tone", n);
         get_str(key, r->off_tone, sizeof(r->off_tone));
+        // Stored as "ps"/"pe" (espOS key names cap at 15 chars): pulse-start,
+        // pulse-end, matching RELAY_SRC_PULSE_END.
+        snprintf(key, sizeof(key), "relay%d_ps_tone", n);
+        get_str(key, r->pulse_start_tone, sizeof(r->pulse_start_tone));
+        snprintf(key, sizeof(key), "relay%d_pe_tone", n);
+        get_str(key, r->pulse_stop_tone, sizeof(r->pulse_stop_tone));
 
         input_cfg_t *in = &out->inputs[n - 1];
         snprintf(key, sizeof(key), "input%d_name", n);
         get_str(key, in->name, sizeof(in->name));
         snprintf(key, sizeof(key), "input%d_invert", n);
         in->invert = get_bool(key);
-        snprintf(key, sizeof(key), "input%d_tone", n);
-        get_str(key, in->tone, sizeof(in->tone));
+        snprintf(key, sizeof(key), "input%d_on_tone", n);
+        get_str(key, in->on_tone, sizeof(in->on_tone));
+        snprintf(key, sizeof(key), "input%d_off_tone", n);
+        get_str(key, in->off_tone, sizeof(in->off_tone));
     }
     return ESP_OK;
 }

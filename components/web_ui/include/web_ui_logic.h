@@ -59,6 +59,10 @@ uint8_t web_ui_parse_channel(const char *uri, const char *prefix);
 // {"on": true|false} → *on. False for anything else.
 bool web_ui_parse_on(const char *body, bool *on);
 
+// {"rtttl": "..."} → out (truncated to size - 1, like snprintf). False if
+// the field is missing, not a string, or empty.
+bool web_ui_parse_rtttl(const char *body, char *out, size_t size);
+
 #ifdef __cplusplus
 }
 #endif

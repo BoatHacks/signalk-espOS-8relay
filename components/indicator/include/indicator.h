@@ -26,7 +26,11 @@ typedef enum {
 
 void indicator_play_event(indicator_event_t event);
 void indicator_play_relay_tone(uint8_t channel, bool on);
-void indicator_play_input_tone(uint8_t channel);
+void indicator_play_input_tone(uint8_t channel, bool on);
+
+// Momentary relays only: a pulse starting or ending, using the relay's
+// pulse_start_tone/pulse_stop_tone instead of its on_tone/off_tone.
+void indicator_play_relay_pulse_tone(uint8_t channel, bool start);
 
 // The BOOT button (plan 14) drives this while held: NONE shows espOS
 // health/SignalK status as usual, anything else takes over the LED (not the
@@ -41,6 +45,15 @@ void indicator_update_config(const device_config_t *cfg);
 // alarms. ESP_ERR_INVALID_STATE while an alarm or another test is sounding,
 // or before indicator_start().
 esp_err_t indicator_test_buzzer(void);
+
+// Play an arbitrary RTTTL string once (the Tones page's per-tone Play
+// button, for previewing an entry before saving it) -- like
+// indicator_test_buzzer(), this ignores buzzer_on_event and the priority
+// rules only apply the usual way (skipped/cut off by the override or an
+// alarm). ESP_ERR_INVALID_ARG if `rtttl` has no playable notes.
+// ESP_ERR_INVALID_STATE while the buzzer is already busy, or before
+// indicator_start().
+esp_err_t indicator_play_rtttl(const char *rtttl);
 
 #ifdef __cplusplus
 }

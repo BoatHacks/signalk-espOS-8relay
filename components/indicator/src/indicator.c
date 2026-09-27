@@ -48,8 +48,17 @@ static struct {
     atomic_int boot_idx, portal_idx, reset_idx;  // -1 = no tone assigned
     atomic_int relay_on_idx[BOARD_CHANNELS];
     atomic_int relay_off_idx[BOARD_CHANNELS];
-    atomic_int input_idx[BOARD_CHANNELS];
+    atomic_int pulse_start_idx[BOARD_CHANNELS];
+    atomic_int pulse_stop_idx[BOARD_CHANNELS];
+    atomic_int input_on_idx[BOARD_CHANNELS];
+    atomic_int input_off_idx[BOARD_CHANNELS];
     atomic_int chirp_request;  // index into tones[] a caller wants played, -1 = none
+
+    // Tones page "Play" button (plan 19 follow-up): an arbitrary one-shot
+    // RTTTL string, not looked up from the library. `preview` is guarded by
+    // s_tone_mux like `tones` above.
+    indicator_tone_t preview;
+    atomic_bool preview_requested;
 } s;
 
 static portMUX_TYPE s_tone_mux = portMUX_INITIALIZER_UNLOCKED;
@@ -82,6 +91,10 @@ static void indicator_task(void *arg)
     int64_t chirp_start_us = 0;
     uint32_t chirp_len_ms = 0;
     indicator_tone_t current_chirp = {0};
+    bool previewing = false;
+    int64_t preview_start_us = 0;
+    uint32_t preview_len_ms = 0;
+    indicator_tone_t current_preview = {0};
 
     for (;;) {
         const espos_health_state_t health = espos_health_worst();
@@ -110,11 +123,13 @@ static void indicator_task(void *arg)
         if (suppress_chirp) {
             atomic_store(&s.chirp_request, -1);
             chirping = false;
+            atomic_store(&s.preview_requested, false);
+            previewing = false;
         }
 
         if (alarm) {
             testing = false;  // a real alarm takes over from a test
-        } else if (!testing && !chirping && atomic_exchange(&s.test_requested, false)) {
+        } else if (!testing && !chirping && !previewing && atomic_exchange(&s.test_requested, false)) {
             espos_net_status_t net = {0};
             char text[16];
             espos_net_get_status(&net);
@@ -138,7 +153,7 @@ static void indicator_task(void *arg)
         }
         alarm_was = alarm;
 
-        if (!suppress_chirp && !testing && !chirping) {
+        if (!suppress_chirp && !testing && !chirping && !previewing) {
             const int req = atomic_exchange(&s.chirp_request, -1);
             if (req >= 0) {
                 taskENTER_CRITICAL(&s_tone_mux);
@@ -153,6 +168,21 @@ static void indicator_task(void *arg)
                     chirp_len_ms = rtttl_duration_ms(current_chirp.notes, current_chirp.n_notes);
                     ESP_LOGI(TAG, "chirp: \"%s\"", current_chirp.name);
                 }
+            }
+        }
+
+        // Tones page "Play" button: same one-shot mechanism as a chirp, but
+        // the tone comes straight from the request, not a library lookup.
+        if (!suppress_chirp && !testing && !chirping && !previewing &&
+            atomic_exchange(&s.preview_requested, false)) {
+            taskENTER_CRITICAL(&s_tone_mux);
+            current_preview = s.preview;
+            taskEXIT_CRITICAL(&s_tone_mux);
+            if (current_preview.n_notes > 0) {
+                previewing = true;
+                preview_start_us = esp_timer_get_time();
+                preview_len_ms = rtttl_duration_ms(current_preview.notes, current_preview.n_notes);
+                ESP_LOGI(TAG, "preview: \"%s\"", current_preview.name);
             }
         }
 
@@ -182,12 +212,23 @@ static void indicator_task(void *arg)
                     want_freq = note_freq;
                 }
             }
+        } else if (previewing) {
+            const uint32_t t_ms = (uint32_t)((esp_timer_get_time() - preview_start_us) / 1000);
+            if (t_ms >= preview_len_ms) {
+                previewing = false;  // one pass only
+            } else {
+                uint16_t note_freq = 0;
+                if (rtttl_tone_at(current_preview.notes, current_preview.n_notes, t_ms, &note_freq)) {
+                    tone = true;
+                    want_freq = note_freq;
+                }
+            }
         }
         if (want_freq != applied_freq && want_freq != 0 &&
             ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, want_freq) == ESP_OK) {
             applied_freq = want_freq;
         }
-        atomic_store(&s.busy, alarm || testing || chirping);
+        atomic_store(&s.busy, alarm || testing || chirping || previewing);
         if (tone != tone_was) {
             set_tone(tone);
             tone_was = tone;
@@ -222,7 +263,10 @@ void indicator_update_config(const device_config_t *cfg)
     for (int i = 0; i < BOARD_CHANNELS; i++) {
         atomic_store(&s.relay_on_idx[i], indicator_find_tone(tones, n, cfg->relays[i].on_tone));
         atomic_store(&s.relay_off_idx[i], indicator_find_tone(tones, n, cfg->relays[i].off_tone));
-        atomic_store(&s.input_idx[i], indicator_find_tone(tones, n, cfg->inputs[i].tone));
+        atomic_store(&s.pulse_start_idx[i], indicator_find_tone(tones, n, cfg->relays[i].pulse_start_tone));
+        atomic_store(&s.pulse_stop_idx[i], indicator_find_tone(tones, n, cfg->relays[i].pulse_stop_tone));
+        atomic_store(&s.input_on_idx[i], indicator_find_tone(tones, n, cfg->inputs[i].on_tone));
+        atomic_store(&s.input_off_idx[i], indicator_find_tone(tones, n, cfg->inputs[i].off_tone));
     }
 }
 
@@ -256,12 +300,20 @@ void indicator_play_relay_tone(uint8_t channel, bool on)
     request_chirp(atomic_load(on ? &s.relay_on_idx[channel - 1] : &s.relay_off_idx[channel - 1]));
 }
 
-void indicator_play_input_tone(uint8_t channel)
+void indicator_play_relay_pulse_tone(uint8_t channel, bool start)
 {
     if (channel < 1 || channel > BOARD_CHANNELS) {
         return;
     }
-    request_chirp(atomic_load(&s.input_idx[channel - 1]));
+    request_chirp(atomic_load(start ? &s.pulse_start_idx[channel - 1] : &s.pulse_stop_idx[channel - 1]));
+}
+
+void indicator_play_input_tone(uint8_t channel, bool on)
+{
+    if (channel < 1 || channel > BOARD_CHANNELS) {
+        return;
+    }
+    request_chirp(atomic_load(on ? &s.input_on_idx[channel - 1] : &s.input_off_idx[channel - 1]));
 }
 
 esp_err_t indicator_test_buzzer(void)
@@ -270,6 +322,23 @@ esp_err_t indicator_test_buzzer(void)
         return ESP_ERR_INVALID_STATE;
     }
     atomic_store(&s.test_requested, true);
+    return ESP_OK;
+}
+
+esp_err_t indicator_play_rtttl(const char *rtttl)
+{
+    indicator_tone_t tone = {0};
+    tone.n_notes = rtttl_parse(rtttl, tone.notes, RTTTL_MAX_NOTES);
+    if (tone.n_notes == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!atomic_load(&s.started) || atomic_load(&s.busy) || atomic_load(&s.preview_requested)) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    taskENTER_CRITICAL(&s_tone_mux);
+    s.preview = tone;
+    taskEXIT_CRITICAL(&s_tone_mux);
+    atomic_store(&s.preview_requested, true);
     return ESP_OK;
 }
 

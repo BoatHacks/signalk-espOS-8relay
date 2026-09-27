@@ -1,5 +1,6 @@
 #include "web_ui_logic.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -69,6 +70,18 @@ bool web_ui_parse_on(const char *body, bool *on)
     const bool ok = cJSON_IsBool(v);
     if (ok) {
         *on = cJSON_IsTrue(v);
+    }
+    cJSON_Delete(root);
+    return ok;
+}
+
+bool web_ui_parse_rtttl(const char *body, char *out, size_t size)
+{
+    cJSON *root = cJSON_Parse(body);
+    const cJSON *v = cJSON_GetObjectItemCaseSensitive(root, "rtttl");
+    const bool ok = cJSON_IsString(v) && v->valuestring[0] != '\0';
+    if (ok) {
+        snprintf(out, size, "%s", v->valuestring);
     }
     cJSON_Delete(root);
     return ok;

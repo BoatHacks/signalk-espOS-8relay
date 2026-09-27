@@ -80,6 +80,10 @@ esp_err_t relay_ctrl_toggle(uint8_t channel, relay_source_t src);
 bool relay_ctrl_get(uint8_t channel);
 uint8_t relay_ctrl_get_mask(void);
 
+// Whether relay `channel` is currently in momentary mode. False for an
+// out-of-range channel.
+bool relay_ctrl_is_momentary(uint8_t channel);
+
 esp_err_t relay_ctrl_add_listener(relay_listener_t cb, void *arg);
 
 // SignalK has been unreachable for the grace period: switch off every relay

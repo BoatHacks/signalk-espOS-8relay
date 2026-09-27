@@ -127,7 +127,7 @@
     {
       "name": "tone_patterns",
       "type": "string",
-      "default": "[{\"name\":\"boot\",\"rtttl\":\"boot:d=16,o=7,b=200:c,e,g\"},{\"name\":\"portal\",\"rtttl\":\"portal:d=8,o=7,b=180:e,c,e,c\"},{\"name\":\"reset\",\"rtttl\":\"reset:d=8,o=7,b=120:g,e,c\"},{\"name\":\"relay-on\",\"rtttl\":\"relay-on:d=16,o=7,b=250:c\"},{\"name\":\"relay-off\",\"rtttl\":\"relay-off:d=16,o=6,b=250:c\"},{\"name\":\"input\",\"rtttl\":\"input:d=16,o=6,b=250:c,c\"}]",
+      "default": "[{\"name\":\"boot\",\"rtttl\":\"boot:d=16,o=7,b=200:c,e,g\"},{\"name\":\"portal\",\"rtttl\":\"portal:d=8,o=7,b=180:e,c,e,c\"},{\"name\":\"reset\",\"rtttl\":\"reset:d=8,o=7,b=120:g,e,c\"},{\"name\":\"relay-on\",\"rtttl\":\"relay-on:d=16,o=7,b=250:c\"},{\"name\":\"relay-off\",\"rtttl\":\"relay-off:d=16,o=6,b=250:c\"},{\"name\":\"input\",\"rtttl\":\"input:d=16,o=6,b=250:c,c\"},{\"name\":\"pulse-start\",\"rtttl\":\"pulse-start:d=32,o=7,b=250:c\"},{\"name\":\"pulse-stop\",\"rtttl\":\"pulse-stop:d=32,o=6,b=250:c\"}]",
       "maxLength": 3999,
       "x": {
         "format": "table",
@@ -263,6 +263,24 @@
       "description": "As above, for this relay switching off by a direct command."
     },
     {
+      "name": "relay1_ps_tone",
+      "type": "string",
+      "default": "pulse-start",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 1: pulse-start chirp",
+      "description": "Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above."
+    },
+    {
+      "name": "relay1_pe_tone",
+      "type": "string",
+      "default": "pulse-stop",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 1: pulse-stop chirp",
+      "description": "Momentary mode only: tone to play when a pulse ends, whether its timer ran out or a direct command cut it short -- in place of the off chirp above."
+    },
+    {
       "name": "relay2_name",
       "type": "string",
       "default": "Relay 2",
@@ -356,6 +374,24 @@
       "group": "Tones",
       "title": "Relay 2: off chirp",
       "description": "As above, for this relay switching off by a direct command."
+    },
+    {
+      "name": "relay2_ps_tone",
+      "type": "string",
+      "default": "pulse-start",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 2: pulse-start chirp",
+      "description": "Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above."
+    },
+    {
+      "name": "relay2_pe_tone",
+      "type": "string",
+      "default": "pulse-stop",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 2: pulse-stop chirp",
+      "description": "Momentary mode only: tone to play when a pulse ends, whether its timer ran out or a direct command cut it short -- in place of the off chirp above."
     },
     {
       "name": "relay3_name",
@@ -453,6 +489,24 @@
       "description": "As above, for this relay switching off by a direct command."
     },
     {
+      "name": "relay3_ps_tone",
+      "type": "string",
+      "default": "pulse-start",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 3: pulse-start chirp",
+      "description": "Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above."
+    },
+    {
+      "name": "relay3_pe_tone",
+      "type": "string",
+      "default": "pulse-stop",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 3: pulse-stop chirp",
+      "description": "Momentary mode only: tone to play when a pulse ends, whether its timer ran out or a direct command cut it short -- in place of the off chirp above."
+    },
+    {
       "name": "relay4_name",
       "type": "string",
       "default": "Relay 4",
@@ -546,6 +600,24 @@
       "group": "Tones",
       "title": "Relay 4: off chirp",
       "description": "As above, for this relay switching off by a direct command."
+    },
+    {
+      "name": "relay4_ps_tone",
+      "type": "string",
+      "default": "pulse-start",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 4: pulse-start chirp",
+      "description": "Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above."
+    },
+    {
+      "name": "relay4_pe_tone",
+      "type": "string",
+      "default": "pulse-stop",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 4: pulse-stop chirp",
+      "description": "Momentary mode only: tone to play when a pulse ends, whether its timer ran out or a direct command cut it short -- in place of the off chirp above."
     },
     {
       "name": "relay5_name",
@@ -643,6 +715,24 @@
       "description": "As above, for this relay switching off by a direct command."
     },
     {
+      "name": "relay5_ps_tone",
+      "type": "string",
+      "default": "pulse-start",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 5: pulse-start chirp",
+      "description": "Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above."
+    },
+    {
+      "name": "relay5_pe_tone",
+      "type": "string",
+      "default": "pulse-stop",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 5: pulse-stop chirp",
+      "description": "Momentary mode only: tone to play when a pulse ends, whether its timer ran out or a direct command cut it short -- in place of the off chirp above."
+    },
+    {
       "name": "relay6_name",
       "type": "string",
       "default": "Relay 6",
@@ -736,6 +826,24 @@
       "group": "Tones",
       "title": "Relay 6: off chirp",
       "description": "As above, for this relay switching off by a direct command."
+    },
+    {
+      "name": "relay6_ps_tone",
+      "type": "string",
+      "default": "pulse-start",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 6: pulse-start chirp",
+      "description": "Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above."
+    },
+    {
+      "name": "relay6_pe_tone",
+      "type": "string",
+      "default": "pulse-stop",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 6: pulse-stop chirp",
+      "description": "Momentary mode only: tone to play when a pulse ends, whether its timer ran out or a direct command cut it short -- in place of the off chirp above."
     },
     {
       "name": "relay7_name",
@@ -833,6 +941,24 @@
       "description": "As above, for this relay switching off by a direct command."
     },
     {
+      "name": "relay7_ps_tone",
+      "type": "string",
+      "default": "pulse-start",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 7: pulse-start chirp",
+      "description": "Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above."
+    },
+    {
+      "name": "relay7_pe_tone",
+      "type": "string",
+      "default": "pulse-stop",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 7: pulse-stop chirp",
+      "description": "Momentary mode only: tone to play when a pulse ends, whether its timer ran out or a direct command cut it short -- in place of the off chirp above."
+    },
+    {
       "name": "relay8_name",
       "type": "string",
       "default": "Relay 8",
@@ -928,6 +1054,24 @@
       "description": "As above, for this relay switching off by a direct command."
     },
     {
+      "name": "relay8_ps_tone",
+      "type": "string",
+      "default": "pulse-start",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 8: pulse-start chirp",
+      "description": "Momentary mode only: tone to play when a pulse starts (a direct on-command), in place of the on chirp above."
+    },
+    {
+      "name": "relay8_pe_tone",
+      "type": "string",
+      "default": "pulse-stop",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 8: pulse-stop chirp",
+      "description": "Momentary mode only: tone to play when a pulse ends, whether its timer ran out or a direct command cut it short -- in place of the off chirp above."
+    },
+    {
       "name": "input1_name",
       "type": "string",
       "default": "Input 1",
@@ -945,13 +1089,22 @@
       "description": "Turn on for normally-closed switches."
     },
     {
-      "name": "input1_tone",
+      "name": "input1_on_tone",
       "type": "string",
       "default": "input",
       "maxLength": 24,
       "group": "Tones",
-      "title": "Input 1: chirp",
-      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+      "title": "Input 1: on chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes to on. Empty = no chirp."
+    },
+    {
+      "name": "input1_off_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 1: off chirp",
+      "description": "As above, for changing to off."
     },
     {
       "name": "input2_name",
@@ -971,13 +1124,22 @@
       "description": "Turn on for normally-closed switches."
     },
     {
-      "name": "input2_tone",
+      "name": "input2_on_tone",
       "type": "string",
       "default": "input",
       "maxLength": 24,
       "group": "Tones",
-      "title": "Input 2: chirp",
-      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+      "title": "Input 2: on chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes to on. Empty = no chirp."
+    },
+    {
+      "name": "input2_off_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 2: off chirp",
+      "description": "As above, for changing to off."
     },
     {
       "name": "input3_name",
@@ -997,13 +1159,22 @@
       "description": "Turn on for normally-closed switches."
     },
     {
-      "name": "input3_tone",
+      "name": "input3_on_tone",
       "type": "string",
       "default": "input",
       "maxLength": 24,
       "group": "Tones",
-      "title": "Input 3: chirp",
-      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+      "title": "Input 3: on chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes to on. Empty = no chirp."
+    },
+    {
+      "name": "input3_off_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 3: off chirp",
+      "description": "As above, for changing to off."
     },
     {
       "name": "input4_name",
@@ -1023,13 +1194,22 @@
       "description": "Turn on for normally-closed switches."
     },
     {
-      "name": "input4_tone",
+      "name": "input4_on_tone",
       "type": "string",
       "default": "input",
       "maxLength": 24,
       "group": "Tones",
-      "title": "Input 4: chirp",
-      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+      "title": "Input 4: on chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes to on. Empty = no chirp."
+    },
+    {
+      "name": "input4_off_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 4: off chirp",
+      "description": "As above, for changing to off."
     },
     {
       "name": "input5_name",
@@ -1049,13 +1229,22 @@
       "description": "Turn on for normally-closed switches."
     },
     {
-      "name": "input5_tone",
+      "name": "input5_on_tone",
       "type": "string",
       "default": "input",
       "maxLength": 24,
       "group": "Tones",
-      "title": "Input 5: chirp",
-      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+      "title": "Input 5: on chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes to on. Empty = no chirp."
+    },
+    {
+      "name": "input5_off_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 5: off chirp",
+      "description": "As above, for changing to off."
     },
     {
       "name": "input6_name",
@@ -1075,13 +1264,22 @@
       "description": "Turn on for normally-closed switches."
     },
     {
-      "name": "input6_tone",
+      "name": "input6_on_tone",
       "type": "string",
       "default": "input",
       "maxLength": 24,
       "group": "Tones",
-      "title": "Input 6: chirp",
-      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+      "title": "Input 6: on chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes to on. Empty = no chirp."
+    },
+    {
+      "name": "input6_off_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 6: off chirp",
+      "description": "As above, for changing to off."
     },
     {
       "name": "input7_name",
@@ -1101,13 +1299,22 @@
       "description": "Turn on for normally-closed switches."
     },
     {
-      "name": "input7_tone",
+      "name": "input7_on_tone",
       "type": "string",
       "default": "input",
       "maxLength": 24,
       "group": "Tones",
-      "title": "Input 7: chirp",
-      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+      "title": "Input 7: on chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes to on. Empty = no chirp."
+    },
+    {
+      "name": "input7_off_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 7: off chirp",
+      "description": "As above, for changing to off."
     },
     {
       "name": "input8_name",
@@ -1127,13 +1334,22 @@
       "description": "Turn on for normally-closed switches."
     },
     {
-      "name": "input8_tone",
+      "name": "input8_on_tone",
       "type": "string",
       "default": "input",
       "maxLength": 24,
       "group": "Tones",
-      "title": "Input 8: chirp",
-      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+      "title": "Input 8: on chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes to on. Empty = no chirp."
+    },
+    {
+      "name": "input8_off_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 8: off chirp",
+      "description": "As above, for changing to off."
     }
   ]
 }

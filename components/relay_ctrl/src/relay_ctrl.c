@@ -276,6 +276,17 @@ uint8_t relay_ctrl_get_mask(void)
     return m;
 }
 
+bool relay_ctrl_is_momentary(uint8_t channel)
+{
+    if (channel < 1 || channel > BOARD_CHANNELS) {
+        return false;
+    }
+    xSemaphoreTake(s.lock, portMAX_DELAY);
+    const bool momentary = s.cfg.relays[channel - 1].mode == RELAY_MODE_MOMENTARY;
+    xSemaphoreGive(s.lock);
+    return momentary;
+}
+
 esp_err_t relay_ctrl_add_listener(relay_listener_t cb, void *arg)
 {
     for (int l = 0; l < MAX_LISTENERS; l++) {

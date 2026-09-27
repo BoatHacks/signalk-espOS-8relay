@@ -39,13 +39,20 @@ typedef struct {
     // Tone library entry to chirp on a direct-command on/off (plan 19).
     char on_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
     char off_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
+    // Momentary mode only: used instead of on_tone/off_tone for a pulse
+    // starting (direct on-command) or ending (its timer, or a direct
+    // command cutting it short) -- both chirp, unlike a latching relay's
+    // off_tone, which only fires for a direct command.
+    char pulse_start_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
+    char pulse_stop_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
 } relay_cfg_t;
 
 typedef struct {
     char name[DEVICE_CONFIG_NAME_MAX + 1];
     bool invert;
     // Tone library entry to chirp on a debounced level change (plan 19).
-    char tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
+    char on_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
+    char off_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
 } input_cfg_t;
 
 typedef struct {

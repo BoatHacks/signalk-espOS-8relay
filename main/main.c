@@ -141,7 +141,16 @@ static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_
     web_ui_relay_changed(channel, source_name(src));
     sk_bridge_relay_changed(channel, on);
     n2k_bridge_state_changed();
-    if (relay_ctrl_source_chirps(src)) {
+    if (relay_ctrl_is_momentary(channel)) {
+        // A pulse's end always chirps, even when the timer ran it out
+        // (RELAY_SRC_PULSE_END): that's the normal way a pulse finishes,
+        // unlike a latching relay's automatic changes.
+        bool should_chirp = on ? relay_ctrl_source_chirps(src)
+                                : (relay_ctrl_source_chirps(src) || src == RELAY_SRC_PULSE_END);
+        if (should_chirp) {
+            indicator_play_relay_pulse_tone(channel, on);
+        }
+    } else if (relay_ctrl_source_chirps(src)) {
         indicator_play_relay_tone(channel, on);
     }
 }
@@ -150,7 +159,7 @@ static void on_input_change(uint8_t channel, bool on, uint8_t mask, void *arg)
 {
     sk_bridge_input_changed(channel, on);
     n2k_bridge_state_changed();
-    indicator_play_input_tone(channel);
+    indicator_play_input_tone(channel, on);
 }
 
 static void on_sk_stream(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -496,6 +505,7 @@ void app_main(void)
         .input_mask = input_sense_get_mask,
         .get_status = web_status,
         .test_buzzer = indicator_test_buzzer,
+        .preview_tone = indicator_play_rtttl,
     };
     // The relay page is a convenience; SignalK and NMEA 2000 don't need it.
     if (web_ui_start(&web_io, &cfg) != ESP_OK) {

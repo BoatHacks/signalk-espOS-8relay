@@ -51,10 +51,10 @@ variable-length named-pattern store, and a new CRUD web page.
     the original issue #14 scope (which only asked for power-on boot) —
     confirmed with the user as in-scope for this issue.
   - Per-channel dropdowns, each "(none)" or a library tone name:
-    `relay<N>_on_tone` / `relay<N>_off_tone` for N=1..8, `input<N>_tone`
-    for N=1..8 (one tone per input channel, fired on any debounced level
-    change — not separate high/low tones, matching the original plan's
-    "a distinct third tone for input changes").
+    `relay<N>_on_tone` / `relay<N>_off_tone` and `input<N>_on_tone` /
+    `input<N>_off_tone`, all N=1..8. Inputs originally shipped with one
+    tone per channel (any debounced level change); split into on/off
+    per the user's follow-up request, mirroring the relay shape.
   - "(none)"/off is represented by an empty string, not a separate enable
     flag — consistent with existing conventions in this config
     (`relay<N>_override_di` 0 = none, `relay<N>_max_on_s` 0 = no limit).
@@ -78,9 +78,10 @@ variable-length named-pattern store, and a new CRUD web page.
   - `relay-on`: a short high blip
   - `relay-off`: a short low blip
   - `input`: a short neutral double-blip
-  Every relay's `_on_tone`/`_off_tone` and every input's `_tone` default to
-  `relay-on`/`relay-off`/`input` respectively; `boot_tone`/`portal_tone`/
-  `factory_reset_tone` default to `boot`/`portal`/`reset`.
+  Every relay's and input's `_on_tone`/`_off_tone` default to `relay-on`/
+  `relay-off` (relays) or `input` (both directions, inputs — same tone
+  either way by default, but independently changeable); `boot_tone`/
+  `portal_tone`/`factory_reset_tone` default to `boot`/`portal`/`reset`.
 - **Implementation shape.**
   - A pure RTTTL parser (`rtttl.h`/`.c`, new files in `components/
     indicator/`): parses `name:d=..,o=..,b=..:notes` into a
@@ -177,17 +178,49 @@ dropdowns pick it up.
       the real target. Fixed (`io_task`'s per-reload copy and the
       tone-table parse buffer are now `static`); board now boots cleanly
       and repeatedly with no resets.
+- [x] Default tone frequencies fixed: several presets sat at 261-523 Hz,
+      well outside a passive piezo's efficient range (the reason
+      `buzzer_freq_hz` had its own min/max) and may have been inaudible;
+      moved to octaves 6-7. Confirmed on hardware after (a boot chirp
+      logged and, per the user, heard).
+- [x] Follow-up: `buzzer_freq_hz`'s range widened from 1000-5000 Hz to
+      42-10000 Hz (user request, unrelated to the audibility bug above).
+- [x] Follow-up: input tones split from one per channel into
+      `input<N>_on_tone`/`input<N>_off_tone`, mirroring the relay shape.
+- [x] Follow-up: Tones page gained a *Play* button per library row to
+      preview a tone before saving it. New `indicator_play_rtttl()` (an
+      ad-hoc one-shot tone, not a library lookup, sharing the chirp
+      priority/gating and mutual exclusion with the chirp/test tone) and
+      `POST /api/v1/buzzer/preview` (`{"rtttl": "..."}`, mirroring
+      `/api/v1/buzzer/test`'s conventions).
+- [x] Follow-up: a new "pulse" tone type for momentary relays --
+      `relay<N>_ps_tone`/`relay<N>_pe_tone` (pulse-start/pulse-end; stored
+      short because espOS key names cap at 15 chars) used instead of
+      on_tone/off_tone specifically in momentary mode. Pulse-end chirps on
+      the pulse's own timer running out too (`RELAY_SRC_PULSE_END`), not
+      just a direct stop command -- unlike a latching relay's off_tone,
+      since a pulse ending on its own is the expected way it concludes,
+      not a surprise. New `relay_ctrl_is_momentary()` and
+      `indicator_play_relay_pulse_tone()`. Caught and fixed a schema
+      validation error from key names over the 15-char limit
+      (`relay1_pulse_start_tone` etc.) during this step -- all key names
+      audited afterwards.
 - [ ] On-board check (needs a person at the board — network reachability
       and audible chirps aren't checkable from here): all boot-family +
-      relay + input chirps, non-interference with the alarm and the
+      relay + input chirps, pulse-start/pulse-stop on a momentary relay,
+      the Play button, non-interference with the alarm and the
       BOOT-button override, and the Tones page's CRUD + dropdowns
 
 ## Files to Create/Modify
 - `components/indicator/` (`rtttl.h`/`.c` new; `indicator_logic.*`,
   `indicator.c`/`.h` extended)
-- `components/relay_ctrl/` (`relay_ctrl_source_chirps`)
+- `components/relay_ctrl/` (`relay_ctrl_source_chirps`,
+  `relay_ctrl_is_momentary`)
 - `main/main.c` (event wiring)
 - `components/device_config/` (new settings)
-- `components/web_ui/` (`www/tones.html` new, `web_ui.c` route)
-- `test/host/indicator_test/`, `test/host/relay_ctrl_test/`
-- `USER_MANUAL.md`, `SPEC.md`, `CHANGELOG.md`
+- `components/web_ui/` (`www/tones.html` new, `web_ui.c`/`web_ui_logic.*`
+  routes: `/tones`, `POST /api/v1/buzzer/preview`)
+- `test/host/indicator_test/`, `test/host/relay_ctrl_test/`,
+  `test/host/device_config_test/`, `test/host/web_ui_test/`
+- `USER_MANUAL.md`, `CHANGELOG.md` (SPEC.md intentionally untouched, see
+  above)
