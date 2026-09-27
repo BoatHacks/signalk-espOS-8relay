@@ -56,6 +56,23 @@ static uint8_t hold_mask(void)
     return m;
 }
 
+// Channels wired to their NC terminal: a coil bit set in this mask reads/
+// commands as the *opposite* logical (load) state at relay_ctrl's public
+// get/set/PUT surface. Every internal coil-level path (fail-safe, boot,
+// momentary pulses, max on-time, hold storage) must never use this -- it
+// operates on s.mask directly and is deliberately left alone by this
+// translation, mirroring input_sense's `invert` (SPEC.md §4).
+static uint8_t wired_nc_mask(void)
+{
+    uint8_t m = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (s.cfg.relays[i].wired_nc) {
+            m |= 1u << i;
+        }
+    }
+    return m;
+}
+
 // Maximum on-time in ms, 0 = none. Momentary relays end by themselves.
 static uint32_t max_on_ms(int i)
 {
@@ -222,8 +239,14 @@ void relay_ctrl_update_config(const device_config_t *cfg)
     xSemaphoreGive(s.lock);
 }
 
-// relay_ctrl_set() and relay_ctrl_toggle(): `on` < 0 means "the opposite of
-// now", decided under the lock so two sources can't both read the old state.
+// relay_ctrl_set() and relay_ctrl_toggle(): `on_req` < 0 means "the opposite
+// of now" (a toggle), decided under the lock so two sources can't both read
+// the old state. A toggle flips the coil bit directly: flipping a bit and
+// translating it for `wiredNC` commute, so that's also the opposite of the
+// current *logical* state -- no separate translation needed. An explicit
+// on_req (0 or 1) is the caller's requested *logical* (load) state and is
+// translated to the coil level here, at the boundary, before anything below
+// touches the coil.
 static esp_err_t set_or_toggle(uint8_t channel, int on_req, relay_source_t src)
 {
     if (channel < 1 || channel > BOARD_CHANNELS) {
@@ -234,7 +257,7 @@ static esp_err_t set_or_toggle(uint8_t channel, int on_req, relay_source_t src)
 
     xSemaphoreTake(s.lock, portMAX_DELAY);
     const uint8_t before = s.mask;
-    const bool on = on_req < 0 ? !(s.mask & bit) : on_req;
+    const bool on = on_req < 0 ? !(s.mask & bit) : ((bool)on_req != s.cfg.relays[i].wired_nc);
     esp_err_t err = commit_locked(on ? (s.mask | bit) : (s.mask & ~bit));
     if (err == ESP_OK) {
         if (on && is_momentary(i)) {
@@ -247,9 +270,12 @@ static esp_err_t set_or_toggle(uint8_t channel, int on_req, relay_source_t src)
         track_max_on_locked(before, on ? bit : 0);
     }
     const uint8_t after = s.mask;
+    const uint8_t wnc = wired_nc_mask();
     xSemaphoreGive(s.lock);
 
-    notify(before, after, src);
+    // Listeners (SignalK, NMEA 2000, the web page, chirps) see the reported
+    // (logical) state, not the coil.
+    notify(before ^ wnc, after ^ wnc, src);
     return err;
 }
 
@@ -268,10 +294,13 @@ bool relay_ctrl_get(uint8_t channel)
     return channel >= 1 && channel <= BOARD_CHANNELS && (relay_ctrl_get_mask() & (1u << (channel - 1)));
 }
 
+// Reported (logical/load) state, translated for `wiredNC`. Every internal
+// user of coil state (fail-safe, boot, momentary, max on-time, hold
+// storage) reads s.mask directly instead, never this.
 uint8_t relay_ctrl_get_mask(void)
 {
     xSemaphoreTake(s.lock, portMAX_DELAY);
-    uint8_t m = s.mask;
+    uint8_t m = s.mask ^ wired_nc_mask();
     xSemaphoreGive(s.lock);
     return m;
 }
@@ -302,14 +331,20 @@ void relay_ctrl_sk_lost(void)
 {
     xSemaphoreTake(s.lock, portMAX_DELAY);
     const uint8_t before = s.mask;
+    // Fail-safe always de-energizes the coil directly, unconditionally --
+    // exactly what a real power loss does, whatever wiredNC says (SPEC.md
+    // §2, §4). A wiredNC relay then correctly *reports* on afterwards (its
+    // NC-wired load is powered by a de-energized coil): that's translated
+    // below for listeners, not re-inverted a second time here.
     const uint8_t off = (uint8_t)~hold_mask();
     if (commit_locked(s.mask & ~off) == ESP_OK) {
         s.pulsing &= ~off;
         track_max_on_locked(before, 0);
     }
     const uint8_t after = s.mask;
+    const uint8_t wnc = wired_nc_mask();
     xSemaphoreGive(s.lock);
-    notify(before, after, RELAY_SRC_FAILSAFE);
+    notify(before ^ wnc, after ^ wnc, RELAY_SRC_FAILSAFE);
 }
 
 void relay_ctrl_tick(void)
@@ -346,10 +381,11 @@ void relay_ctrl_tick(void)
         s.last_save_ms = now;  // also on failure, so a bad flash isn't hammered
     }
     const uint8_t after = s.mask;
+    const uint8_t wnc = wired_nc_mask();
     xSemaphoreGive(s.lock);
 
-    notify(before, after_pulses, RELAY_SRC_PULSE_END);
-    notify(after_pulses, after, RELAY_SRC_MAX_ON);
+    notify(before ^ wnc, after_pulses ^ wnc, RELAY_SRC_PULSE_END);
+    notify(after_pulses ^ wnc, after ^ wnc, RELAY_SRC_MAX_ON);
 }
 
 void relay_ctrl_reset(void)
