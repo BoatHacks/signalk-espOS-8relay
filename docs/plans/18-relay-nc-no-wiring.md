@@ -74,6 +74,16 @@ Host tests in `relay_ctrl_test`:
   value after restore reflects `wiredNC` correctly.
 - Flipping `wiredNC` live (like `invert`) changes what an unchanged coil
   level is reported as, without switching anything.
+
+**Decided 2026-09-27:** unlike `input_sense`'s `invert`, a bare `wiredNC`
+settings-save doesn't push an immediate SignalK delta today — it shows
+correctly on the next read or the next periodic republish instead.
+Reviewed and left as-is: `relay_ctrl_update_config()` doesn't push an
+immediate delta for *any* setting change today, not just `wiredNC`, so
+fixing this one setting would mean a new, more invasive `notify()` path
+that nothing else in `relay_ctrl` currently has. No functional gap —
+just a bounded delay (default republish interval, 10s).
+
 On the board: one relay wired to NC (dry contact opens the circuit when
 energized) and one to NO on the same expander line, wiredNC set only on
 the NC one, confirm reported/commanded state via SignalK matches the
