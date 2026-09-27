@@ -36,6 +36,9 @@ were made on 2026-09-25 and are recorded in each plan.
 | 15 | [Interlocked relay pairs](15-interlocked-pairs.md) | [#8](https://github.com/BoatHacks/signalk-espOS-8relay/issues/8) | 03 | Medium, safety-relevant |
 | 16 | [Schedules with the real-time clock](16-schedules.md) | [#9](https://github.com/BoatHacks/signalk-espOS-8relay/issues/9) | 03 | Large |
 | 17 | [Buzzer test button and frequency](17-buzzer-test-and-frequency.md) | [#10](https://github.com/BoatHacks/signalk-espOS-8relay/issues/10) | relay page | Small |
+| 18 | [Per-relay NC/NO wiring setting](18-relay-nc-no-wiring.md) | [#13](https://github.com/BoatHacks/signalk-espOS-8relay/issues/13) | 03 | Medium, correctness-sensitive |
+| 19 | [Buzzer sound effects on events](19-buzzer-event-sounds.md) | [#14](https://github.com/BoatHacks/signalk-espOS-8relay/issues/14) | 14, 17 | Medium |
+| 20 | [CODE_OF_CONDUCT.md and CONTRIBUTING.md](20-community-docs.md) | [#12](https://github.com/BoatHacks/signalk-espOS-8relay/issues/12) | — | Small, blocked on decisions |
 
 ## Facts established while writing these plans
 
