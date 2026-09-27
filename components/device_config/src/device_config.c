@@ -45,9 +45,14 @@ esp_err_t device_config_load(device_config_t *out)
     out->led_brightness = (uint8_t)get_int("led_brightness");
     out->buzzer_on_alarm = get_bool("buzzer_alarm");
     out->buzzer_freq_hz = (uint16_t)get_int("buzzer_freq_hz");
+    out->buzzer_on_event = get_bool("buzzer_event");
+    get_str("tone_patterns", out->tone_patterns, sizeof(out->tone_patterns));
+    get_str("boot_tone", out->boot_tone, sizeof(out->boot_tone));
+    get_str("portal_tone", out->portal_tone, sizeof(out->portal_tone));
+    get_str("reset_tone", out->factory_reset_tone, sizeof(out->factory_reset_tone));
 
-    char key[16];
-    char val[16];
+    char key[24];
+    char val[24];
     for (int n = 1; n <= BOARD_CHANNELS; n++) {
         relay_cfg_t *r = &out->relays[n - 1];
         snprintf(key, sizeof(key), "relay%d_name", n);
@@ -67,12 +72,18 @@ esp_err_t device_config_load(device_config_t *out)
         r->link = strcmp(val, "toggle") == 0 ? INPUT_LINK_TOGGLE : INPUT_LINK_FOLLOW;
         snprintf(key, sizeof(key), "relay%d_max_on_s", n);
         r->max_on_s = (uint32_t)get_int(key);
+        snprintf(key, sizeof(key), "relay%d_on_tone", n);
+        get_str(key, r->on_tone, sizeof(r->on_tone));
+        snprintf(key, sizeof(key), "relay%d_off_tone", n);
+        get_str(key, r->off_tone, sizeof(r->off_tone));
 
         input_cfg_t *in = &out->inputs[n - 1];
         snprintf(key, sizeof(key), "input%d_name", n);
         get_str(key, in->name, sizeof(in->name));
         snprintf(key, sizeof(key), "input%d_invert", n);
         in->invert = get_bool(key);
+        snprintf(key, sizeof(key), "input%d_tone", n);
+        get_str(key, in->tone, sizeof(in->tone));
     }
     return ESP_OK;
 }

@@ -136,3 +136,125 @@ TEST_CASE("one pass of the message lasts the sum of its segments", "[indicator]"
     const uint32_t len = morse_duration_ms(segs, n, 80);
     TEST_ASSERT_TRUE(morse_tone_at(segs, n, 80, 0, len - 1));
 }
+
+// -------------------------------------------------------------- RTTTL (#14)
+
+TEST_CASE("RTTTL: duration comes from the tempo and the default/note duration", "[indicator]")
+{
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    // Whole note at 200 bpm = 240000/200 = 1200 ms; 16th = 75 ms.
+    size_t n = rtttl_parse("boot:d=16,o=5,b=200:c,e,g", notes, RTTTL_MAX_NOTES);
+    TEST_ASSERT_EQUAL(3, n);
+    TEST_ASSERT_EQUAL(75, notes[0].duration_ms);
+    TEST_ASSERT_EQUAL(75, notes[1].duration_ms);
+    TEST_ASSERT_EQUAL(75, notes[2].duration_ms);
+    // c5, e5, g5 (equal temperament, A4 = 440).
+    TEST_ASSERT_EQUAL(523, notes[0].freq_hz);
+    TEST_ASSERT_EQUAL(659, notes[1].freq_hz);
+    TEST_ASSERT_EQUAL(784, notes[2].freq_hz);
+    TEST_ASSERT_EQUAL(225, rtttl_duration_ms(notes, n));
+}
+
+TEST_CASE("RTTTL: a per-note duration/octave overrides the defaults", "[indicator]")
+{
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    size_t n = rtttl_parse("x:d=4,o=4,b=120:8c5", notes, RTTTL_MAX_NOTES);
+    TEST_ASSERT_EQUAL(1, n);
+    TEST_ASSERT_EQUAL(523, notes[0].freq_hz);      // octave 5, not the default 4
+    TEST_ASSERT_EQUAL(250, notes[0].duration_ms);  // an 8th, not the default quarter
+}
+
+TEST_CASE("RTTTL: a sharp raises the note a semitone, a dot adds half its length", "[indicator]")
+{
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    // Whole note at 60 bpm = 4000 ms; quarter = 1000 ms; dotted = 1500 ms.
+    size_t n = rtttl_parse("x:d=4,o=5,b=60:4c#6.", notes, RTTTL_MAX_NOTES);
+    TEST_ASSERT_EQUAL(1, n);
+    TEST_ASSERT_EQUAL(1109, notes[0].freq_hz);  // c#6
+    TEST_ASSERT_EQUAL(1500, notes[0].duration_ms);
+}
+
+TEST_CASE("RTTTL: 'p' is a rest -- no frequency, no tone", "[indicator]")
+{
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    size_t n = rtttl_parse("x:d=4,o=5,b=120:c,p,e", notes, RTTTL_MAX_NOTES);
+    TEST_ASSERT_EQUAL(3, n);
+    TEST_ASSERT_EQUAL(0, notes[1].freq_hz);
+    uint16_t f;
+    TEST_ASSERT_FALSE(rtttl_tone_at(notes, n, notes[0].duration_ms, &f));  // resting
+}
+
+TEST_CASE("RTTTL: unrecognised tokens are skipped, not fatal", "[indicator]")
+{
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    size_t n = rtttl_parse("x:d=4,o=5,b=120:c,q,e", notes, RTTTL_MAX_NOTES);
+    TEST_ASSERT_EQUAL(2, n);
+}
+
+TEST_CASE("RTTTL: empty or malformed input parses to zero notes", "[indicator]")
+{
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    TEST_ASSERT_EQUAL(0, rtttl_parse("", notes, RTTTL_MAX_NOTES));
+    TEST_ASSERT_EQUAL(0, rtttl_parse(NULL, notes, RTTTL_MAX_NOTES));
+    TEST_ASSERT_EQUAL(0, rtttl_parse("x:d=4,o=5,b=120:", notes, RTTTL_MAX_NOTES));
+}
+
+TEST_CASE("RTTTL: the tone follows the notes, then stops (one pass, no loop)", "[indicator]")
+{
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    size_t n = rtttl_parse("boot:d=16,o=5,b=200:c,e,g", notes, RTTTL_MAX_NOTES);
+    uint16_t f = 0;
+    TEST_ASSERT_TRUE(rtttl_tone_at(notes, n, 0, &f));
+    TEST_ASSERT_EQUAL(notes[0].freq_hz, f);
+    TEST_ASSERT_TRUE(rtttl_tone_at(notes, n, 74, &f));
+    TEST_ASSERT_TRUE(rtttl_tone_at(notes, n, 75, &f));
+    TEST_ASSERT_EQUAL(notes[1].freq_hz, f);
+    const uint32_t total = rtttl_duration_ms(notes, n);
+    TEST_ASSERT_FALSE(rtttl_tone_at(notes, n, total, &f));  // past the end
+}
+
+// ------------------------------------------------------ tone library (#14)
+
+TEST_CASE("tone table: valid rows parse, invalid rows are skipped", "[indicator]")
+{
+    const char *json = "[{\"name\":\"boot\",\"rtttl\":\"boot:d=16,o=5,b=200:c,e,g\"},"
+                        "{\"name\":\"unplayable\",\"rtttl\":\"nonsense with no notes\"},"
+                        "{\"name\":\"\",\"rtttl\":\"x:d=4,o=5,b=60:c\"},"
+                        "{\"rtttl\":\"x:d=4,o=5,b=60:c\"},"
+                        "{\"name\":\"relay-on\",\"rtttl\":\"relay-on:d=16,o=6,b=250:c\"}]";
+    indicator_tone_t tones[INDICATOR_MAX_TONES];
+    size_t n = indicator_parse_tones(json, tones, INDICATOR_MAX_TONES);
+    TEST_ASSERT_EQUAL(2, n);
+    TEST_ASSERT_EQUAL_STRING("boot", tones[0].name);
+    TEST_ASSERT_EQUAL(3, tones[0].n_notes);
+    TEST_ASSERT_EQUAL_STRING("relay-on", tones[1].name);
+}
+
+TEST_CASE("tone table: malformed JSON or an empty array parses to zero tones", "[indicator]")
+{
+    indicator_tone_t tones[INDICATOR_MAX_TONES];
+    TEST_ASSERT_EQUAL(0, indicator_parse_tones("not json", tones, INDICATOR_MAX_TONES));
+    TEST_ASSERT_EQUAL(0, indicator_parse_tones(NULL, tones, INDICATOR_MAX_TONES));
+    TEST_ASSERT_EQUAL(0, indicator_parse_tones("[]", tones, INDICATOR_MAX_TONES));
+}
+
+TEST_CASE("chirp priority: override and alarm both block a chirp", "[indicator]")
+{
+    TEST_ASSERT_TRUE(indicator_chirp_allowed(INDICATOR_OVERRIDE_NONE, false));
+    TEST_ASSERT_FALSE(indicator_chirp_allowed(INDICATOR_OVERRIDE_NONE, true));
+    TEST_ASSERT_FALSE(indicator_chirp_allowed(INDICATOR_OVERRIDE_PORTAL, false));
+    TEST_ASSERT_FALSE(indicator_chirp_allowed(INDICATOR_OVERRIDE_RESET, false));
+    TEST_ASSERT_FALSE(indicator_chirp_allowed(INDICATOR_OVERRIDE_RESET, true));
+}
+
+TEST_CASE("tone table: lookup by name, empty name and unknown name", "[indicator]")
+{
+    indicator_tone_t tones[2] = {0};
+    strcpy(tones[0].name, "boot");
+    strcpy(tones[1].name, "relay-on");
+    TEST_ASSERT_EQUAL(0, indicator_find_tone(tones, 2, "boot"));
+    TEST_ASSERT_EQUAL(1, indicator_find_tone(tones, 2, "relay-on"));
+    TEST_ASSERT_EQUAL(-1, indicator_find_tone(tones, 2, ""));
+    TEST_ASSERT_EQUAL(-1, indicator_find_tone(tones, 2, "nope"));
+    TEST_ASSERT_EQUAL(-1, indicator_find_tone(tones, 0, "boot"));
+}

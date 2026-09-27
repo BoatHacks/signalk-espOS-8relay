@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "cJSON.h"
+
 indicator_state_t indicator_state(int health, bool sk_relevant, bool sk_connected)
 {
     if (health >= 2) {
@@ -133,4 +135,58 @@ bool morse_tone_at(const morse_seg_t *segs, size_t n, uint32_t unit_ms, uint32_t
         t_ms -= len;
     }
     return false;  // in the pause
+}
+
+size_t indicator_parse_tones(const char *json, indicator_tone_t *out, size_t max)
+{
+    if (!json) {
+        return 0;
+    }
+    cJSON *root = cJSON_Parse(json);
+    if (!root) {
+        return 0;
+    }
+    size_t n = 0;
+    if (cJSON_IsArray(root)) {
+        const cJSON *row;
+        cJSON_ArrayForEach(row, root)
+        {
+            if (n >= max || !cJSON_IsObject(row)) {
+                continue;
+            }
+            const cJSON *name = cJSON_GetObjectItemCaseSensitive(row, "name");
+            const cJSON *rtttl = cJSON_GetObjectItemCaseSensitive(row, "rtttl");
+            if (!cJSON_IsString(name) || !cJSON_IsString(rtttl) || name->valuestring[0] == '\0' ||
+                strlen(name->valuestring) > INDICATOR_TONE_NAME_MAX) {
+                continue;
+            }
+            indicator_tone_t tone = {0};
+            tone.n_notes = rtttl_parse(rtttl->valuestring, tone.notes, RTTTL_MAX_NOTES);
+            if (tone.n_notes == 0) {
+                continue;
+            }
+            snprintf(tone.name, sizeof(tone.name), "%s", name->valuestring);
+            out[n++] = tone;
+        }
+    }
+    cJSON_Delete(root);
+    return n;
+}
+
+bool indicator_chirp_allowed(indicator_override_t override, bool alarm_sounding)
+{
+    return override == INDICATOR_OVERRIDE_NONE && !alarm_sounding;
+}
+
+int indicator_find_tone(const indicator_tone_t *tones, size_t n, const char *name)
+{
+    if (!name || name[0] == '\0') {
+        return -1;
+    }
+    for (size_t i = 0; i < n; i++) {
+        if (strcmp(tones[i].name, name) == 0) {
+            return (int)i;
+        }
+    }
+    return -1;
 }

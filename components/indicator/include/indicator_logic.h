@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "rtttl.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -69,6 +71,36 @@ uint32_t morse_duration_ms(const morse_seg_t *segs, size_t n, uint32_t unit_ms);
 // Whether the tone is on at `t_ms` into a message that repeats with
 // `pause_ms` of silence after each round.
 bool morse_tone_at(const morse_seg_t *segs, size_t n, uint32_t unit_ms, uint32_t pause_ms, uint32_t t_ms);
+
+// Event chirps (plan 19, issue #14): a named library of short RTTTL tones,
+// stored in the `tone_patterns` setting as a JSON array of
+// {"name":"...", "rtttl":"..."} rows (espOS's table-format string), plus
+// per-event settings naming which library entry to play ("" = off).
+#define INDICATOR_TONE_NAME_MAX 24
+#define INDICATOR_MAX_TONES 24
+
+typedef struct {
+    char name[INDICATOR_TONE_NAME_MAX + 1];
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    size_t n_notes;
+} indicator_tone_t;
+
+// Parses `json` (the `tone_patterns` table string: a JSON array of
+// {"name","rtttl"} objects) into `out`. A row is skipped if its name is
+// missing, empty or too long, or its RTTTL string has no playable notes.
+// Malformed JSON parses as zero tones. Returns the number written (at most
+// `max`).
+size_t indicator_parse_tones(const char *json, indicator_tone_t *out, size_t max);
+
+// Index of the tone named `name` in `tones[0..n)`, or -1 if `name` is empty
+// or no tone in the list has that name.
+int indicator_find_tone(const indicator_tone_t *tones, size_t n, const char *name);
+
+// Priority order (plan 19), highest first: the BOOT-button override > a real
+// alarm > an event chirp. A chirp may neither start nor continue while the
+// override is active or the alarm is sounding -- it is skipped/cut off, not
+// queued or resumed once the higher-priority state ends.
+bool indicator_chirp_allowed(indicator_override_t override, bool alarm_sounding);
 
 #ifdef __cplusplus
 }

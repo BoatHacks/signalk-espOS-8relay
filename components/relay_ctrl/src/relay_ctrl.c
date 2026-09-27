@@ -347,3 +347,17 @@ void relay_ctrl_reset(void)
     memset(&s, 0, sizeof(s));
     s.lock = lock;
 }
+
+bool relay_ctrl_source_chirps(relay_source_t src)
+{
+    switch (src) {
+    case RELAY_SRC_SK:
+    case RELAY_SRC_N2K:
+    case RELAY_SRC_WEB:
+    case RELAY_SRC_INPUT: return true;
+    case RELAY_SRC_PULSE_END:
+    case RELAY_SRC_FAILSAFE:
+    case RELAY_SRC_MAX_ON: return false;
+    }
+    return false;
+}

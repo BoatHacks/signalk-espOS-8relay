@@ -6,7 +6,7 @@ set(embed "")
 if(NOT target STREQUAL "linux")
     list(APPEND srcs src/web_ui.c)
     list(APPEND priv_reqs espos_httpd esp_http_server esp_timer freertos)
-    set(embed www/relays.html)
+    set(embed www/relays.html www/tones.html)
 endif()
 
 idf_component_register(

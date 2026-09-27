@@ -2,8 +2,10 @@
 // GET /api/v1/relays (live state), PUT /api/v1/relays/<n> and
 // PUT /api/v1/relays (all) with {"on": true|false}, and
 // GET /api/v1/relays/status for the page's status line, and
-// POST /api/v1/buzzer/test. Endpoints are
-// protected by espOS's API key like its own; the page is public and shows
+// POST /api/v1/buzzer/test. Also GET /tones (plan 19, issue #14): CRUD for
+// the named RTTTL tone library and the event/channel chirp settings, built
+// entirely on espOS's existing GET/PUT /api/v1/config. Endpoints are
+// protected by espOS's API key like its own; the pages are public and show
 // a login hint when the API refuses it.
 #pragma once
 

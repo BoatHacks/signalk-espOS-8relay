@@ -34,10 +34,25 @@ static struct {
     atomic_bool sk_relevant;
     atomic_ushort freq_hz;       // buzzer_freq_hz; applied by the task
     atomic_bool test_requested;  // indicator_test_buzzer() -> task
-    atomic_bool busy;            // an alarm or a test is sounding
+    atomic_bool busy;            // an alarm, a test or a chirp is sounding
     atomic_bool started;
     atomic_int override;         // indicator_override_t; NONE = 0, show status as usual
+
+    // Event chirps (plan 19, issue #14). `tones`/`n_tones` are written by
+    // indicator_update_config() (the I/O task) and read by indicator_task();
+    // s_tone_mux protects both. Everything else here is a plain index,
+    // updated the same way but small enough to be a single atomic.
+    atomic_bool event_enabled;  // buzzer_on_event
+    indicator_tone_t tones[INDICATOR_MAX_TONES];
+    size_t n_tones;
+    atomic_int boot_idx, portal_idx, reset_idx;  // -1 = no tone assigned
+    atomic_int relay_on_idx[BOARD_CHANNELS];
+    atomic_int relay_off_idx[BOARD_CHANNELS];
+    atomic_int input_idx[BOARD_CHANNELS];
+    atomic_int chirp_request;  // index into tones[] a caller wants played, -1 = none
 } s;
+
+static portMUX_TYPE s_tone_mux = portMUX_INITIALIZER_UNLOCKED;
 
 static void set_tone(bool on)
 {
@@ -63,6 +78,10 @@ static void indicator_task(void *arg)
     int64_t test_start_us = 0;
     uint32_t test_len_ms = 0;
     uint16_t applied_freq = atomic_load(&s.freq_hz);
+    bool chirping = false;
+    int64_t chirp_start_us = 0;
+    uint32_t chirp_len_ms = 0;
+    indicator_tone_t current_chirp = {0};
 
     for (;;) {
         const espos_health_state_t health = espos_health_worst();
@@ -81,17 +100,21 @@ static void indicator_task(void *arg)
             shown = c;
         }
 
-        // A frequency change is applied here, between frames, never in the
-        // middle of another task's call.
-        const uint16_t freq = atomic_load(&s.freq_hz);
-        if (freq != applied_freq && ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, freq) == ESP_OK) {
-            applied_freq = freq;
+        const bool alarm = state == INDICATOR_ALARM && atomic_load(&s.buzzer_enabled);
+
+        // Priority, highest first (plan 19): the BOOT-button override (LED
+        // only, checked above) > alarm > test tone > event chirp. A chirp is
+        // skipped entirely, never queued, while the override or alarm is
+        // active; one already playing is cut off if the alarm starts.
+        const bool suppress_chirp = !indicator_chirp_allowed(override, alarm);
+        if (suppress_chirp) {
+            atomic_store(&s.chirp_request, -1);
+            chirping = false;
         }
 
-        const bool alarm = state == INDICATOR_ALARM && atomic_load(&s.buzzer_enabled);
         if (alarm) {
             testing = false;  // a real alarm takes over from a test
-        } else if (!testing && atomic_exchange(&s.test_requested, false)) {
+        } else if (!testing && !chirping && atomic_exchange(&s.test_requested, false)) {
             espos_net_status_t net = {0};
             char text[16];
             espos_net_get_status(&net);
@@ -114,7 +137,30 @@ static void indicator_task(void *arg)
             ESP_LOGW(TAG, "alarm: buzzing \"%s\"", text);
         }
         alarm_was = alarm;
+
+        if (!suppress_chirp && !testing && !chirping) {
+            const int req = atomic_exchange(&s.chirp_request, -1);
+            if (req >= 0) {
+                taskENTER_CRITICAL(&s_tone_mux);
+                const bool have = (size_t)req < s.n_tones;
+                if (have) {
+                    current_chirp = s.tones[req];
+                }
+                taskEXIT_CRITICAL(&s_tone_mux);
+                if (have && current_chirp.n_notes > 0) {
+                    chirping = true;
+                    chirp_start_us = esp_timer_get_time();
+                    chirp_len_ms = rtttl_duration_ms(current_chirp.notes, current_chirp.n_notes);
+                    ESP_LOGI(TAG, "chirp: \"%s\"", current_chirp.name);
+                }
+            }
+        }
+
         bool tone = false;
+        // Frequency changes are applied here, between frames, never in the
+        // middle of another task's call: the config's buzzer_freq_hz unless
+        // a chirp note (which carries its own pitch) is sounding right now.
+        uint16_t want_freq = atomic_load(&s.freq_hz);
         if (alarm) {
             const uint32_t t_ms = (uint32_t)((esp_timer_get_time() - alarm_start_us) / 1000);
             tone = morse_tone_at(segs, n_segs, MORSE_UNIT_MS, MORSE_PAUSE_MS, t_ms);
@@ -125,8 +171,23 @@ static void indicator_task(void *arg)
             } else {
                 tone = morse_tone_at(segs, n_segs, MORSE_UNIT_MS, 0, t_ms);
             }
+        } else if (chirping) {
+            const uint32_t t_ms = (uint32_t)((esp_timer_get_time() - chirp_start_us) / 1000);
+            if (t_ms >= chirp_len_ms) {
+                chirping = false;  // one pass only
+            } else {
+                uint16_t note_freq = 0;
+                if (rtttl_tone_at(current_chirp.notes, current_chirp.n_notes, t_ms, &note_freq)) {
+                    tone = true;
+                    want_freq = note_freq;
+                }
+            }
         }
-        atomic_store(&s.busy, alarm || testing);
+        if (want_freq != applied_freq && want_freq != 0 &&
+            ledc_set_freq(LEDC_LOW_SPEED_MODE, BUZZER_TIMER, want_freq) == ESP_OK) {
+            applied_freq = want_freq;
+        }
+        atomic_store(&s.busy, alarm || testing || chirping);
         if (tone != tone_was) {
             set_tone(tone);
             tone_was = tone;
@@ -141,11 +202,61 @@ void indicator_update_config(const device_config_t *cfg)
     atomic_store(&s.buzzer_enabled, cfg->buzzer_on_alarm);
     atomic_store(&s.sk_relevant, cfg->publish_switches_tree || cfg->publish_controls_tree);
     atomic_store(&s.freq_hz, cfg->buzzer_freq_hz);
+    atomic_store(&s.event_enabled, cfg->buzzer_on_event);
+
+    indicator_tone_t tones[INDICATOR_MAX_TONES];
+    const size_t n = indicator_parse_tones(cfg->tone_patterns, tones, INDICATOR_MAX_TONES);
+    taskENTER_CRITICAL(&s_tone_mux);
+    memcpy(s.tones, tones, n * sizeof(tones[0]));
+    s.n_tones = n;
+    taskEXIT_CRITICAL(&s_tone_mux);
+
+    atomic_store(&s.boot_idx, indicator_find_tone(tones, n, cfg->boot_tone));
+    atomic_store(&s.portal_idx, indicator_find_tone(tones, n, cfg->portal_tone));
+    atomic_store(&s.reset_idx, indicator_find_tone(tones, n, cfg->factory_reset_tone));
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        atomic_store(&s.relay_on_idx[i], indicator_find_tone(tones, n, cfg->relays[i].on_tone));
+        atomic_store(&s.relay_off_idx[i], indicator_find_tone(tones, n, cfg->relays[i].off_tone));
+        atomic_store(&s.input_idx[i], indicator_find_tone(tones, n, cfg->inputs[i].tone));
+    }
 }
 
 void indicator_set_override(indicator_override_t override)
 {
     atomic_store(&s.override, (int)override);
+}
+
+static void request_chirp(int idx)
+{
+    if (idx < 0 || !atomic_load(&s.started) || !atomic_load(&s.event_enabled)) {
+        return;
+    }
+    atomic_store(&s.chirp_request, idx);
+}
+
+void indicator_play_event(indicator_event_t event)
+{
+    switch (event) {
+    case INDICATOR_EVENT_BOOT: request_chirp(atomic_load(&s.boot_idx)); break;
+    case INDICATOR_EVENT_PORTAL: request_chirp(atomic_load(&s.portal_idx)); break;
+    case INDICATOR_EVENT_FACTORY_RESET: request_chirp(atomic_load(&s.reset_idx)); break;
+    }
+}
+
+void indicator_play_relay_tone(uint8_t channel, bool on)
+{
+    if (channel < 1 || channel > BOARD_CHANNELS) {
+        return;
+    }
+    request_chirp(atomic_load(on ? &s.relay_on_idx[channel - 1] : &s.relay_off_idx[channel - 1]));
+}
+
+void indicator_play_input_tone(uint8_t channel)
+{
+    if (channel < 1 || channel > BOARD_CHANNELS) {
+        return;
+    }
+    request_chirp(atomic_load(&s.input_idx[channel - 1]));
 }
 
 esp_err_t indicator_test_buzzer(void)
@@ -159,6 +270,7 @@ esp_err_t indicator_test_buzzer(void)
 
 esp_err_t indicator_start(const device_config_t *cfg)
 {
+    atomic_store(&s.chirp_request, -1);  // BSS zero-inits to 0, a valid tone index
     indicator_update_config(cfg);
 
     const led_strip_config_t strip = {

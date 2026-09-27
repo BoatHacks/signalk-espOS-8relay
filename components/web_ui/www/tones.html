@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tones</title>
+<style>
+:root {
+  --bg: #f4f5f7; --card: #fff; --text: #1b1f24; --muted: #5f6b7a; --line: #dde1e6;
+  --on: #1f9d55; --on-bg: #e3f5ea; --off: #6b7785; --off-bg: #eceff2;
+  --warn: #b7791f; --err: #c53030; --err-bg: #fdecec; --btn: #fff; --btn-line: #c8ced6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418; --card: #1a1e24; --text: #e6e9ed; --muted: #97a1ad; --line: #2b313a;
+    --on: #48bb78; --on-bg: #173424; --off: #97a1ad; --off-bg: #262c34;
+    --warn: #ecc94b; --err: #fc8181; --err-bg: #3a1d1d; --btn: #222831; --btn-line: #3a424d;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 12px; }
+h1 { font-size: 20px; margin: 0; flex: 1 1 auto; }
+h2 { font-size: 15px; margin: 20px 0 8px; }
+header a { color: var(--muted); font-size: 14px; }
+label { display: flex; align-items: center; gap: 8px; }
+button { font: inherit; font-weight: 600; padding: 8px 14px; min-height: 40px; border-radius: 8px;
+  border: 1px solid var(--btn-line); background: var(--btn); color: var(--text); cursor: pointer; }
+button:disabled { opacity: .45; cursor: default; }
+button.danger { color: var(--err); }
+select, input[type=text] { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--btn-line);
+  background: var(--btn); color: var(--text); min-height: 36px; }
+select { min-width: 140px; }
+#status { font-size: 13px; color: var(--muted); margin: 0 0 12px; min-height: 18px; }
+#status.err { color: var(--err); }
+.banner { background: var(--err-bg); color: var(--err); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.banner a { color: inherit; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 4px; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; align-items: center;
+  padding: 10px 14px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row.single { grid-template-columns: minmax(0, 1fr) auto; }
+.name { font-weight: 600; overflow-wrap: anywhere; }
+.meta { font-size: 13px; color: var(--muted); }
+.toggle-row { padding: 12px 14px; }
+.lib-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: 8px;
+  padding: 10px 14px; border-top: 1px solid var(--line); align-items: center; }
+.lib-row:first-child { border-top: 0; }
+.lib-row input { width: 100%; }
+.add { padding: 10px 14px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; }
+@media (min-width: 640px) {
+  .lib-row { grid-template-columns: 160px 1fr auto; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Tones</h1>
+    <a href="/relays">Relays</a>
+    <a href="/">Settings</a>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+  <p id="status">Loading…</p>
+
+  <div class="card">
+    <div class="row single toggle-row">
+      <label><input type="checkbox" id="buzzer-event"> Buzzer on events</label>
+    </div>
+  </div>
+  <p class="meta">Chirp on boot, a BOOT-button action, a relay switching on/off by a direct command, or an
+    input's level changing. Separate from the alarm buzzer -- a boat is a quiet-hours environment. Silenced
+    while the alarm is sounding or the BOOT button's override is active.</p>
+
+  <h2>Boot-family events</h2>
+  <div class="card" id="boot-list"></div>
+
+  <h2>Relays</h2>
+  <div class="card" id="relay-list"></div>
+
+  <h2>Inputs</h2>
+  <div class="card" id="input-list"></div>
+
+  <h2>Tone library</h2>
+  <p class="meta">Named RTTTL (Ring Tone Text Transfer Language) tones the settings above pick from.</p>
+  <div class="card" id="lib-list"></div>
+  <div class="card add">
+    <button id="lib-add" type="button">Add tone</button>
+    <button id="lib-save" type="button" style="margin-left:8px">Save library</button>
+  </div>
+</main>
+<script>
+"use strict";
+const API = "/api/v1/config?ns=swbank";
+const statusEl = document.getElementById("status");
+const banner = document.getElementById("banner");
+let cfg = {};       // last-loaded swbank values
+let library = [];   // [{name, rtttl}], the in-memory tone_patterns array
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function showStatus(text, isErr) {
+  statusEl.textContent = text;
+  statusEl.classList.toggle("err", !!isErr);
+}
+
+async function handle(res) {
+  if (res.status === 401 || res.status === 403) {
+    banner.hidden = false;
+    banner.innerHTML = 'This device has an API key set. <a href="/">Log in on the settings page</a>, then come back.';
+    throw new Error("not logged in");
+  }
+  banner.hidden = true;
+  let body = null;
+  try { body = await res.json(); } catch (e) { /* not JSON */ }
+  if (!res.ok) throw new Error((body && body.message) || ("HTTP " + res.status));
+  return body;
+}
+
+async function putKeys(values) {
+  return handle(await fetch("/api/v1/config", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ swbank: values }),
+  }));
+}
+
+// A <select> of "(none)" plus every library tone, its value set to `current`.
+function toneSelect(current, onChange) {
+  const sel = document.createElement("select");
+  const none = el("option", "", "(none)");
+  none.value = "";
+  sel.append(none);
+  for (const t of library) {
+    const o = el("option", "", t.name);
+    o.value = t.name;
+    sel.append(o);
+  }
+  sel.value = library.some((t) => t.name === current) ? current : "";
+  sel.onchange = () => onChange(sel.value);
+  return sel;
+}
+
+async function setKey(key, value, label) {
+  showStatus("Saving " + label + "…");
+  try {
+    await putKeys({ [key]: value });
+    cfg[key] = value;
+    showStatus("Saved");
+  } catch (e) {
+    showStatus("Failed: " + e.message, true);
+  }
+}
+
+function renderBootList() {
+  const list = document.getElementById("boot-list");
+  list.replaceChildren();
+  const events = [
+    ["boot_tone", "Boot", "Power-on"],
+    ["portal_tone", "Setup portal", "BOOT button, held briefly"],
+    ["reset_tone", "Factory reset", "BOOT button, held longer"],
+  ];
+  for (const [key, title, meta] of events) {
+    const row = el("div", "row");
+    const info = el("div");
+    info.append(el("div", "name", title), el("div", "meta", meta));
+    const sel = toneSelect(cfg[key] || "", (v) => setKey(key, v, title));
+    row.append(info, sel);
+    list.append(row);
+  }
+}
+
+function renderRelayList() {
+  const list = document.getElementById("relay-list");
+  list.replaceChildren();
+  for (let n = 1; n <= 8; n++) {
+    const row = el("div", "row");
+    const name = cfg["relay" + n + "_name"] || ("Relay " + n);
+    const info = el("div");
+    info.append(el("div", "name", n + " · " + name));
+    const onSel = toneSelect(cfg["relay" + n + "_on_tone"] || "",
+      (v) => setKey("relay" + n + "_on_tone", v, "relay " + n + " on chirp"));
+    const offSel = toneSelect(cfg["relay" + n + "_off_tone"] || "",
+      (v) => setKey("relay" + n + "_off_tone", v, "relay " + n + " off chirp"));
+    const ctl = el("div");
+    ctl.append(document.createTextNode("on: "), onSel);
+    const ctl2 = el("div");
+    ctl2.append(document.createTextNode("off: "), offSel);
+    row.append(info, ctl, ctl2);
+    list.append(row);
+  }
+}
+
+function renderInputList() {
+  const list = document.getElementById("input-list");
+  list.replaceChildren();
+  for (let n = 1; n <= 8; n++) {
+    const row = el("div", "row single");
+    const name = cfg["input" + n + "_name"] || ("Input " + n);
+    const info = el("div");
+    info.append(el("div", "name", n + " · " + name));
+    const sel = toneSelect(cfg["input" + n + "_tone"] || "",
+      (v) => setKey("input" + n + "_tone", v, "input " + n + " chirp"));
+    row.append(info, sel);
+    list.append(row);
+  }
+}
+
+function renderLibrary() {
+  const list = document.getElementById("lib-list");
+  list.replaceChildren();
+  library.forEach((t, i) => {
+    const row = el("div", "lib-row");
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = t.name;
+    nameInput.placeholder = "name";
+    nameInput.oninput = () => { t.name = nameInput.value; };
+    const rtttlInput = document.createElement("input");
+    rtttlInput.type = "text";
+    rtttlInput.value = t.rtttl;
+    rtttlInput.placeholder = "name:d=4,o=5,b=63:c,e,g";
+    rtttlInput.oninput = () => { t.rtttl = rtttlInput.value; };
+    const del = el("button", "danger", "Delete");
+    del.type = "button";
+    del.onclick = () => { library.splice(i, 1); renderAll(); };
+    row.append(nameInput, rtttlInput, del);
+    list.append(row);
+  });
+  if (library.length === 0) {
+    const row = el("div", "lib-row");
+    row.append(el("div", "meta", "No tones yet."));
+    list.append(row);
+  }
+}
+
+function renderAll() {
+  renderBootList();
+  renderRelayList();
+  renderInputList();
+  renderLibrary();
+}
+
+async function load() {
+  showStatus("Loading…");
+  try {
+    const body = await handle(await fetch(API, { cache: "no-store" }));
+    cfg = body.swbank || {};
+    try { library = JSON.parse(cfg.tone_patterns || "[]"); } catch (e) { library = []; }
+    if (!Array.isArray(library)) library = [];
+    document.getElementById("buzzer-event").checked = !!cfg.buzzer_event;
+    renderAll();
+    showStatus("Loaded");
+  } catch (e) {
+    showStatus("Can't reach the device: " + e.message, true);
+  }
+}
+
+document.getElementById("buzzer-event").onchange = (e) => setKey("buzzer_event", e.target.checked, "buzzer on events");
+
+document.getElementById("lib-add").onclick = () => {
+  library.push({ name: "", rtttl: "" });
+  renderAll();
+};
+
+document.getElementById("lib-save").onclick = async () => {
+  const clean = library.filter((t) => t.name.trim() && t.rtttl.trim());
+  showStatus("Saving tone library…");
+  try {
+    await putKeys({ tone_patterns: JSON.stringify(clean) });
+    library = clean;
+    cfg.tone_patterns = JSON.stringify(clean);
+    renderAll();
+    showStatus("Tone library saved");
+  } catch (e) {
+    showStatus("Failed: " + e.message, true);
+  }
+};
+
+load();
+</script>
+</body>
+</html>

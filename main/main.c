@@ -50,6 +50,10 @@ static const char *TAG = "app";
 #define TICK_MS 10
 #define IO_STALL_MS 2000        // raise espOS's taskStalled alarm after this
 #define IO_RESTART_US 3000000LL // restart if the I/O loop is silent this long
+// The BOOT-button chirps (plan 19) are requested right before esp_restart();
+// the indicator task's own 10 ms polling loop would otherwise never get
+// scheduled in time to be heard. Comfortably longer than any shipped chirp.
+#define RESTART_CHIRP_DELAY_MS 700
 
 static TaskHandle_t s_io_task;
 static volatile int64_t s_io_alive_us;
@@ -136,12 +140,16 @@ static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_
     web_ui_relay_changed(channel, source_name(src));
     sk_bridge_relay_changed(channel, on);
     n2k_bridge_state_changed();
+    if (relay_ctrl_source_chirps(src)) {
+        indicator_play_relay_tone(channel, on);
+    }
 }
 
 static void on_input_change(uint8_t channel, bool on, uint8_t mask, void *arg)
 {
     sk_bridge_input_changed(channel, on);
     n2k_bridge_state_changed();
+    indicator_play_input_tone(channel);
 }
 
 static void on_sk_stream(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -184,6 +192,8 @@ static void do_reopen_portal(void)
     // espOS 0.10.3 has no public "start the portal now" call; with the
     // station off, it opens its portal instead of trying to connect.
     espos_config_set_bool("wifi", "sta_enabled", false);
+    indicator_play_event(INDICATOR_EVENT_PORTAL);
+    vTaskDelay(pdMS_TO_TICKS(RESTART_CHIRP_DELAY_MS));
     esp_restart();
 }
 
@@ -197,6 +207,8 @@ static void do_factory_reset(void)
     relay_hw_clear_hold_state();
     espos_sk_forget_token();
     espos_config_factory_reset();
+    indicator_play_event(INDICATOR_EVENT_FACTORY_RESET);
+    vTaskDelay(pdMS_TO_TICKS(RESTART_CHIRP_DELAY_MS));
     esp_restart();
 }
 
@@ -455,6 +467,8 @@ void app_main(void)
     // The LED and buzzer only report; the device works without them.
     if (indicator_start(&cfg) != ESP_OK) {
         ESP_LOGE(TAG, "status LED/buzzer unavailable");
+    } else {
+        indicator_play_event(INDICATOR_EVENT_BOOT);
     }
 
     if (cfg.eth_enabled) {

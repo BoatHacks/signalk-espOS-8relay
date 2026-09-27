@@ -117,6 +117,57 @@
       "description": "Tone of the alarm buzzer. Passive buzzers are loudest near their resonance; use the relay page's Test buzzer button to try a value."
     },
     {
+      "name": "buzzer_event",
+      "type": "bool",
+      "default": false,
+      "group": "Tones",
+      "title": "Buzzer on events",
+      "description": "Chirp on boot, on a BOOT-button action, on a relay switching on/off (direct commands only, not automatic changes), and on an input's level changing. Separate from \"Buzzer on alarm\" -- a boat is a quiet-hours environment. Silenced entirely while the alarm is sounding or the BOOT button's override is active."
+    },
+    {
+      "name": "tone_patterns",
+      "type": "string",
+      "default": "[{\"name\":\"boot\",\"rtttl\":\"boot:d=16,o=5,b=200:c,e,g\"},{\"name\":\"portal\",\"rtttl\":\"portal:d=8,o=5,b=180:e,c,e,c\"},{\"name\":\"reset\",\"rtttl\":\"reset:d=8,o=5,b=120:g,e,c\"},{\"name\":\"relay-on\",\"rtttl\":\"relay-on:d=16,o=6,b=250:c\"},{\"name\":\"relay-off\",\"rtttl\":\"relay-off:d=16,o=4,b=250:c\"},{\"name\":\"input\",\"rtttl\":\"input:d=16,o=5,b=250:c,c\"}]",
+      "maxLength": 3999,
+      "x": {
+        "format": "table",
+        "columns": [
+          "name",
+          "rtttl"
+        ]
+      },
+      "group": "Tones",
+      "title": "Tone patterns",
+      "description": "Named RTTTL (Ring Tone Text Transfer Language) tone library, edited on the Tones page (/tones). Every event/channel setting below picks its chirp from this list by name."
+    },
+    {
+      "name": "boot_tone",
+      "type": "string",
+      "default": "boot",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Boot chirp",
+      "description": "Tone-library entry to play once power-on boot finishes. Empty = no chirp."
+    },
+    {
+      "name": "portal_tone",
+      "type": "string",
+      "default": "portal",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Setup-portal chirp",
+      "description": "Tone-library entry to play when the BOOT button reopens the setup access point, just before the device restarts. Empty = no chirp."
+    },
+    {
+      "name": "reset_tone",
+      "type": "string",
+      "default": "reset",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Factory-reset chirp",
+      "description": "Tone-library entry to play when the BOOT button factory-resets the device, just before it restarts. Empty = no chirp."
+    },
+    {
       "name": "relay1_name",
       "type": "string",
       "default": "Relay 1",
@@ -192,6 +243,24 @@
       "group": "Relays",
       "title": "Relay 1: maximum on-time",
       "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
+    },
+    {
+      "name": "relay1_on_tone",
+      "type": "string",
+      "default": "relay-on",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 1: on chirp",
+      "description": "Tone-library entry to play when this relay switches on by a direct command (SignalK, NMEA 2000, web page or an input override) -- not for an automatic change (fail-safe, maximum on-time, a momentary pulse ending). Empty = no chirp."
+    },
+    {
+      "name": "relay1_off_tone",
+      "type": "string",
+      "default": "relay-off",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 1: off chirp",
+      "description": "As above, for this relay switching off by a direct command."
     },
     {
       "name": "relay2_name",
@@ -271,6 +340,24 @@
       "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
+      "name": "relay2_on_tone",
+      "type": "string",
+      "default": "relay-on",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 2: on chirp",
+      "description": "Tone-library entry to play when this relay switches on by a direct command (SignalK, NMEA 2000, web page or an input override) -- not for an automatic change (fail-safe, maximum on-time, a momentary pulse ending). Empty = no chirp."
+    },
+    {
+      "name": "relay2_off_tone",
+      "type": "string",
+      "default": "relay-off",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 2: off chirp",
+      "description": "As above, for this relay switching off by a direct command."
+    },
+    {
       "name": "relay3_name",
       "type": "string",
       "default": "Relay 3",
@@ -346,6 +433,24 @@
       "group": "Relays",
       "title": "Relay 3: maximum on-time",
       "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
+    },
+    {
+      "name": "relay3_on_tone",
+      "type": "string",
+      "default": "relay-on",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 3: on chirp",
+      "description": "Tone-library entry to play when this relay switches on by a direct command (SignalK, NMEA 2000, web page or an input override) -- not for an automatic change (fail-safe, maximum on-time, a momentary pulse ending). Empty = no chirp."
+    },
+    {
+      "name": "relay3_off_tone",
+      "type": "string",
+      "default": "relay-off",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 3: off chirp",
+      "description": "As above, for this relay switching off by a direct command."
     },
     {
       "name": "relay4_name",
@@ -425,6 +530,24 @@
       "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
+      "name": "relay4_on_tone",
+      "type": "string",
+      "default": "relay-on",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 4: on chirp",
+      "description": "Tone-library entry to play when this relay switches on by a direct command (SignalK, NMEA 2000, web page or an input override) -- not for an automatic change (fail-safe, maximum on-time, a momentary pulse ending). Empty = no chirp."
+    },
+    {
+      "name": "relay4_off_tone",
+      "type": "string",
+      "default": "relay-off",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 4: off chirp",
+      "description": "As above, for this relay switching off by a direct command."
+    },
+    {
       "name": "relay5_name",
       "type": "string",
       "default": "Relay 5",
@@ -500,6 +623,24 @@
       "group": "Relays",
       "title": "Relay 5: maximum on-time",
       "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
+    },
+    {
+      "name": "relay5_on_tone",
+      "type": "string",
+      "default": "relay-on",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 5: on chirp",
+      "description": "Tone-library entry to play when this relay switches on by a direct command (SignalK, NMEA 2000, web page or an input override) -- not for an automatic change (fail-safe, maximum on-time, a momentary pulse ending). Empty = no chirp."
+    },
+    {
+      "name": "relay5_off_tone",
+      "type": "string",
+      "default": "relay-off",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 5: off chirp",
+      "description": "As above, for this relay switching off by a direct command."
     },
     {
       "name": "relay6_name",
@@ -579,6 +720,24 @@
       "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
+      "name": "relay6_on_tone",
+      "type": "string",
+      "default": "relay-on",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 6: on chirp",
+      "description": "Tone-library entry to play when this relay switches on by a direct command (SignalK, NMEA 2000, web page or an input override) -- not for an automatic change (fail-safe, maximum on-time, a momentary pulse ending). Empty = no chirp."
+    },
+    {
+      "name": "relay6_off_tone",
+      "type": "string",
+      "default": "relay-off",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 6: off chirp",
+      "description": "As above, for this relay switching off by a direct command."
+    },
+    {
       "name": "relay7_name",
       "type": "string",
       "default": "Relay 7",
@@ -654,6 +813,24 @@
       "group": "Relays",
       "title": "Relay 7: maximum on-time",
       "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
+    },
+    {
+      "name": "relay7_on_tone",
+      "type": "string",
+      "default": "relay-on",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 7: on chirp",
+      "description": "Tone-library entry to play when this relay switches on by a direct command (SignalK, NMEA 2000, web page or an input override) -- not for an automatic change (fail-safe, maximum on-time, a momentary pulse ending). Empty = no chirp."
+    },
+    {
+      "name": "relay7_off_tone",
+      "type": "string",
+      "default": "relay-off",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 7: off chirp",
+      "description": "As above, for this relay switching off by a direct command."
     },
     {
       "name": "relay8_name",
@@ -733,6 +910,24 @@
       "description": "Switch off automatically after this long, however it was switched on. 0 = no limit. Ignored in momentary mode."
     },
     {
+      "name": "relay8_on_tone",
+      "type": "string",
+      "default": "relay-on",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 8: on chirp",
+      "description": "Tone-library entry to play when this relay switches on by a direct command (SignalK, NMEA 2000, web page or an input override) -- not for an automatic change (fail-safe, maximum on-time, a momentary pulse ending). Empty = no chirp."
+    },
+    {
+      "name": "relay8_off_tone",
+      "type": "string",
+      "default": "relay-off",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Relay 8: off chirp",
+      "description": "As above, for this relay switching off by a direct command."
+    },
+    {
       "name": "input1_name",
       "type": "string",
       "default": "Input 1",
@@ -748,6 +943,15 @@
       "group": "Inputs",
       "title": "Input 1: invert",
       "description": "Turn on for normally-closed switches."
+    },
+    {
+      "name": "input1_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 1: chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
     },
     {
       "name": "input2_name",
@@ -767,6 +971,15 @@
       "description": "Turn on for normally-closed switches."
     },
     {
+      "name": "input2_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 2: chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+    },
+    {
       "name": "input3_name",
       "type": "string",
       "default": "Input 3",
@@ -782,6 +995,15 @@
       "group": "Inputs",
       "title": "Input 3: invert",
       "description": "Turn on for normally-closed switches."
+    },
+    {
+      "name": "input3_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 3: chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
     },
     {
       "name": "input4_name",
@@ -801,6 +1023,15 @@
       "description": "Turn on for normally-closed switches."
     },
     {
+      "name": "input4_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 4: chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+    },
+    {
       "name": "input5_name",
       "type": "string",
       "default": "Input 5",
@@ -816,6 +1047,15 @@
       "group": "Inputs",
       "title": "Input 5: invert",
       "description": "Turn on for normally-closed switches."
+    },
+    {
+      "name": "input5_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 5: chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
     },
     {
       "name": "input6_name",
@@ -835,6 +1075,15 @@
       "description": "Turn on for normally-closed switches."
     },
     {
+      "name": "input6_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 6: chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+    },
+    {
       "name": "input7_name",
       "type": "string",
       "default": "Input 7",
@@ -852,6 +1101,15 @@
       "description": "Turn on for normally-closed switches."
     },
     {
+      "name": "input7_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 7: chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
+    },
+    {
       "name": "input8_name",
       "type": "string",
       "default": "Input 8",
@@ -867,6 +1125,15 @@
       "group": "Inputs",
       "title": "Input 8: invert",
       "description": "Turn on for normally-closed switches."
+    },
+    {
+      "name": "input8_tone",
+      "type": "string",
+      "default": "input",
+      "maxLength": 24,
+      "group": "Tones",
+      "title": "Input 8: chirp",
+      "description": "Tone-library entry to play when this input's debounced, reported state changes. Empty = no chirp."
     }
   ]
 }

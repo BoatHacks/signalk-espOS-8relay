@@ -20,69 +20,165 @@ and a frequency setting, not automatic per-event sounds.
   new indicator/buzzer state without breaking the alarm)
 - Plan 17 (buzzer test + frequency setting)
 
-## Approach (open questions first — decide before implementing)
-- **Coexistence with the alarm and the #7 override.** Priority order,
-  highest first: `INDICATOR_OVERRIDE_*` (BOOT button held) > alarm > an
-  event chirp. A chirp must never play over, or be masked confusingly
-  by, either — likely: skip a chirp entirely if the override or alarm is
-  currently active, rather than queueing it.
-- **Settings shape.** Needs its own on/off, separate from
-  `buzzer_on_alarm` — a boat is a quiet-hours environment. Open question
-  for the interactive session: one `buzzer_on_event` toggle covering all
-  three event categories (boot/relay/input), or one per category? Start
-  with the simpler single toggle unless there's a concrete reason to
-  split.
-- **Tone design.** Short, distinguishable chirps per category (not the
-  alarm's Morse pattern): e.g. a single rising beep for boot, a short
-  double-beep for relay-on vs. a short falling beep for relay-off, a
-  distinct third tone for input changes. Needs an actual sound-design
-  pass against the existing `buzzer_freq_hz` setting (reuse it as a base
-  frequency, offsetting per tone, rather than adding N new frequency
-  settings).
-- **Which relay sources chirp.** Relay changes carry a `lastSource`
-  (SignalK, N2K, web, input, pulse end, fail-safe, max on-time, start-up;
-  plan 12). Open question: chirp on every source, or suppress it for
-  high-frequency/automatic ones (fail-safe, max-on-time) where a chirp
-  might be more alarming than useful? Lean towards chirping only on
-  direct commands (SignalK, N2K, web, input) and not on the automatic
-  ones, but confirm with the user before implementing.
-- **Input debounce.** A chirp fires only on the debounced, reported
-  input state change (the same event `on_input_change`/`sk_bridge_input_
-  changed` already receives), never on raw bounce.
-- **Implementation shape.** A small event-to-tone mapping in `indicator`,
-  fed from the same places that already call `sk_bridge_input_changed`
-  and the relay-change listener in `main.c`, playing a short one-shot
-  tone (not the looping alarm pattern) on the buzzer GPIO, gated by the
-  new setting and the priority order above.
+## Decisions (resolved in the interactive session — scope grew from the
+original sketch below; this supersedes it)
+
+Tones are **RTTTL** (Ring Tone Text Transfer Language) strings, stored as a
+**named library** the user maintains through a new **"Tones" web page**
+(`/tones`), and every event (boot, AP-portal, factory-reset, each relay's
+on/off, each input's change) picks its tone from that library via a
+dropdown. This is materially bigger than the original plan (which assumed a
+couple of new frequency-offset settings): it adds an RTTTL parser, a
+variable-length named-pattern store, and a new CRUD web page.
+
+- **Coexistence with the alarm and the #7 override** (unchanged from the
+  original sketch, not re-litigated): priority highest to lowest is
+  `INDICATOR_OVERRIDE_*` (BOOT button held) > alarm > event chirp. A chirp
+  is skipped entirely (not queued) if the override or alarm is active when
+  it would start; an already-playing chirp is cut off if the alarm/override
+  takes over mid-chirp.
+- **Settings shape.**
+  - One global `buzzer_on_event` toggle: master on/off for all chirps
+    (separate from `buzzer_on_alarm` — a boat is a quiet-hours
+    environment).
+  - A named tone-pattern library: `tone_patterns`, a table-format string
+    setting (espOS's `x-espos-format: "table"`, columns `name`/`rtttl`),
+    edited through the new Tones page (CRUD: add/rename/edit/delete rows).
+  - Three boot-family event settings, each a dropdown of library tone names
+    plus "(none)" for off: `boot_tone` (power-on), `portal_tone` (BOOT
+    button → setup access point, issue #7), `factory_reset_tone` (BOOT
+    button → factory reset, issue #7). Adding portal/reset tones expands
+    the original issue #14 scope (which only asked for power-on boot) —
+    confirmed with the user as in-scope for this issue.
+  - Per-channel dropdowns, each "(none)" or a library tone name:
+    `relay<N>_on_tone` / `relay<N>_off_tone` for N=1..8, `input<N>_tone`
+    for N=1..8 (one tone per input channel, fired on any debounced level
+    change — not separate high/low tones, matching the original plan's
+    "a distinct third tone for input changes").
+  - "(none)"/off is represented by an empty string, not a separate enable
+    flag — consistent with existing conventions in this config
+    (`relay<N>_override_di` 0 = none, `relay<N>_max_on_s` 0 = no limit).
+- **Which relay sources chirp.** Direct commands only — SignalK, N2K, web,
+  input-override — not the automatic ones (pulse end, fail-safe,
+  max-on-time). (Relay boot-state application never reaches the
+  relay-change listener at all — see `main.c`'s `start_io()` — so start-up
+  needed no special-casing.)
+- **Input debounce.** A chirp fires only on the debounced, reported input
+  state change (the same event `on_input_change`/`sk_bridge_input_changed`
+  already receives), never on raw bounce.
+- **Tone design / defaults.** Short, functional beeps (not melodies), all
+  under ~1 s, built as RTTTL so the user can also write their own. Shipped
+  defaults (also the `tone_patterns` table's out-of-the-box rows):
+  - `boot`: ascending 3-note blip (cheerful, "I'm up")
+  - `portal`: a short repeating trill (distinct "waiting for you" feel,
+    different in character from `boot` and `reset` so the three
+    boot-family events are tellable apart by ear)
+  - `reset`: a short descending phrase (deliberately "heavier"/more final,
+    since a factory reset is destructive)
+  - `relay-on`: a short high blip
+  - `relay-off`: a short low blip
+  - `input`: a short neutral double-blip
+  Every relay's `_on_tone`/`_off_tone` and every input's `_tone` default to
+  `relay-on`/`relay-off`/`input` respectively; `boot_tone`/`portal_tone`/
+  `factory_reset_tone` default to `boot`/`portal`/`reset`.
+- **Implementation shape.**
+  - A pure RTTTL parser (`rtttl.h`/`.c`, new files in `components/
+    indicator/`): parses `name:d=..,o=..,b=..:notes` into a
+    `{freq_hz, duration_ms}` note array, mirroring the existing Morse
+    encoder's shape (`morse_seg_t` → `rtttl_note_t`) so the same
+    host-testable, hardware-free pattern applies.
+  - `indicator_logic`/`indicator` gain a small named-tone table (parsed
+    from the `tone_patterns` config string with cJSON, `components/
+    indicator`'s new `PRIV_REQUIRES espressif__cjson`, same as `web_ui`)
+    and one-shot chirp playback reusing the existing "test buzzer"
+    play-once machinery and priority/gating logic already in
+    `indicator_task()`. Unlike the alarm/test tone (fixed `buzzer_freq_hz`
+    for the whole message), a chirp's *frequency* varies per RTTTL note, so
+    the buzzer's applied PWM frequency now also updates while a chirp
+    plays, not just from the `buzzer_freq_hz` setting.
+  - New `indicator_play_event(event)` (boot/portal/factory-reset) and
+    `indicator_play_relay_tone(channel, on)` / `indicator_play_input_tone
+    (channel)`, called from `main.c`'s `app_main()` (after `indicator_
+    start()`), `do_reopen_portal()`/`do_factory_reset()` (before
+    `esp_restart()`, with a short fixed `vTaskDelay` so the chirp is
+    actually heard before the reboot — the indicator task's own polling
+    loop would otherwise never get scheduled in time), `on_relay_change()`
+    (gated by a new pure `relay_ctrl_source_chirps(relay_source_t)` in
+    `relay_ctrl` alongside its already-host-tested logic), and `on_input_
+    change()`.
+  - New `/tones` web page (`components/web_ui/www/tones.html`, registered
+    in `web_ui.c` like `/relays`): CRUD for the `tone_patterns` table plus
+    dropdowns for every event/channel setting, populated from the current
+    library. No new REST endpoints — it reads/writes through the existing
+    generic `GET`/`PUT /api/v1/config?ns=swbank` (`espos_httpd`'s
+    `api_config.c`), the same mechanism the schema-driven settings page
+    already uses.
 
 ## Test Strategy
-- Host tests for the priority/gating logic: no chirp while an
-  `indicator_override_*` is active or the alarm is sounding; chirp
-  plays once per qualifying event; setting off means no chirp at all.
-  (Buzzer PWM/GPIO output itself is hardware, so tests cover the
-  decision logic and the requested tone/duration, like plan 17's
-  frequency-setting tests, not the physical sound.)
-- Host tests for input debounce gating (only reported changes chirp) and
-  for which relay sources chirp per the decision above.
-On the board: boot chirp audible on power-up once connected; each
-relay-on/off and input-change chirp audible and distinguishable by ear;
-confirm no chirp plays while the BOOT-button override LED is blinking or
-while a real alarm is sounding.
+- Host tests for `rtttl_parse`/`rtttl_duration_ms`/`rtttl_tone_at`: known
+  RTTTL strings decode to the expected notes/frequencies/durations;
+  malformed input parses to zero notes.
+- Host tests for `indicator_parse_tones`/`indicator_find_tone`: a table
+  JSON string decodes to named tones, skipping rows with an invalid name
+  or unparseable RTTTL; lookup by name, empty name, and unknown name.
+- Host tests for the priority/gating logic: no chirp starts while an
+  `indicator_override_*` is active or the alarm is sounding; a chirp
+  already playing is cut off if the alarm/override takes over; `buzzer_
+  on_event` off means no chirp at all; a chirp plays once, not looping.
+  (Buzzer PWM/GPIO output itself is hardware, so tests cover the decision
+  logic and the requested tone/duration, like plan 17's frequency-setting
+  tests, not the physical sound.)
+- Host test for `relay_ctrl_source_chirps`: true for SignalK/N2K/web/input,
+  false for pulse-end/fail-safe/max-on-time.
+- Input debounce needs no new test: `on_input_change`/`sk_bridge_input_
+  changed` already only fire on the debounced, reported state change
+  (existing `input_sense` behaviour), and the chirp call sits right next
+  to that existing call.
+On the board: boot chirp audible on power-up once connected; BOOT-button
+portal and factory-reset chirps audible (and different from each other and
+from boot) before the board restarts; each relay-on/off and input-change
+chirp audible and distinguishable by ear; confirm no chirp plays while the
+BOOT-button override LED is blinking or while a real alarm is sounding; the
+Tones page: add/edit/delete a tone pattern, and confirm the event/channel
+dropdowns pick it up.
 
 ## Implementation Steps
-- [ ] Resolve open questions (settings shape, which sources chirp, tone
+- [x] Resolve open questions (settings shape, which sources chirp, tone
       design) — interactive session, before coding
-- [ ] Event-to-tone mapping + priority/gating in `indicator`
-- [ ] Wire boot, relay-change and input-change events into it
-- [ ] New setting(s) alongside `buzzer_on_alarm`/`buzzer_freq_hz`
-- [ ] Host tests (gating/priority, debounce, per-source chirping)
-- [ ] USER_MANUAL, SPEC.md settings reference; CHANGELOG
-- [ ] On-board check: all three event types, and non-interference with
-      the alarm and the BOOT-button override
+- [x] `rtttl.h`/`.c`: pure RTTTL parser (`components/indicator/`)
+- [x] `indicator_logic`: named-tone table parsing (cJSON) + lookup
+- [x] `indicator`/`indicator.h`: chirp playback state machine (priority/
+      gating, variable-frequency one-shot playback), `indicator_play_event`/
+      `indicator_play_relay_tone`/`indicator_play_input_tone`
+- [x] `device_config`: `buzzer_on_event`, `tone_patterns` (table), boot/
+      portal/factory_reset tone settings, per-relay on/off + per-input tone
+      settings, all in `swbank.json` + `device_config_t`/`device_config_load`
+- [x] `relay_ctrl`: `relay_ctrl_source_chirps(relay_source_t)`
+- [x] Wire boot (`app_main`), portal/factory-reset (`do_reopen_portal`/
+      `do_factory_reset`, with the pre-restart delay), relay-change and
+      input-change events into `indicator_play_*` in `main.c`
+- [x] `components/web_ui/www/tones.html` + a `/tones` route in `web_ui.c`
+- [x] Host tests (RTTTL parsing, tone-table parsing, gating/priority,
+      per-source chirping) — written; not yet run (no ESP-IDF toolchain in
+      this environment, see below)
+- [x] USER_MANUAL, CHANGELOG. SPEC.md is intentionally untouched: it's
+      scoped to the MVP spec, and neither #7 (BOOT button) nor #10 (buzzer
+      test/frequency) touched it either — CHANGELOG is where this kind of
+      addition is recorded.
+- [ ] Host tests actually run (`test/host/run_all.sh`) once on a machine
+      with the ESP-IDF toolchain — the pure RTTTL/tone-table logic was
+      cross-checked with a standalone `gcc` harness in the meantime, but
+      that's not a substitute for the real Unity/idf.py run
+- [ ] On-board check: all boot-family + relay + input chirps, non-
+      interference with the alarm and the BOOT-button override, and the
+      Tones page's CRUD + dropdowns
 
 ## Files to Create/Modify
-- `components/indicator/`
+- `components/indicator/` (`rtttl.h`/`.c` new; `indicator_logic.*`,
+  `indicator.c`/`.h` extended)
+- `components/relay_ctrl/` (`relay_ctrl_source_chirps`)
 - `main/main.c` (event wiring)
-- `components/device_config/` (new setting(s))
-- `test/host/indicator_test/` (or equivalent, new if it doesn't exist)
+- `components/device_config/` (new settings)
+- `components/web_ui/` (`www/tones.html` new, `web_ui.c` route)
+- `test/host/indicator_test/`, `test/host/relay_ctrl_test/`
 - `USER_MANUAL.md`, `SPEC.md`, `CHANGELOG.md`

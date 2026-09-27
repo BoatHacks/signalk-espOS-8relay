@@ -15,6 +15,12 @@ extern "C" {
 
 #define DEVICE_CONFIG_NS "swbank"
 #define DEVICE_CONFIG_NAME_MAX 32
+// A tone name from the `tone_patterns` library ("" = no tone/off).
+#define DEVICE_CONFIG_TONE_NAME_MAX 24
+// `tone_patterns` itself: a JSON array of {"name","rtttl"} rows, stored as
+// espOS's table-format string (plan 19, issue #14). Matches the config
+// schema's maxLength, espOS's own NVS string ceiling.
+#define DEVICE_CONFIG_TONE_TABLE_MAX 3999
 
 typedef enum { RELAY_MODE_LATCHING, RELAY_MODE_MOMENTARY } relay_mode_t;
 typedef enum { FAILSAFE_DEFAULT_SAFE, FAILSAFE_HOLD } failsafe_policy_t;
@@ -30,11 +36,16 @@ typedef struct {
     uint8_t override_di;  // 0 = none, else input channel 1-8
     input_link_t link;
     uint32_t max_on_s;    // 0 = no limit; latching relays only
+    // Tone library entry to chirp on a direct-command on/off (plan 19).
+    char on_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
+    char off_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
 } relay_cfg_t;
 
 typedef struct {
     char name[DEVICE_CONFIG_NAME_MAX + 1];
     bool invert;
+    // Tone library entry to chirp on a debounced level change (plan 19).
+    char tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
 } input_cfg_t;
 
 typedef struct {
@@ -49,6 +60,14 @@ typedef struct {
     uint8_t led_brightness;  // percent, 0 = off
     bool buzzer_on_alarm;
     uint16_t buzzer_freq_hz;
+    // Event chirps (plan 19, issue #14): a separate master switch from the
+    // alarm, a named RTTTL tone library, and which entry (if any, "" = off)
+    // plays for each boot-family event.
+    bool buzzer_on_event;
+    char tone_patterns[DEVICE_CONFIG_TONE_TABLE_MAX + 1];
+    char boot_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
+    char portal_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
+    char factory_reset_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
     relay_cfg_t relays[BOARD_CHANNELS];  // index 0 = relay 1
     input_cfg_t inputs[BOARD_CHANNELS];  // index 0 = input 1
 } device_config_t;

@@ -51,6 +51,11 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
     TEST_ASSERT_EQUAL(10, c.led_brightness);
     TEST_ASSERT_FALSE(c.buzzer_on_alarm);
     TEST_ASSERT_EQUAL(2700, c.buzzer_freq_hz);
+    TEST_ASSERT_FALSE(c.buzzer_on_event);
+    TEST_ASSERT_EQUAL_STRING("boot", c.boot_tone);
+    TEST_ASSERT_EQUAL_STRING("portal", c.portal_tone);
+    TEST_ASSERT_EQUAL_STRING("reset", c.factory_reset_tone);
+    TEST_ASSERT_NOT_NULL(strstr(c.tone_patterns, "\"boot\""));
     TEST_ASSERT_EQUAL_STRING("Relay 1", c.relays[0].name);
     TEST_ASSERT_EQUAL_STRING("Relay 8", c.relays[7].name);
     TEST_ASSERT_EQUAL_STRING("Input 8", c.inputs[7].name);
@@ -62,6 +67,9 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
         TEST_ASSERT_EQUAL(INPUT_LINK_FOLLOW, c.relays[i].link);
         TEST_ASSERT_EQUAL(0, c.relays[i].max_on_s);
         TEST_ASSERT_FALSE(c.inputs[i].invert);
+        TEST_ASSERT_EQUAL_STRING("relay-on", c.relays[i].on_tone);
+        TEST_ASSERT_EQUAL_STRING("relay-off", c.relays[i].off_tone);
+        TEST_ASSERT_EQUAL_STRING("input", c.inputs[i].tone);
     }
     store_down();
 }
@@ -79,6 +87,11 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ESP_OK(espos_config_set_str("swbank", "relay5_link", "toggle"));
     TEST_ESP_OK(espos_config_set_i32("swbank", "relay6_max_on_s", 1800));
     TEST_ESP_OK(espos_config_set_i32("swbank", "buzzer_freq_hz", 4000));
+    TEST_ESP_OK(espos_config_set_bool("swbank", "buzzer_event", true));
+    TEST_ESP_OK(espos_config_set_str("swbank", "boot_tone", "custom-boot"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "relay3_on_tone", "custom-on"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "relay3_off_tone", ""));
+    TEST_ESP_OK(espos_config_set_str("swbank", "input2_tone", "custom-input"));
 
     device_config_t c;
     TEST_ESP_OK(device_config_load(&c));
@@ -94,6 +107,11 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ASSERT_EQUAL(INPUT_LINK_FOLLOW, c.relays[5].link);
     TEST_ASSERT_EQUAL(1800, c.relays[5].max_on_s);
     TEST_ASSERT_EQUAL(4000, c.buzzer_freq_hz);
+    TEST_ASSERT_TRUE(c.buzzer_on_event);
+    TEST_ASSERT_EQUAL_STRING("custom-boot", c.boot_tone);
+    TEST_ASSERT_EQUAL_STRING("custom-on", c.relays[2].on_tone);
+    TEST_ASSERT_EQUAL_STRING("", c.relays[2].off_tone);
+    TEST_ASSERT_EQUAL_STRING("custom-input", c.inputs[1].tone);
     store_down();
 }
 

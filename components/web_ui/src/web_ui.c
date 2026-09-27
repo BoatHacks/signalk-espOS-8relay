@@ -16,6 +16,8 @@ static const char *TAG = "web_ui";
 
 extern const char relays_html_start[] asm("_binary_relays_html_start");
 extern const char relays_html_end[] asm("_binary_relays_html_end");
+extern const char tones_html_start[] asm("_binary_tones_html_start");
+extern const char tones_html_end[] asm("_binary_tones_html_end");
 
 static const web_ui_io_t *s_io;
 // The config is a few hundred bytes copied in and out; a spinlock keeps
@@ -112,6 +114,16 @@ static esp_err_t get_page(httpd_req_t *req)
     return httpd_resp_send(req, relays_html_start, relays_html_end - relays_html_start - 1);
 }
 
+// The Tones page (plan 19, issue #14): CRUD for the tone_patterns library
+// and the event/channel tone dropdowns, entirely through the existing
+// generic GET/PUT /api/v1/config -- no dedicated REST endpoints needed.
+static esp_err_t get_tones_page(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
+    return httpd_resp_send(req, tones_html_start, tones_html_end - tones_html_start - 1);
+}
+
 static esp_err_t get_state(httpd_req_t *req)
 {
     return send_state(req);
@@ -200,6 +212,7 @@ esp_err_t web_ui_start(const web_ui_io_t *io, const device_config_t *cfg)
         uint32_t flags;
     } routes[] = {
         {{.uri = "/relays", .method = HTTP_GET, .handler = get_page}, ESPOS_HTTPD_PUBLIC},
+        {{.uri = "/tones", .method = HTTP_GET, .handler = get_tones_page}, ESPOS_HTTPD_PUBLIC},
         {{.uri = API_PATH, .method = HTTP_GET, .handler = get_state}, ESPOS_HTTPD_PROTECTED},
         {{.uri = API_PATH "/status", .method = HTTP_GET, .handler = get_status}, ESPOS_HTTPD_PROTECTED},
         {{.uri = "/api/v1/buzzer/test", .method = HTTP_POST, .handler = post_buzzer_test}, ESPOS_HTTPD_PROTECTED},

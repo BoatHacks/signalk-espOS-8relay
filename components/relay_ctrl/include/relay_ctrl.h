@@ -43,6 +43,14 @@ typedef struct {
 // full new state. Keep it short: it runs on the commanding task.
 typedef void (*relay_listener_t)(uint8_t channel, bool on, relay_source_t src, uint8_t mask, void *arg);
 
+// Whether an event chirp (plan 19, issue #14) should play for a change from
+// `src`: true for a direct command (SignalK, NMEA 2000, web page, an input
+// override), false for an automatic one (a momentary pulse ending, the
+// SignalK-loss fail-safe, a maximum on-time expiring) -- those can happen
+// often and unattended, so a chirp for them would be noise rather than
+// useful feedback.
+bool relay_ctrl_source_chirps(relay_source_t src);
+
 // How long a changed `hold` state may wait before being written to flash.
 #define RELAY_CTRL_SAVE_DELAY_MS 5000
 

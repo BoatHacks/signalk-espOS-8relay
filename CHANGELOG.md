@@ -17,6 +17,19 @@ it as the update's notes, and *Cut release* refuses a version without one.
   factory-resets the board. The status LED blinks white or red to show
   which action a release will trigger. Host-tested and confirmed on
   real hardware (docs/plans/14-boot-button.md).
+- Buzzer chirps on notable events, not just alarms (issue #14): boot, a
+  BOOT-button action (a distinct chirp for reopening the setup portal vs.
+  a factory reset, played just before the restart), a relay switching
+  on/off by a direct command (SignalK, NMEA 2000, the relay page, or an
+  input override — not for an automatic change), and an input's reported
+  state changing. New *Buzzer on events* setting (off by default,
+  separate from *Buzzer on alarm*), and a new `/tones` page for a named
+  RTTTL tone library (six built-in tones) and per-event/per-channel
+  dropdowns to pick which tone plays where, or none. A chirp is silently
+  skipped while the alarm is sounding or the BOOT button's LED override is
+  active, never queued. Host-tested (RTTTL parsing, the tone library,
+  gating/priority, which relay sources chirp)
+  (docs/plans/19-buzzer-event-sounds.md).
 
 ## [0.1.0] - 2026-09-26
 

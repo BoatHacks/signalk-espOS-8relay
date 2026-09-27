@@ -187,6 +187,8 @@ overrides.
 | Controlled by input | None | An input (1–8) that switches this relay directly |
 | Input link | Follow | *Follow*: the relay copies its input. *Toggle*: each press of a push button on the input switches the relay over (section 7.4). |
 | Maximum on-time | 0 (no limit) | Switch off automatically after this long, however the relay was switched on. Ignored in momentary mode. |
+| On chirp | relay-on | Tone (from the Tones page, section 7.7) to play when this relay switches on by a direct command (SignalK, NMEA 2000, the relay page, or an input override) -- not for an automatic change. *(none)* = no chirp. |
+| Off chirp | relay-off | As above, for switching off. |
 
 ### 6.4 Each input
 
@@ -194,6 +196,7 @@ overrides.
 |---|---|---|
 | Name | Input *n* | Shown in SignalK apps |
 | Invert | Off | Turn on for normally-closed switches |
+| Chirp | input | Tone (from the Tones page, section 7.7) to play when this input's reported state changes. *(none)* = no chirp. |
 
 ### 6.5 Other
 
@@ -205,6 +208,7 @@ overrides.
 | Status LED brightness | 10 % | 0 turns the LED off (section 7.6) |
 | Buzzer on alarm | Off | Beep in Morse while an alarm is active (section 7.6) |
 | Buzzer frequency | 2700 Hz | Tone of the buzzer, 1000–5000 Hz. Applies at once; try it with *Test buzzer* on the relay page. |
+| Buzzer on events | Off | Chirp on boot, a BOOT-button action, a relay switching on/off, or an input changing (section 7.7). Separate from *Buzzer on alarm*. |
 | Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
 
 ## 7. Everyday use
@@ -346,6 +350,38 @@ not *Buzzer on alarm* is on, and does nothing while an alarm is already
 sounding. Passive buzzers differ: if the tone is quiet or shrill, change
 *Buzzer frequency* (section 6.5) and test again.
 
+### 7.7 Event chirps and the Tones page
+
+With *Buzzer on events* turned on (section 6.5), the board plays a short
+chirp on:
+
+- **Boot**, once power-on finishes.
+- **A BOOT-button action** (section 8), just before the board restarts: a
+  distinct chirp for reopening the setup access point, and another for a
+  factory reset.
+- **A relay switching on or off** by a direct command (SignalK, NMEA 2000,
+  the relay page, or an input override) -- not for an automatic change
+  (a momentary pulse ending, the SignalK-loss fail-safe, or the maximum
+  on-time running out), which would be noise rather than useful feedback.
+- **An input's reported state changing** (after debouncing, never on a
+  raw bounce).
+
+A chirp never plays over, or gets queued behind, the alarm or the
+BOOT-button's LED override (section 8): it's silently skipped while either
+is active, and cut off if the alarm starts mid-chirp.
+
+Open `http://<board address>/tones` to manage this. It has:
+
+- A **tone library**: named tones written as RTTTL (Ring Tone Text Transfer
+  Language, the format used by old ringtone-composer tools) --
+  `name:d=<default duration>,o=<default octave>,b=<tempo>:<notes>`, e.g.
+  `boot:d=16,o=5,b=200:c,e,g`. Add, edit or delete entries, then *Save tone
+  library*. The board ships with six: `boot`, `portal`, `reset`,
+  `relay-on`, `relay-off`, `input`.
+- A **dropdown per event** (boot, setup portal, factory reset, each
+  relay's on/off, each input) to pick which library tone plays for it, or
+  *(none)* for silence. Changes here apply immediately.
+
 ## 8. Troubleshooting
 
 ### Recovering a board that's lost its network, with the BOOT button
@@ -373,6 +409,10 @@ status LED:
 
 A button already being held when the board powers up is ignored until it's
 released once, so it can't trigger either action by accident during boot.
+
+With *Buzzer on events* turned on (section 7.7), each action also chirps a
+distinct tone just before the board restarts, so you know which one fired
+without watching the LED.
 
 ### NMEA 2000: nothing received, or the board isn't listed
 

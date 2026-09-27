@@ -528,3 +528,16 @@ TEST_CASE("max on-time: a hold relay restored at boot gets a fresh timer", "[rel
     relay_ctrl_tick();
     TEST_ASSERT_FALSE(relay_ctrl_get(1));
 }
+
+// ------------------------------------------------------- event chirps (#14)
+
+TEST_CASE("event chirps: only direct commands, not automatic changes", "[relay_ctrl]")
+{
+    TEST_ASSERT_TRUE(relay_ctrl_source_chirps(RELAY_SRC_SK));
+    TEST_ASSERT_TRUE(relay_ctrl_source_chirps(RELAY_SRC_N2K));
+    TEST_ASSERT_TRUE(relay_ctrl_source_chirps(RELAY_SRC_WEB));
+    TEST_ASSERT_TRUE(relay_ctrl_source_chirps(RELAY_SRC_INPUT));
+    TEST_ASSERT_FALSE(relay_ctrl_source_chirps(RELAY_SRC_PULSE_END));
+    TEST_ASSERT_FALSE(relay_ctrl_source_chirps(RELAY_SRC_FAILSAFE));
+    TEST_ASSERT_FALSE(relay_ctrl_source_chirps(RELAY_SRC_MAX_ON));
+}
