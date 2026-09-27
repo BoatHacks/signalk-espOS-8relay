@@ -50,6 +50,15 @@ fail-safe/boot-default code path keeps operating on the coil, unchanged.
 - Translation boundary is `relay_ctrl`'s public get/set/PUT surface only,
   not a new component — same reasoning as `invert` living in
   `input_sense` rather than a separate layer.
+- **`wiredNC` + momentary (2026-09-27):** allowed, translated
+  consistently, no special-casing. A momentary relay's "pulse" command
+  still just means "flip the coil for `pulseMs`"; reporting and
+  commanding translate through `wiredNC` the same as a latching relay.
+  For a NC-wired momentary relay this means a pulse is a brief load-OFF
+  blip rather than load-ON — an unusual but real use case (e.g.
+  momentarily killing power to reset something downstream), and
+  consistent/predictable beats special-casing it away. `device_config`
+  does not reject or warn on the combination.
 
 ## Test Strategy
 Host tests in `relay_ctrl_test`:
