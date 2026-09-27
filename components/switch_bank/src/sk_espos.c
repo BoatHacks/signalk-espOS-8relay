@@ -12,4 +12,5 @@ const sk_api_t sk_espos_api = {
     .publish_string = espos_sk_publish_string,
     .declare_meta = espos_sk_declare_meta,
     .put_register = put_register,
+    .publish_json = espos_sk_publish_json,
 };

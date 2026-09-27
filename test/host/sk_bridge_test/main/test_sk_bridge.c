@@ -8,7 +8,7 @@
 
 #define MAX_CALLS 512
 
-typedef enum { CALL_NUMBER, CALL_STRING, CALL_META, CALL_PUT_REG } call_kind_t;
+typedef enum { CALL_NUMBER, CALL_STRING, CALL_META, CALL_PUT_REG, CALL_JSON } call_kind_t;
 
 static struct {
     call_kind_t kind;
@@ -58,7 +58,14 @@ static esp_err_t put_reg(const char *path, sk_put_handler_t cb, void *arg)
     return ESP_OK;
 }
 
-static const sk_api_t api = {pub_number, pub_string, meta, put_reg};
+static esp_err_t pub_json(const char *path, const char *json)
+{
+    record(CALL_JSON, path);
+    snprintf(calls[n_calls++].text, sizeof(calls[0].text), "%s", json);
+    return ESP_OK;
+}
+
+static const sk_api_t api = {pub_number, pub_string, meta, put_reg, pub_json};
 
 static int count(call_kind_t kind)
 {
@@ -509,4 +516,194 @@ TEST_CASE("republish: the interval is the metadata period, and follows changes",
     n_calls = 0;
     sk_bridge_update_config(&cfg);  // unchanged: no re-declare
     TEST_ASSERT_EQUAL(0, count(CALL_META));
+}
+
+// --------------------------------------------------------- input alarms
+
+TEST_CASE("an input alarm is raised on each enabled tree, and cleared", "[sk_bridge]")
+{
+    fresh();
+    cfg.publish_controls_tree = true;
+    cfg.inputs[3].alarm = INPUT_ALARM_ALARM;
+    start();
+    n_calls = 0;
+    sk_bridge_input_changed(4, true);
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.4.state");
+    TEST_ASSERT_TRUE(i >= 0);
+    TEST_ASSERT_EQUAL_STRING("{\"state\":\"alarm\",\"method\":[\"visual\",\"sound\"],\"message\":\"Input 4 active\"}",
+                              calls[i].text);
+    i = find(CALL_JSON, "notifications.electrical.controls.espOS-instance1-input4.state");
+    TEST_ASSERT_TRUE(i >= 0);
+    TEST_ASSERT_EQUAL(2, count(CALL_JSON));
+
+    n_calls = 0;
+    sk_bridge_input_changed(4, false);
+    i = find(CALL_JSON, "notifications.electrical.switches.bank.1.4.state");
+    TEST_ASSERT_EQUAL_STRING("{\"state\":\"normal\",\"method\":[],\"message\":\"\"}", calls[i].text);
+    TEST_ASSERT_EQUAL(2, count(CALL_JSON));
+}
+
+TEST_CASE("an unrelated input's alarm setting doesn't fire for a different channel", "[sk_bridge]")
+{
+    fresh();
+    cfg.inputs[3].alarm = INPUT_ALARM_ALARM;
+    start();
+    n_calls = 0;
+    sk_bridge_input_changed(5, true);
+    TEST_ASSERT_EQUAL(0, count(CALL_JSON));
+}
+
+TEST_CASE("alarm off publishes nothing, on or off", "[sk_bridge]")
+{
+    fresh();  // every input's alarm defaults to off
+    start();
+    n_calls = 0;
+    sk_bridge_input_changed(1, true);
+    sk_bridge_input_changed(1, false);
+    TEST_ASSERT_EQUAL(0, count(CALL_JSON));
+}
+
+TEST_CASE("warn and emergency use their own SignalK state", "[sk_bridge]")
+{
+    fresh();
+    cfg.inputs[0].alarm = INPUT_ALARM_WARN;
+    cfg.inputs[1].alarm = INPUT_ALARM_EMERGENCY;
+    start();
+    n_calls = 0;
+    sk_bridge_input_changed(1, true);
+    sk_bridge_input_changed(2, true);
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"state\":\"warn\""));
+    i = find(CALL_JSON, "notifications.electrical.switches.bank.1.2.state");
+    TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"state\":\"emergency\""));
+}
+
+TEST_CASE("a custom alarm message is used instead of the default", "[sk_bridge]")
+{
+    fresh();
+    cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
+    snprintf(cfg.inputs[0].alarm_msg, sizeof(cfg.inputs[0].alarm_msg), "Bilge water high");
+    start();
+    n_calls = 0;
+    sk_bridge_input_changed(1, true);
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"message\":\"Bilge water high\""));
+}
+
+TEST_CASE("the alarm message is JSON-escaped", "[sk_bridge]")
+{
+    fresh();
+    cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
+    snprintf(cfg.inputs[0].alarm_msg, sizeof(cfg.inputs[0].alarm_msg), "Bilge \"aft\" high");
+    start();
+    n_calls = 0;
+    sk_bridge_input_changed(1, true);
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"message\":\"Bilge \\\"aft\\\" high\""));
+}
+
+TEST_CASE("clashing bank ids: no alarm is published either", "[sk_bridge]")
+{
+    fresh();
+    cfg.input_bank_id = cfg.bank_id;
+    cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
+    start();
+    n_calls = 0;
+    sk_bridge_input_changed(1, true);
+    TEST_ASSERT_EQUAL(0, count(CALL_JSON));
+}
+
+TEST_CASE("a float switch already up at boot raises its alarm once settled", "[sk_bridge]")
+{
+    fresh();
+    inputs_ready = false;
+    input_mask = 0x01;  // input 1 already on when it settles
+    cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
+    start();
+    TEST_ASSERT_EQUAL(0, count(CALL_JSON));  // not yet settled
+    sk_bridge_input_changed(1, true);        // input_sense's settle notification
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_TRUE(i >= 0);
+    TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"state\":\"alarm\""));
+}
+
+TEST_CASE("an active alarm is republished on the interval, cleared ones are not", "[sk_bridge]")
+{
+    fresh();
+    cfg.sk_republish_s = 10;
+    cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
+    cfg.inputs[1].alarm = INPUT_ALARM_ALARM;
+    start();
+    sk_bridge_stream_changed(true);
+    input_mask = 0x01;                  // channel 1 now reads on
+    sk_bridge_input_changed(1, true);   // active
+    sk_bridge_input_changed(2, false);  // configured, but never raised
+    n_calls = 0;
+    clock_ms += 10000;
+    sk_bridge_tick();
+    TEST_ASSERT_EQUAL(1, count(CALL_JSON));
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_TRUE(i >= 0);
+    TEST_ASSERT_EQUAL(-1, find(CALL_JSON, "notifications.electrical.switches.bank.1.2.state"));
+}
+
+TEST_CASE("an active alarm is republished after a reconnect", "[sk_bridge]")
+{
+    fresh();
+    cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
+    start();
+    sk_bridge_stream_changed(true);
+    input_mask = 0x01;
+    sk_bridge_input_changed(1, true);
+    n_calls = 0;
+    sk_bridge_stream_changed(false);
+    sk_bridge_stream_changed(true);
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_TRUE(i >= 0);
+    TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"state\":\"alarm\""));
+}
+
+TEST_CASE("once cleared, an alarm is not republished on reconnect", "[sk_bridge]")
+{
+    fresh();
+    cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
+    start();
+    sk_bridge_stream_changed(true);
+    sk_bridge_input_changed(1, true);
+    sk_bridge_input_changed(1, false);
+    n_calls = 0;
+    sk_bridge_stream_changed(false);
+    sk_bridge_stream_changed(true);
+    TEST_ASSERT_EQUAL(-1, find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state"));
+}
+
+TEST_CASE("turning the alarm setting off live clears an already-raised alarm", "[sk_bridge]")
+{
+    fresh();
+    cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
+    input_mask = 0x01;
+    start();
+    sk_bridge_input_changed(1, true);
+    n_calls = 0;
+    device_config_t next = cfg;
+    next.inputs[0].alarm = INPUT_ALARM_OFF;
+    sk_bridge_update_config(&next);
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_TRUE(i >= 0);
+    TEST_ASSERT_EQUAL_STRING("{\"state\":\"normal\",\"method\":[],\"message\":\"\"}", calls[i].text);
+}
+
+TEST_CASE("enabling the alarm setting live raises it for an input already on", "[sk_bridge]")
+{
+    fresh();
+    input_mask = 0x01;
+    start();
+    sk_bridge_input_changed(1, true);
+    n_calls = 0;
+    device_config_t next = cfg;
+    next.inputs[0].alarm = INPUT_ALARM_WARN;
+    sk_bridge_update_config(&next);
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_TRUE(i >= 0);
+    TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"state\":\"warn\""));
 }
