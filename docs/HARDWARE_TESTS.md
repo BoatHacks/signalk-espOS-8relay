@@ -188,6 +188,18 @@ flushed to flash on a clean restart, not just every 10 min). Then
 `curl -s -X POST -H "$H" $B/api/v1/relays/1/counters/reset` → both back
 to 0. Repeat channel/`cycles`/`runTime` check for one input.
 
+**B10 [human] Interlocked pair (#8).** Two lamps on relays 1 and 2.
+`setcfg '"r1_interlock":2,"r2_interlock":1'`. Pass if: `relay 1 true`
+while relay 2 is on switches lamp 2 off immediately and lamp 1 on only
+after `interlock_dead_ms` (default 100 ms — hard to see by eye, watch
+`relays`/the log timestamps rather than the lamps for the exact gap);
+neither lamp is ever on at once, confirmed both by eye and by hammering
+both relays from the web page and NMEA 2000 at the same time (a scope on
+the relay outputs, if available, should show no overlap at all). Then
+`relay 1 true`, `relay 2 true` — pass if relay 2's command is ignored
+while relay 1's pending-on is still waiting (no double-flip). Finally
+`setcfg '"r1_interlock":0,"r2_interlock":0'`.
+
 ## C. Inputs
 
 **C1 [loop] Input polarity.** As B1, from the input side: with relay 8
