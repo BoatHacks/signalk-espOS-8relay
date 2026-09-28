@@ -330,7 +330,7 @@ dependencies:
       require: private
       version: ^0.10.3
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 0.10.3
   signalk-espos/espos_wifi:
@@ -361,7 +361,8 @@ direct_dependencies:
 - signalk-espos/espos_net
 - signalk-espos/espos_ota
 - signalk-espos/espos_sk
+- signalk-espos/espos_time
 - ttlappalainen/nmea2000
-manifest_hash: 0b13c387a17f98f9e8987346a6743bcfb5ab304e5fcdff4da1c29158c8168a21
+manifest_hash: 3df7c1a1726cad78c82a9448f101ac8037e241f72a791c9c815fb3049cc028c3
 target: esp32s3
 version: 3.0.0

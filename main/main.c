@@ -46,6 +46,7 @@
 #include "relay_hw.h"
 #include "rtc_hw.h"
 #include "rtc_pcf85063.h"
+#include "schedule_eval.h"
 #include "sk_bridge.h"
 #include "sk_espos.h"
 #include "web_ui.h"
@@ -106,6 +107,11 @@ static esp_err_t n2k_set_relay(uint8_t relay, bool on)
 static esp_err_t web_set_relay(uint8_t relay, bool on)
 {
     return relay_ctrl_set(relay, on, RELAY_SRC_WEB);
+}
+
+static esp_err_t schedule_set_relay(uint8_t relay, bool on)
+{
+    return relay_ctrl_set(relay, on, RELAY_SRC_SCHEDULE);
 }
 
 // Short, stable names: the relay page shows them and the log prints them.
@@ -323,6 +329,35 @@ static void button_poll(void)
 // If this loop stalls, pulses stop ending and the fail-safe stops firing, so
 // the device restarts within IO_RESTART_US (io_supervisor) and relays take
 // their boot state. espOS's task watchdog (30 s) is the backstop.
+// static: device_config_t now carries the tone_patterns table (up to
+// ~4 KB), far too big for a local on io_task's 4 KB stack. io_task is the
+// only writer; schedule_tick() (also io_task) only reads it.
+static device_config_t s_cfg;
+static uint32_t s_last_schedule_tick_ms;
+
+// Schedules run at their own, much coarser rate (plan 16): minute-
+// resolution settings have no use for relay_ctrl's 10 ms tick, and
+// espos_time_parts()/sun_times() are needlessly expensive to call that
+// often. Called from io_task, at most once a second.
+static void schedule_tick(uint32_t now)
+{
+    if (now - s_last_schedule_tick_ms < 1000) {
+        return;
+    }
+    s_last_schedule_tick_ms = now;
+
+    bool time_valid = espos_time_is_synced();
+    espos_time_parts_t local = {0};
+    if (time_valid && espos_time_parts(&local) != ESP_OK) {
+        time_valid = false;  // defensive: a read failure is "no valid time", not a crash
+    }
+    double lat = 0, lon = 0;
+    if (time_valid) {
+        position_get(&s_cfg, now, &lat, &lon);
+    }
+    schedule_eval_tick(&s_cfg, time_valid, &local, lat, lon);
+}
+
 static void io_task(void *arg)
 {
     ESP_ERROR_CHECK(espos_health_watch_task("io", IO_STALL_MS));
@@ -330,21 +365,17 @@ static void io_task(void *arg)
         espos_health_kick();
         s_io_alive_us = esp_timer_get_time();
         if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(TICK_MS)) > 0) {
-            // static: device_config_t now carries the tone_patterns table
-            // (up to ~4 KB), far too big for a local on this task's 4 KB
-            // stack. io_task is the only caller, so this is safe unshared.
-            static device_config_t cfg;
-            if (device_config_load(&cfg) == ESP_OK) {
+            if (device_config_load(&s_cfg) == ESP_OK) {
                 // Unlike bank_id/input_bank_id (restart_required), a bad
                 // r<n>_interlock setting takes effect live: re-check it on
                 // every save, not just at boot (issue #8), so the warning
                 // tracks the config instead of lagging a restart behind.
-                device_config_report_health(&cfg);
-                relay_ctrl_update_config(&cfg);
-                input_sense_update_config(&cfg);
-                sk_bridge_update_config(&cfg);
-                indicator_update_config(&cfg);
-                web_ui_update_config(&cfg);
+                device_config_report_health(&s_cfg);
+                relay_ctrl_update_config(&s_cfg);
+                input_sense_update_config(&s_cfg);
+                sk_bridge_update_config(&s_cfg);
+                indicator_update_config(&s_cfg);
+                web_ui_update_config(&s_cfg);
             }
         }
         relay_ctrl_tick();
@@ -352,6 +383,7 @@ static void io_task(void *arg)
         button_poll();
         sk_bridge_tick();
         counters_tick(now_ms());
+        schedule_tick(now_ms());
     }
 }
 
@@ -617,6 +649,8 @@ static esp_err_t start_io(void *arg)
     static const position_n2k_hw_t position_n2k_hw = {.now_ms = now_ms};
     position_sk_init(&position_sk_hw);
     position_n2k_init(&position_n2k_hw);
+    static const schedule_eval_io_t schedule_io = {.set_relay = schedule_set_relay};
+    schedule_eval_init(&schedule_io);
 
     input_sense_hw_t in_hw;
     ESP_ERROR_CHECK(input_hw_create(&in_hw));
