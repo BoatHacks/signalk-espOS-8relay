@@ -105,6 +105,7 @@ static const char *source_name(relay_source_t src)
     case RELAY_SRC_FAILSAFE: return "failsafe";
     case RELAY_SRC_WEB: return "web";
     case RELAY_SRC_MAX_ON: return "maxOn";
+    case RELAY_SRC_INTERLOCK: return "interlock";
     }
     return "unknown";
 }
@@ -300,6 +301,11 @@ static void io_task(void *arg)
             // stack. io_task is the only caller, so this is safe unshared.
             static device_config_t cfg;
             if (device_config_load(&cfg) == ESP_OK) {
+                // Unlike bank_id/input_bank_id (restart_required), a bad
+                // r<n>_interlock setting takes effect live: re-check it on
+                // every save, not just at boot (issue #8), so the warning
+                // tracks the config instead of lagging a restart behind.
+                device_config_report_health(&cfg);
                 relay_ctrl_update_config(&cfg);
                 input_sense_update_config(&cfg);
                 sk_bridge_update_config(&cfg);
@@ -605,7 +611,10 @@ void app_main(void)
 
     default_ota_manifest();
 
-    // Bank ids only change on restart, so checking once at boot is enough.
+    // Covers bank_id/input_bank_id here at boot (restart_required, so this
+    // is the only time they can have changed) and interlock settings for
+    // the window before the first config save, if any; io_task's own call
+    // re-checks interlock settings live on every later save (issue #8).
     device_config_report_health(&cfg);
     ESP_ERROR_CHECK(espos_config_subscribe(on_config_change, NULL));
 

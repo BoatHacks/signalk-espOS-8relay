@@ -185,6 +185,7 @@ overrides.
 | Pulse time | 1 s | For momentary relays |
 | When SignalK is lost or the board restarts | Switch off | *Keep last state*, or *switch off*. Momentary relays always switch off. |
 | Wired to NC | Off | Turn on if this relay's load is wired to its NC (normally-closed) terminal instead of NO. SignalK, NMEA 2000 and the relay page then report and command the *load's* state, not the coil's -- see the warning below. |
+| Interlocked with | None | Another relay (1–8) that must never be on at the same time as this one, e.g. windlass up/down or a reversing motor's two contactors -- see below. |
 | Controlled by input | None | An input (1–8) that switches this relay directly |
 | Input link | Follow | *Follow*: the relay copies its input. *Toggle*: each press of a push button on the input switches the relay over (section 7.4). |
 | Maximum on-time | 0 (no limit) | Switch off automatically after this long, however the relay was switched on. Ignored in momentary mode. |
@@ -217,6 +218,21 @@ overrides.
 > Check this setting after any factory reset on a board with NC-wired
 > relays.
 
+> **Interlocked with.** Set this on *both* relays of a pair, each naming
+> the other -- a one-sided or self-referencing setting is ignored and
+> raises a warning on the health page, so a typo never silently leaves a
+> motor unprotected. Switching one on while its partner is on switches the
+> partner off immediately, and the first relay itself switches on only
+> after the *Interlock dead time* (section 6.5) has passed -- so the two
+> coils are never energized together, whichever page, app or bus the
+> command came from. *All on* (section 7.2) skips every relay in an
+> interlocked pair rather than switching one on and fighting this rule
+> over the other. If the board restarts with both of a pair's coils
+> somehow already on (very old firmware's saved state, or a settings
+> change that just paired up two relays that happened to both be on),
+> neither is restored -- both switch off, and a warning is raised.
+> Momentary relays can be interlocked too (a jog up/down pair).
+
 ### 6.4 Each input
 
 | Setting | Default | Notes |
@@ -239,6 +255,7 @@ overrides.
 | Buzzer on alarm | Off | Beep in Morse while an alarm is active (section 7.6) |
 | Buzzer frequency | 2700 Hz | Tone of the buzzer, 42–10000 Hz. Applies at once; try it with *Test buzzer* on the relay page. |
 | Buzzer on events | Off | Chirp on boot, a BOOT-button action, a relay switching on/off, or an input changing (section 7.7). Separate from *Buzzer on alarm*. |
+| Interlock dead time | 100 ms | How long an interlocked relay's partner stays off before it switches on (0–2000 ms). Applies to every interlocked pair (section 6.3). |
 | Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
 
 ## 7. Everyday use
@@ -304,8 +321,9 @@ Open `http://<board address>/relays` (for example
 `http://espos-cf28.local/relays`) in a browser on the same network. It
 lists the 8 relays with On and Off buttons and their current state, and
 next to each relay the state of the input with the same number. *All on*
-(which asks first) and *All off* switch every relay. The page updates
-every second.
+(which asks first) and *All off* switch every relay, except that *All on*
+skips any relay that's interlocked with another (section 6.3) -- it says
+so afterwards, naming which ones. The page updates every second.
 
 The header shows the board's name and firmware version, and a status line
 below it shows the network (Ethernet or WiFi, and the address), whether

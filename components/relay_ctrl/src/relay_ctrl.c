@@ -8,6 +8,12 @@
 #include "freertos/semphr.h"
 
 #define HEALTH_KEY "relayExpander"
+// Boot/hold-restore or a config change found an interlocked pair's coils
+// both on (issue #8): distinct from device_config's own "interlockInvalid"
+// (a bad r<n>_interlock *setting*) -- this is a bad *state* despite valid
+// settings, e.g. older firmware's stored mask, or a relay just wired into
+// a new pair while its partner happened to be on.
+#define HEALTH_KEY_INTERLOCK "interlockBothOn"
 #define MAX_LISTENERS 4
 
 typedef struct {
@@ -24,6 +30,14 @@ static struct {
     uint32_t pulse_end[BOARD_CHANNELS];
     uint8_t limited;            // latching relays with a running max on-time
     uint32_t max_on_end[BOARD_CHANNELS];
+    // Interlocked relays (issue #8, plan 15) waiting out the dead time
+    // before their coil goes on, having already switched their partner's
+    // coil off. Coil-level, like everything else in this struct: a relay's
+    // interlock partner is `cfg.relays[i].interlock` in coil terms too, per
+    // the 2026-09-28 decision (wiredNC never enters into it).
+    uint8_t pending_on;
+    uint32_t pending_on_end[BOARD_CHANNELS];
+    relay_source_t pending_on_src[BOARD_CHANNELS];
     bool save_pending;
     uint32_t last_save_ms;
     bool i2c_fault;
@@ -77,6 +91,61 @@ static uint8_t wired_nc_mask(void)
 static uint32_t max_on_ms(int i)
 {
     return is_momentary(i) ? 0 : s.cfg.relays[i].max_on_s * 1000u;
+}
+
+// This relay's validated interlock partner's coil bit, or 0 if it has none.
+// `cfg.relays[i].interlock` is already the effective, reciprocated pair
+// (device_config_load()), coil-numbered like everything else here.
+static uint8_t interlock_partner_bit(int i)
+{
+    const uint8_t p = s.cfg.relays[i].interlock;
+    return p ? (uint8_t)(1u << (p - 1)) : 0;
+}
+
+// Clears both coil bits of every interlocked pair that's set together in
+// `mask` -- restoring or keeping neither is the safe choice when both
+// somehow ended up wanting to be on (issue #8, plan 15: boot/hold-restore,
+// or a config change that just paired up two relays that were already on).
+// `*conflict` gets every cleared bit OR'd in, for the health warning.
+static uint8_t clear_interlock_conflicts(uint8_t mask, uint8_t *conflict)
+{
+    uint8_t out = mask;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        const uint8_t bit = 1u << i;
+        const uint8_t partner_bit = interlock_partner_bit(i);
+        if (partner_bit && (mask & bit) && (mask & partner_bit)) {
+            out &= ~bit;
+            if (conflict) {
+                *conflict |= bit;
+            }
+        }
+    }
+    return out;
+}
+
+// Raise or clear the "both interlocked coils were on" warning. `conflict`
+// is the bitmask clear_interlock_conflicts() reported, 0 = nothing to warn
+// about (clears a previous warning, if any).
+static void report_interlock_health(uint8_t conflict)
+{
+    if (conflict == 0) {
+        espos_health_report(HEALTH_KEY_INTERLOCK, ESPOS_HEALTH_NORMAL, NULL);
+        return;
+    }
+    char list[32] = "";
+    size_t len = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (!(conflict & (1u << i))) {
+            continue;
+        }
+        int n = snprintf(list + len, sizeof(list) - len, "%s%d", len ? ", " : "", i + 1);
+        if (n > 0 && (size_t)n < sizeof(list) - len) {
+            len += (size_t)n;
+        }
+    }
+    char msg[ESPOS_HEALTH_MSG_MAX];
+    snprintf(msg, sizeof(msg), "Relay %s: both interlocked coils were on; switched off", list);
+    espos_health_report(HEALTH_KEY_INTERLOCK, ESPOS_HEALTH_WARN, msg);
 }
 
 static bool deadline_passed(uint32_t now, uint32_t deadline)
@@ -135,11 +204,11 @@ static void track_max_on_locked(uint8_t before, uint8_t restart)
     }
 }
 
-// Tell listeners about every relay that differs between `before` and s.mask.
-// Called without the lock held.
-static void notify(uint8_t before, uint8_t after, relay_source_t src)
+// Tell listeners about every relay named in `changed`, reporting `after`
+// (already wiredNC-translated) as both the new mask and each one's new
+// state. Called without the lock held.
+static void notify_bits(uint8_t changed, uint8_t after, relay_source_t src)
 {
-    uint8_t changed = before ^ after;
     for (int i = 0; i < BOARD_CHANNELS; i++) {
         if (!(changed & (1u << i))) {
             continue;
@@ -150,6 +219,13 @@ static void notify(uint8_t before, uint8_t after, relay_source_t src)
             }
         }
     }
+}
+
+// Tell listeners about every relay that differs between `before` and
+// `after`, all from the same source. Called without the lock held.
+static void notify(uint8_t before, uint8_t after, relay_source_t src)
+{
+    notify_bits(before ^ after, after, src);
 }
 
 esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg)
@@ -164,6 +240,7 @@ esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg)
     s.cfg = *cfg;
     s.pulsing = 0;
     s.limited = 0;
+    s.pending_on = 0;
     s.save_pending = false;
     s.last_save_ms = hw->now_ms() - RELAY_CTRL_SAVE_DELAY_MS;
 
@@ -186,7 +263,10 @@ esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg)
     } else if (s.hw.store.load(s.hw.store.ctx, &held) != ESP_OK) {
         held = 0;  // nothing stored yet: everything starts off
     }
-    const uint8_t target = held & hold_mask();
+    // Restore (or keep) neither side of an interlocked pair that's somehow
+    // both on -- older firmware's stored mask, most likely (issue #8).
+    uint8_t boot_conflict = 0;
+    const uint8_t target = clear_interlock_conflicts(held & hold_mask(), &boot_conflict);
 
     err = warm ? tca9554_write_outputs(&s.hw.expander, to_reg(target))
                : tca9554_init_outputs(&s.hw.expander, to_reg(target));
@@ -198,8 +278,11 @@ esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg)
     // A relay restored on starts a fresh max on-time: the time it spent on
     // before the restart isn't known.
     track_max_on_locked(0, 0);
-    // A warm boot may have held a newer state than the store had.
-    s.save_pending = warm;
+    // A warm boot may have held a newer state than the store had; so did a
+    // boot conflict just corrected above -- the store's bad mask shouldn't
+    // linger.
+    s.save_pending = warm || boot_conflict != 0;
+    report_interlock_health(boot_conflict);
     return ESP_OK;
 }
 
@@ -236,7 +319,27 @@ void relay_ctrl_update_config(const device_config_t *cfg)
         }
     }
     track_max_on_locked(s.mask, changed_limit);
+
+    // A config change that just paired up (or re-paired) two relays while
+    // both happened to be on: switch both off and warn (issue #8) -- the
+    // safe choice when the setup itself just changed underneath them.
+    const uint8_t before = s.mask;
+    uint8_t conflict = 0;
+    clear_interlock_conflicts(s.mask, &conflict);
+    if (conflict) {
+        if (commit_locked(s.mask & ~conflict) == ESP_OK) {
+            s.pulsing &= ~conflict;
+            s.pending_on &= ~conflict;
+            track_max_on_locked(before, 0);
+        } else {
+            conflict = 0;  // commit failed (I2C fault): nothing actually changed
+        }
+    }
+    report_interlock_health(conflict);
+    const uint8_t after = s.mask;
+    const uint8_t wnc = wired_nc_mask();
     xSemaphoreGive(s.lock);
+    notify(before ^ wnc, after ^ wnc, RELAY_SRC_INTERLOCK);
 }
 
 // relay_ctrl_set() and relay_ctrl_toggle(): `on_req` < 0 means "the opposite
@@ -258,17 +361,54 @@ static esp_err_t set_or_toggle(uint8_t channel, int on_req, relay_source_t src)
     xSemaphoreTake(s.lock, portMAX_DELAY);
     const uint8_t before = s.mask;
     const bool on = on_req < 0 ? !(s.mask & bit) : ((bool)on_req != s.cfg.relays[i].wired_nc);
-    esp_err_t err = commit_locked(on ? (s.mask | bit) : (s.mask & ~bit));
-    if (err == ESP_OK) {
-        if (on && is_momentary(i)) {
-            s.pulse_end[i] = s.hw.now_ms() + s.cfg.relays[i].pulse_ms;
-            s.pulsing |= bit;
-        } else if (!on) {
+    esp_err_t err = ESP_OK;
+
+    if (!on) {
+        // Off always cancels a pending-on for this same channel (plan 15):
+        // if it hadn't committed to the coil yet, it never will now.
+        s.pending_on &= ~bit;
+        err = commit_locked(s.mask & ~bit);
+        if (err == ESP_OK) {
             s.pulsing &= ~bit;
+            track_max_on_locked(before, 0);
         }
-        // An "on" to a relay already on restarts its max on-time.
-        track_max_on_locked(before, on ? bit : 0);
+    } else {
+        const uint8_t partner_bit = interlock_partner_bit(i);
+        if (partner_bit && (s.mask & partner_bit)) {
+            // Interlocked with a relay whose coil is on right now (issue
+            // #8): that coil goes off immediately, and this one only goes
+            // on after the dead time -- checked in the tick, like a pulse.
+            // Never both on in the same expander write.
+            err = commit_locked(s.mask & ~partner_bit);
+            if (err == ESP_OK) {
+                s.pulsing &= ~partner_bit;
+                s.pending_on &= ~partner_bit;  // can't itself be pending too
+                track_max_on_locked(before, 0);
+                s.pending_on |= bit;
+                s.pending_on_end[i] = s.hw.now_ms() + s.cfg.interlock_dead_ms;
+                s.pending_on_src[i] = src;
+            }
+        } else if (!(s.pending_on & bit)) {
+            // No conflict, and not already waiting out a previous one (a
+            // repeat "on" while pending is a no-op -- still waiting).
+            err = commit_locked(s.mask | bit);
+            if (err == ESP_OK) {
+                if (is_momentary(i)) {
+                    s.pulse_end[i] = s.hw.now_ms() + s.cfg.relays[i].pulse_ms;
+                    s.pulsing |= bit;
+                }
+                // An "on" to a relay already on restarts its max on-time.
+                track_max_on_locked(before, bit);
+                // This channel's coil is now on: its partner's pending-on,
+                // if it had one waiting on this channel going off, is
+                // cancelled (plan 15) -- it must not fire into a conflict.
+                if (partner_bit) {
+                    s.pending_on &= ~partner_bit;
+                }
+            }
+        }
     }
+
     const uint8_t after = s.mask;
     const uint8_t wnc = wired_nc_mask();
     xSemaphoreGive(s.lock);
@@ -341,6 +481,10 @@ void relay_ctrl_sk_lost(void)
         s.pulsing &= ~off;
         track_max_on_locked(before, 0);
     }
+    // A default-safe relay waiting out its interlock dead time must not
+    // switch on after all once SignalK is lost -- same as a running pulse
+    // above, this is a command still in flight that fail-safe cuts short.
+    s.pending_on &= ~off;
     const uint8_t after = s.mask;
     const uint8_t wnc = wired_nc_mask();
     xSemaphoreGive(s.lock);
@@ -373,6 +517,44 @@ void relay_ctrl_tick(void)
     if (expired && commit_locked(s.mask & ~expired) == ESP_OK) {
         s.limited &= ~expired;
     }
+    const uint8_t after_max_on = s.mask;
+
+    // Interlocked relays (issue #8, plan 15) whose dead time has run out.
+    uint8_t fired = 0;
+    relay_source_t fired_src[BOARD_CHANNELS];
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (!(s.pending_on & (1u << i)) || !deadline_passed(now, s.pending_on_end[i])) {
+            continue;
+        }
+        // Safety net: only commit if the partner's coil is actually off.
+        // It always should be -- set_or_toggle() cancels a pending-on the
+        // moment its partner's coil goes back on -- but a timer must never
+        // be trusted to energize both coils together on its own; drop a
+        // stale pending-on instead.
+        const uint8_t partner_bit = interlock_partner_bit(i);
+        if (!partner_bit || !(s.mask & partner_bit)) {
+            fired |= 1u << i;
+            fired_src[i] = s.pending_on_src[i];
+        } else {
+            s.pending_on &= ~(1u << i);
+        }
+    }
+    if (fired && commit_locked(s.mask | fired) == ESP_OK) {
+        for (int i = 0; i < BOARD_CHANNELS; i++) {
+            if (!(fired & (1u << i))) {
+                continue;
+            }
+            s.pending_on &= ~(1u << i);
+            if (is_momentary(i)) {
+                s.pulse_end[i] = now + s.cfg.relays[i].pulse_ms;
+                s.pulsing |= (1u << i);
+            }
+        }
+        track_max_on_locked(after_max_on, fired);
+    } else {
+        fired = 0;  // nothing committed (no channel due, or an I2C fault)
+    }
+    const uint8_t after_fired = s.mask;
 
     if (s.save_pending && now - s.last_save_ms >= RELAY_CTRL_SAVE_DELAY_MS) {
         if (s.hw.store.save(s.hw.store.ctx, s.mask & hold_mask()) == ESP_OK) {
@@ -380,12 +562,20 @@ void relay_ctrl_tick(void)
         }
         s.last_save_ms = now;  // also on failure, so a bad flash isn't hammered
     }
-    const uint8_t after = s.mask;
     const uint8_t wnc = wired_nc_mask();
     xSemaphoreGive(s.lock);
 
     notify(before ^ wnc, after_pulses ^ wnc, RELAY_SRC_PULSE_END);
-    notify(after_pulses ^ wnc, after ^ wnc, RELAY_SRC_MAX_ON);
+    notify(after_pulses ^ wnc, after_max_on ^ wnc, RELAY_SRC_MAX_ON);
+    // Each fired relay reports with the source of the "on" command that
+    // scheduled it (SignalK, N2K, web, an input override) -- not a
+    // synthetic one -- since it succeeds that original command, delayed.
+    const uint8_t after_fired_wnc = after_fired ^ wnc;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (fired & (1u << i)) {
+            notify_bits((uint8_t)(1u << i), after_fired_wnc, fired_src[i]);
+        }
+    }
 }
 
 void relay_ctrl_reset(void)
@@ -404,7 +594,8 @@ bool relay_ctrl_source_chirps(relay_source_t src)
     case RELAY_SRC_INPUT: return true;
     case RELAY_SRC_PULSE_END:
     case RELAY_SRC_FAILSAFE:
-    case RELAY_SRC_MAX_ON: return false;
+    case RELAY_SRC_MAX_ON:
+    case RELAY_SRC_INTERLOCK: return false;
     }
     return false;
 }

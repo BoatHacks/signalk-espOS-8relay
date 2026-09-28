@@ -78,6 +78,26 @@ it as the update's notes, and *Cut release* refuses a version without one.
 - The debug console (issue #16) gained `relay <1-8> <on|off|toggle>`,
   `inputs` and `cfg <ns> <key> <value>`, for exercising relays/inputs and
   setting arbitrary config over USB serial without network reachability.
+- New per-relay *Interlocked with* setting (issue #8): pairs of relays
+  that must never be on together, e.g. windlass up/down or a reversing
+  motor's two contactors. Switching one relay on while its interlocked
+  partner is on now switches the partner off immediately and defers the
+  first relay's own on for a new global *Interlock dead time* (default
+  100 ms, 0–2000 ms); the command still succeeds, listeners just see the
+  partner go off, then the relay go on once the dead time passes. A pair
+  only takes effect when both relays name each other -- a one-sided or
+  self-referencing setting is ignored and raises a new health warning, the
+  same pattern as a clashing bank id. **Like `wiredNC` (issue #13), this
+  rule acts on the relay's coil, never the reported/commanded state**: if
+  boot/hold-restore or a settings change finds both coils of a pair
+  already on, neither is restored/kept -- both switch off and warn, rather
+  than guess which side to trust. *All on* (the relay page and
+  `PUT /api/v1/relays`) now skips every relay in an interlocked pair, and
+  the response/page say which ones and why. Host-tested (dead time,
+  pending-on cancelled by an off or by the partner's on, never both coils
+  in the same expander write, one-sided/self settings, boot/hold and
+  config-change both-on, *All on*)
+  (docs/plans/15-interlocked-pairs.md).
 
 ### Changed
 

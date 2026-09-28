@@ -85,6 +85,22 @@ SignalK switch-bank paths, and the NMEA2000 switch-bank PGNs.
   duration regardless of command source, and cannot be configured with
   `fail-safe: hold` (holding a momentary relay on indefinitely across a
   network outage is a non-goal — see §12).
+- Two relays may be configured as an **interlocked pair** (issue #8), never
+  energized together, e.g. windlass up/down, or a reversing motor's two
+  contactors. Switching one relay's coil on while its partner's coil is on
+  switches the partner off immediately and defers the first relay's own
+  coil-on for `interlockDeadMs` (default 100 ms, 0–2000 ms; §9); the command
+  still succeeds, and listeners see the partner go off, then the first relay
+  go on once the dead time elapses. A pair only takes effect when both
+  relays name each other; a one-sided or self-referencing setting is
+  ignored and raises an `espos_health` warning, the same pattern as
+  `bankId`/`inputBankId` clashing (§6.3). If boot/hold-restore or a config
+  change finds both coils of a pair already on, neither is restored/kept:
+  both switch off and a warning is raised. The web UI's "All on" (relay
+  page and `PUT /api/v1/relays`) skips every relay in an interlocked pair
+  rather than switching one on and fighting this rule over the other. Like
+  `wiredNC` (§4, §12), this rule acts on the relay's coil, never the
+  reported/commanded (load) state.
 
 ## 3. State / Lifecycle Model
 
@@ -340,7 +356,11 @@ User-tunable (via config store, §6.3):
   providing its own W5500 driver, since espOS doesn't support the W5500.
 - Per-relay: name, mode (latching/momentary), pulse duration, fail-safe
   policy, optional DI override source, `wiredNC` (load wired to the NC
-  terminal instead of NO; §4, §12)
+  terminal instead of NO; §4, §12), optional interlocked-with relay
+  (issue #8; §2, §12)
+- `interlockDeadMs`: dead time between an interlocked relay's partner
+  switching off and its own coil switching on (default `100` ms, 0–2000;
+  §2, §12)
 - Per-input: name, invert (NC vs NO sensor)
 - `publishSwitchesTree`: bool, default `true` — the
   `electrical.switches.bank.*` tree (§6.1)
@@ -388,8 +408,8 @@ Fixed (not user-tunable, board/firmware constants):
   2026-09-25: to be built on the board**, using the PCF85063 real-time
   clock, so schedules work without a SignalK server (plan 16).
 - Interlock logic: **pairwise interlocks (two relays never on together)
-  are in scope as of 2026-09-25** (plan 15). Multi-condition rules stay
-  deferred until a real use case needs them.
+  shipped** (issue #8, plan 15; §2). Multi-condition rules stay deferred
+  until a real use case needs them.
 - RS232/expansion header support — the board exposes an expansion GPIO
   header not used by this spec at all; out of scope entirely, not just
   deferred.
@@ -478,3 +498,29 @@ Fixed (not user-tunable, board/firmware constants):
   load-off blip rather than load-on (e.g. momentarily killing power to
   reset something downstream) — unusual but real, and more predictable
   than rejecting or silently reinterpreting the combination.
+- **Interlocked pairs act on the coil, never the `wiredNC`-translated
+  state** (issue #8, decided 2026-09-28, predating this plan's original
+  writing, it landed after issue #13): a reversing-motor contactor pair
+  must never be physically energized together regardless of which
+  terminal a load happens to be wired to on either relay; that is a fact
+  about the coils, not about what SignalK/NMEA2000/the relay page reports
+  or commands. So interlock enforcement, like fail-safe/boot/momentary/
+  `hold` (§3.2, §4, §12), sits below `wiredNC`'s translation boundary,
+  reading and switching `relay_ctrl`'s internal coil-level state directly.
+  "Relay A while relay B is on" throughout this spec means "A's coil while
+  B's coil is energized."
+- **Two interlocked relays' input overrides both reading "on" at boot are
+  left to the normal live enforcement, not a dedicated "restore neither"
+  path** (issue #8, decided 2026-09-28): `input_sense` applies every
+  override once, in channel order, right after the first debounce settle.
+  Suppressing a conflicting pair there instead of letting the standard
+  kill-partner/pending-on rule run would need a boot-aware code path
+  threaded through `input_sense`, `main.c` and `relay_ctrl` for a case
+  that never violates the actual safety invariant: the accepted outcome is
+  that one relay may briefly energize and then de-energize before the
+  other settles on after the dead time, exactly as it would for the same
+  two commands from any other source, never both coils on together. Only
+  the *stored/restored* both-on case (older firmware's saved mask, or a
+  config change that just paired up two relays already on) gets the
+  stricter "restore/keep neither, and warn" treatment, since there the
+  alternative is a corrupt state, not a resolvable live command sequence.

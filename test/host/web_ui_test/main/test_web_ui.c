@@ -259,3 +259,41 @@ TEST_CASE("status: down, unknown and not started become false or null", "[web_ui
     TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(n2k, "traffic")));
     cJSON_Delete(root);
 }
+
+// ---------------------------------------------------- interlock (issue #8)
+
+TEST_CASE("all-on skip mask: interlocked relays only", "[web_ui]")
+{
+    fresh();
+    cfg.relays[2].interlock = 4;  // relays 3 and 4 interlocked
+    cfg.relays[3].interlock = 3;
+    cfg.relays[5].interlock = 1;  // one-sided (device_config's job to catch, not this)
+
+    const uint8_t skipped = web_ui_all_on_skipped(&cfg);
+    TEST_ASSERT_EQUAL_HEX8(0x2C, skipped);  // bits 2,3 (relay 3,4) and 5 (relay 6)
+
+    cfg.relays[2].interlock = cfg.relays[3].interlock = cfg.relays[5].interlock = 0;
+    TEST_ASSERT_EQUAL_HEX8(0x00, web_ui_all_on_skipped(&cfg));
+}
+
+TEST_CASE("all-on skip mask is 0 in a plain state response, populated when passed in", "[web_ui]")
+{
+    fresh();
+    cJSON *root = state(0, 0, true);
+    cJSON *sk = cJSON_GetObjectItem(root, "skipped");
+    TEST_ASSERT_TRUE(cJSON_IsArray(sk));
+    TEST_ASSERT_EQUAL(0, cJSON_GetArraySize(sk));
+    cJSON_Delete(root);
+
+    cfg.relays[2].interlock = 4;
+    cfg.relays[3].interlock = 3;
+    const web_ui_view_t v = {.cfg = &cfg, .all_on_skipped = web_ui_all_on_skipped(&cfg)};
+    char *json = web_ui_state_json(&v);
+    root = cJSON_Parse(json);
+    free(json);
+    sk = cJSON_GetObjectItem(root, "skipped");
+    TEST_ASSERT_EQUAL(2, cJSON_GetArraySize(sk));
+    TEST_ASSERT_EQUAL(3, cJSON_GetArrayItem(sk, 0)->valueint);
+    TEST_ASSERT_EQUAL(4, cJSON_GetArrayItem(sk, 1)->valueint);
+    cJSON_Delete(root);
+}

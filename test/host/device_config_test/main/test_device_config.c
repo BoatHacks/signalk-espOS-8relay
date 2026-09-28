@@ -49,6 +49,7 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
     TEST_ASSERT_TRUE(c.publish_switches_tree);
     TEST_ASSERT_FALSE(c.publish_controls_tree);
     TEST_ASSERT_EQUAL(10, c.led_brightness);
+    TEST_ASSERT_EQUAL(100, c.interlock_dead_ms);
     TEST_ASSERT_FALSE(c.buzzer_on_alarm);
     TEST_ASSERT_EQUAL(2700, c.buzzer_freq_hz);
     TEST_ASSERT_FALSE(c.buzzer_on_event);
@@ -66,6 +67,7 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
         TEST_ASSERT_EQUAL(0, c.relays[i].override_di);
         TEST_ASSERT_EQUAL(INPUT_LINK_FOLLOW, c.relays[i].link);
         TEST_ASSERT_EQUAL(0, c.relays[i].max_on_s);
+        TEST_ASSERT_EQUAL(0, c.relays[i].interlock);
         TEST_ASSERT_FALSE(c.inputs[i].invert);
         TEST_ASSERT_EQUAL_STRING("relay-on", c.relays[i].on_tone);
         TEST_ASSERT_EQUAL_STRING("relay-off", c.relays[i].off_tone);
@@ -76,6 +78,7 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
         TEST_ASSERT_EQUAL(INPUT_ALARM_OFF, c.inputs[i].alarm);
         TEST_ASSERT_EQUAL_STRING("", c.inputs[i].alarm_msg);
     }
+    TEST_ASSERT_EQUAL(0, c.interlock_invalid);
     store_down();
 }
 
@@ -91,6 +94,7 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ESP_OK(espos_config_set_bool("swbank", "input2_invert", true));
     TEST_ESP_OK(espos_config_set_str("swbank", "relay5_link", "toggle"));
     TEST_ESP_OK(espos_config_set_i32("swbank", "relay6_max_on_s", 1800));
+    TEST_ESP_OK(espos_config_set_i32("swbank", "interlock_dead", 250));
     TEST_ESP_OK(espos_config_set_i32("swbank", "buzzer_freq_hz", 4000));
     TEST_ESP_OK(espos_config_set_bool("swbank", "buzzer_event", true));
     TEST_ESP_OK(espos_config_set_str("swbank", "boot_tone", "custom-boot"));
@@ -117,6 +121,7 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ASSERT_EQUAL(INPUT_LINK_TOGGLE, c.relays[4].link);
     TEST_ASSERT_EQUAL(INPUT_LINK_FOLLOW, c.relays[5].link);
     TEST_ASSERT_EQUAL(1800, c.relays[5].max_on_s);
+    TEST_ASSERT_EQUAL(250, c.interlock_dead_ms);
     TEST_ASSERT_EQUAL(4000, c.buzzer_freq_hz);
     TEST_ASSERT_TRUE(c.buzzer_on_event);
     TEST_ASSERT_EQUAL_STRING("custom-boot", c.boot_tone);
@@ -148,6 +153,8 @@ TEST_CASE("the store rejects out-of-range values", "[device_config]")
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_str("swbank", "relay1_mode", "toggle"));
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_str("swbank", "relay1_link", "latch"));
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "relay1_max_on_s", 86401));
+    TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "r1_interlock", 9));
+    TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "interlock_dead", 2001));
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "buzzer_freq_hz", 41));
     TEST_ASSERT_NOT_EQUAL(ESP_OK, espos_config_set_i32("swbank", "buzzer_freq_hz", 10001));
     store_down();
@@ -178,6 +185,55 @@ TEST_CASE("clashing bank ids raise a warning, fixing them clears it", "[device_c
     TEST_ASSERT_TRUE(device_config_input_bank_usable(&c));
     device_config_report_health(&c);
     TEST_ASSERT_EQUAL(ESPOS_HEALTH_NORMAL, health_of("bankIdClash"));
+    store_down();
+}
+
+TEST_CASE("interlock: a pair that reciprocates is the effective value", "[device_config]")
+{
+    store_up();
+    TEST_ESP_OK(espos_config_set_i32("swbank", "r1_interlock", 2));
+    TEST_ESP_OK(espos_config_set_i32("swbank", "r2_interlock", 1));
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    TEST_ASSERT_EQUAL(2, c.relays[0].interlock);
+    TEST_ASSERT_EQUAL(1, c.relays[1].interlock);
+    for (int i = 2; i < BOARD_CHANNELS; i++) {
+        TEST_ASSERT_EQUAL(0, c.relays[i].interlock);
+    }
+    TEST_ASSERT_EQUAL(0, c.interlock_invalid);
+    store_down();
+}
+
+TEST_CASE("interlock: a one-sided or self-referencing setting is ignored", "[device_config]")
+{
+    store_up();
+    // Relay 3 names relay 4, but relay 4 doesn't name relay 3 back: one-sided.
+    TEST_ESP_OK(espos_config_set_i32("swbank", "r3_interlock", 4));
+    // Relay 6 names itself.
+    TEST_ESP_OK(espos_config_set_i32("swbank", "r6_interlock", 6));
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    TEST_ASSERT_EQUAL(0, c.relays[2].interlock);  // relay 3: ignored
+    TEST_ASSERT_EQUAL(0, c.relays[3].interlock);  // relay 4: never set one, nothing to ignore
+    TEST_ASSERT_EQUAL(0, c.relays[5].interlock);  // relay 6: ignored (self)
+    // Only the side that actually named a (bad) partner is flagged.
+    TEST_ASSERT_EQUAL((1u << 2) | (1u << 5), c.interlock_invalid);
+    store_down();
+}
+
+TEST_CASE("interlock: a bad setting raises a warning, fixing it clears it", "[device_config]")
+{
+    store_up();
+    device_config_t c;
+    TEST_ESP_OK(espos_config_set_i32("swbank", "r1_interlock", 1));  // self
+    TEST_ESP_OK(device_config_load(&c));
+    device_config_report_health(&c);
+    TEST_ASSERT_EQUAL(ESPOS_HEALTH_WARN, health_of("interlockInvalid"));
+
+    TEST_ESP_OK(espos_config_set_i32("swbank", "r1_interlock", 0));  // fixed: no partner named
+    TEST_ESP_OK(device_config_load(&c));
+    device_config_report_health(&c);
+    TEST_ASSERT_EQUAL(ESPOS_HEALTH_NORMAL, health_of("interlockInvalid"));
     store_down();
 }
 

@@ -33,7 +33,16 @@ off, optionally with a dead time before the second closes.
   - A pending-on is cancelled by a later "off" to A or "on" to B.
 - **Boot and hold:** if the stored state has both partners on (older
   firmware, or a config change), restore neither and raise a warning.
-  Input overrides at boot obey the same rule.
+  **Input overrides at boot, decided 2026-09-28:** left to the normal
+  live enforcement above (kill the partner, delay this one) rather than a
+  dedicated "restore neither" path; that would need a boot-aware flag
+  threaded through `input_sense`, `main.c` and `relay_ctrl` for a case
+  that never violates the actual invariant: both coils are never
+  energized together, worst case one relay briefly flickers on and off
+  before the other settles. Only the *stored/restored* both-on case
+  above gets the stricter "restore/keep neither" treatment, since there
+  the alternative is a corrupt state, not a resolvable live command
+  sequence.
 - **Config change while both are on:** switch both off and warn — the
   safe choice when the setup just changed.
 - Momentary relays can be interlocked too (a jog up/down pair).
@@ -60,12 +69,12 @@ On the board: two lamps as a pair, hammering both from the web page and
 N2K at once; scope the relay outputs for overlap if possible.
 
 ## Implementation Steps
-- [ ] Settings and pair derivation/validation in `device_config`
-- [ ] Enforcement, dead time and pending-on in `relay_ctrl`
-- [ ] Boot/hold/config-change rules
-- [ ] Health warning wiring
-- [ ] Host tests (every expander write checked)
-- [ ] SPEC.md §2/§10.2, USER_MANUAL §6.3; CHANGELOG
+- [x] Settings and pair derivation/validation in `device_config`
+- [x] Enforcement, dead time and pending-on in `relay_ctrl`
+- [x] Boot/hold/config-change rules
+- [x] Health warning wiring
+- [x] Host tests (every expander write checked)
+- [x] SPEC.md §2/§10.2, USER_MANUAL §6.3; CHANGELOG
 
 ## Files to Create/Modify
 - `components/device_config/`

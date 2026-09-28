@@ -24,6 +24,7 @@ typedef enum {
     RELAY_SRC_FAILSAFE,    // SignalK was lost
     RELAY_SRC_WEB,         // the device's own relay page
     RELAY_SRC_MAX_ON,      // a relay's maximum on-time ran out
+    RELAY_SRC_INTERLOCK,   // an interlocked pair was found both on and forced off (issue #8)
 } relay_source_t;
 
 // Persists the on/off state of `hold` relays (bit n-1 = relay n).
