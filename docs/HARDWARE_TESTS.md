@@ -401,3 +401,14 @@ Copy for each release tested.
 | G3 Buzzer frequency | pass | 1000 Hz and 5000 Hz both confirmed audible with a pitch change, applied live with no restart |
 | G4 Alarm buzzer | not run | the only `ALARM`-level condition that doesn't force a reboot (`relayExpander`) needs opening the case; filed espOS#137 suggesting a test-injection endpoint like the buzzer's, so this can be exercised remotely in future |
 | H1 Update from the manifest | not run | skipped this session |
+
+**Release:** v0.1.0-55-g85241f8 (local dev build, not a tagged release) · **Date:** 2026-09-28 · **Tested by:** Tobias Rosenstock (with Claude) · **Board revision:** ESP32-S3-ETH-8DI-8RO-C, first unit
+
+| Test | Result | Notes |
+|---|---|---|
+| C6 Input alarm | pass | Input 1's float switch (reusing C2's wiring): flipping on raised `"state":"alarm"` with the default message ("Input 1 active") within the republish interval; flipping off cleared to `"state":"normal"`. Cycle counter also incremented correctly on the same transition (#4 working alongside #3). |
+| B9 Cycle counters | not run this session | blocked earlier in the session by the board running a pre-#4 build; unblocked once reflashed to current main, but not re-run before time ran out |
+| B8 Wired to NC | pass | Relay 2 rewired to NC. Idle report correctly showed `"on":true` (load on) with the coil at its default off state. Commanding `{"on":false}` energized the coil and turned the load off, confirmed by the operator. SignalK-loss fail-safe (simulated via a temporary host-side firewall rule blocking the board's access to the SignalK server, not stopping the server itself) de-energized the coil after the ~30s grace period, correctly reporting `"on":true` (`lastSource":"failsafe"`) and confirmed by the operator that the lamp turned back on. Factory reset (via the BOOT button, ~15s hold) reverted `relay2_wired_nc` to `false` while leaving the physical wiring and the coil's actual state unchanged — the API then correctly reported the *raw* coil state (`"on":false`) even though the load was still physically on, exactly as intended (the setting doesn't retroactively rewire anything). `wiredNC` restored afterward to match the real wiring. |
+| B10 Interlocked pair | pending | next in this session |
+
+Recovery notes from this session's factory reset (same pattern as 2026-09-26): `sk.discovery` reverted to its default (auto) and picked a stale/wrong server; fixed via `sk.discovery=false` + `sk.server_host`. The SignalK access-request approval had to be re-done against a *second*, newer pending request — the board issued a fresh access request once `sk.server_host` was corrected, superseding the one first seen right after the reset (which pointed at the wrong server); approving the stale request did nothing until the new one was found and approved.
