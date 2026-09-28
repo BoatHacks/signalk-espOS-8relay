@@ -96,7 +96,7 @@ const rows = [];
 const SOURCES = {
   signalk: "SignalK", nmea2000: "NMEA 2000", web: "this page", input: "input",
   pulse: "pulse end", failsafe: "SignalK-loss fail-safe", maxOn: "maximum on-time",
-  boot: "start-up",
+  boot: "start-up", interlock: "interlock",
 };
 
 function fmtAgo(s) {
@@ -242,16 +242,32 @@ async function poll() {
   if (!document.hidden) timer = setTimeout(poll, POLL_MS);
 }
 
-async function send(url, on) {
+// Joins relay numbers the way the text should read: "3", "3 and 4", or
+// "3, 4 and 5".
+function joinRelays(nums) {
+  if (nums.length === 1) return "" + nums[0];
+  return nums.slice(0, -1).join(", ") + " and " + nums[nums.length - 1];
+}
+
+// "All on" skips every relay in an interlocked pair (issue #8): say so,
+// e.g. "All on: relays 3 and 4 skipped, interlocked".
+function fmtSkipped(skipped) {
+  if (!skipped || !skipped.length) return "";
+  const noun = skipped.length === 1 ? "relay" : "relays";
+  return "; " + noun + " " + joinRelays(skipped) + " skipped, interlocked";
+}
+
+async function send(url, on, statusFor) {
   setBusy(true);
   showStatus("Switching…");
   try {
-    render(await handle(await fetch(url, {
+    const body = await handle(await fetch(url, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ on }),
-    })));
-    showStatus("Done");
+    }));
+    render(body);
+    showStatus(statusFor ? statusFor(body) : "Done");
   } catch (e) {
     showStatus("Failed: " + e.message, true);
   }
@@ -330,7 +346,9 @@ document.getElementById("buzz").onclick = async () => {
 };
 
 allOn.onclick = () => {
-  if (confirm("Switch ALL relays on?")) send(API, true);
+  if (confirm("Switch ALL relays on?")) {
+    send(API, true, (body) => "Done" + fmtSkipped(body.skipped));
+  }
 };
 allOff.onclick = () => send(API, false);
 document.addEventListener("visibilitychange", () => {

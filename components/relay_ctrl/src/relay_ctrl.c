@@ -8,6 +8,12 @@
 #include "freertos/semphr.h"
 
 #define HEALTH_KEY "relayExpander"
+// Boot/hold-restore or a config change found an interlocked pair's coils
+// both on (issue #8): distinct from device_config's own "interlockInvalid"
+// (a bad r<n>_interlock *setting*) -- this is a bad *state* despite valid
+// settings, e.g. older firmware's stored mask, or a relay just wired into
+// a new pair while its partner happened to be on.
+#define HEALTH_KEY_INTERLOCK "interlockBothOn"
 #define MAX_LISTENERS 4
 
 typedef struct {
@@ -94,6 +100,52 @@ static uint8_t interlock_partner_bit(int i)
 {
     const uint8_t p = s.cfg.relays[i].interlock;
     return p ? (uint8_t)(1u << (p - 1)) : 0;
+}
+
+// Clears both coil bits of every interlocked pair that's set together in
+// `mask` -- restoring or keeping neither is the safe choice when both
+// somehow ended up wanting to be on (issue #8, plan 15: boot/hold-restore,
+// or a config change that just paired up two relays that were already on).
+// `*conflict` gets every cleared bit OR'd in, for the health warning.
+static uint8_t clear_interlock_conflicts(uint8_t mask, uint8_t *conflict)
+{
+    uint8_t out = mask;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        const uint8_t bit = 1u << i;
+        const uint8_t partner_bit = interlock_partner_bit(i);
+        if (partner_bit && (mask & bit) && (mask & partner_bit)) {
+            out &= ~bit;
+            if (conflict) {
+                *conflict |= bit;
+            }
+        }
+    }
+    return out;
+}
+
+// Raise or clear the "both interlocked coils were on" warning. `conflict`
+// is the bitmask clear_interlock_conflicts() reported, 0 = nothing to warn
+// about (clears a previous warning, if any).
+static void report_interlock_health(uint8_t conflict)
+{
+    if (conflict == 0) {
+        espos_health_report(HEALTH_KEY_INTERLOCK, ESPOS_HEALTH_NORMAL, NULL);
+        return;
+    }
+    char list[32] = "";
+    size_t len = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (!(conflict & (1u << i))) {
+            continue;
+        }
+        int n = snprintf(list + len, sizeof(list) - len, "%s%d", len ? ", " : "", i + 1);
+        if (n > 0 && (size_t)n < sizeof(list) - len) {
+            len += (size_t)n;
+        }
+    }
+    char msg[ESPOS_HEALTH_MSG_MAX];
+    snprintf(msg, sizeof(msg), "Relay %s: both interlocked coils were on; switched off", list);
+    espos_health_report(HEALTH_KEY_INTERLOCK, ESPOS_HEALTH_WARN, msg);
 }
 
 static bool deadline_passed(uint32_t now, uint32_t deadline)
@@ -211,7 +263,10 @@ esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg)
     } else if (s.hw.store.load(s.hw.store.ctx, &held) != ESP_OK) {
         held = 0;  // nothing stored yet: everything starts off
     }
-    const uint8_t target = held & hold_mask();
+    // Restore (or keep) neither side of an interlocked pair that's somehow
+    // both on -- older firmware's stored mask, most likely (issue #8).
+    uint8_t boot_conflict = 0;
+    const uint8_t target = clear_interlock_conflicts(held & hold_mask(), &boot_conflict);
 
     err = warm ? tca9554_write_outputs(&s.hw.expander, to_reg(target))
                : tca9554_init_outputs(&s.hw.expander, to_reg(target));
@@ -223,8 +278,11 @@ esp_err_t relay_ctrl_init(const relay_ctrl_hw_t *hw, const device_config_t *cfg)
     // A relay restored on starts a fresh max on-time: the time it spent on
     // before the restart isn't known.
     track_max_on_locked(0, 0);
-    // A warm boot may have held a newer state than the store had.
-    s.save_pending = warm;
+    // A warm boot may have held a newer state than the store had; so did a
+    // boot conflict just corrected above -- the store's bad mask shouldn't
+    // linger.
+    s.save_pending = warm || boot_conflict != 0;
+    report_interlock_health(boot_conflict);
     return ESP_OK;
 }
 
@@ -261,7 +319,27 @@ void relay_ctrl_update_config(const device_config_t *cfg)
         }
     }
     track_max_on_locked(s.mask, changed_limit);
+
+    // A config change that just paired up (or re-paired) two relays while
+    // both happened to be on: switch both off and warn (issue #8) -- the
+    // safe choice when the setup itself just changed underneath them.
+    const uint8_t before = s.mask;
+    uint8_t conflict = 0;
+    clear_interlock_conflicts(s.mask, &conflict);
+    if (conflict) {
+        if (commit_locked(s.mask & ~conflict) == ESP_OK) {
+            s.pulsing &= ~conflict;
+            s.pending_on &= ~conflict;
+            track_max_on_locked(before, 0);
+        } else {
+            conflict = 0;  // commit failed (I2C fault): nothing actually changed
+        }
+    }
+    report_interlock_health(conflict);
+    const uint8_t after = s.mask;
+    const uint8_t wnc = wired_nc_mask();
     xSemaphoreGive(s.lock);
+    notify(before ^ wnc, after ^ wnc, RELAY_SRC_INTERLOCK);
 }
 
 // relay_ctrl_set() and relay_ctrl_toggle(): `on_req` < 0 means "the opposite
@@ -516,7 +594,8 @@ bool relay_ctrl_source_chirps(relay_source_t src)
     case RELAY_SRC_INPUT: return true;
     case RELAY_SRC_PULSE_END:
     case RELAY_SRC_FAILSAFE:
-    case RELAY_SRC_MAX_ON: return false;
+    case RELAY_SRC_MAX_ON:
+    case RELAY_SRC_INTERLOCK: return false;
     }
     return false;
 }

@@ -46,7 +46,7 @@ void web_ui_update_config(const device_config_t *cfg)
     taskEXIT_CRITICAL(&s_mux);
 }
 
-static esp_err_t send_state(httpd_req_t *req)
+static esp_err_t send_state_ex(httpd_req_t *req, uint8_t all_on_skipped)
 {
     device_config_t *cfg = malloc(sizeof(*cfg));
     if (!cfg) {
@@ -57,6 +57,7 @@ static esp_err_t send_state(httpd_req_t *req)
         .relay_mask = s_io->relay_mask(),
         .input_mask = s_io->input_mask(),
         .inputs_ready = s_io->inputs_ready(),
+        .all_on_skipped = all_on_skipped,
     };
     const int64_t now = esp_timer_get_time();
     taskENTER_CRITICAL(&s_mux);
@@ -83,6 +84,11 @@ static esp_err_t send_state(httpd_req_t *req)
     esp_err_t err = espos_httpd_send_json(req, NULL, json);
     free(json);
     return err;
+}
+
+static esp_err_t send_state(httpd_req_t *req)
+{
+    return send_state_ex(req, 0);
 }
 
 // Reads {"on": bool}. On failure a response has been sent; returns false.
@@ -228,9 +234,24 @@ static esp_err_t put_all(httpd_req_t *req)
     if (!read_on(req, &on, &ret)) {
         return ret;
     }
-    // Every relay is attempted even if one fails.
+    // "All on" skips every relay in an interlocked pair (issue #8, plan 15)
+    // rather than switching one on and letting relay_ctrl's own enforcement
+    // fight over the other -- "All off" has no such conflict, so it always
+    // reaches every relay.
+    uint8_t skipped = 0;
+    if (on) {
+        device_config_t cfg;
+        taskENTER_CRITICAL(&s_mux);
+        cfg = s_cfg;
+        taskEXIT_CRITICAL(&s_mux);
+        skipped = web_ui_all_on_skipped(&cfg);
+    }
+    // Every relay attempted (not skipped) is switched even if one fails.
     esp_err_t first = ESP_OK;
     for (uint8_t ch = 1; ch <= BOARD_CHANNELS; ch++) {
+        if (skipped & (1u << (ch - 1))) {
+            continue;
+        }
         esp_err_t err = s_io->set_relay(ch, on);
         if (err != ESP_OK && first == ESP_OK) {
             first = err;
@@ -239,7 +260,7 @@ static esp_err_t put_all(httpd_req_t *req)
     if (first != ESP_OK) {
         return set_failed(req, first);
     }
-    return send_state(req);
+    return send_state_ex(req, skipped);
 }
 
 // POST /api/v1/relays/<n>/counters/reset and the input equivalent (plan 11,

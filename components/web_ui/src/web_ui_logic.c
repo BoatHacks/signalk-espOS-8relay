@@ -53,6 +53,16 @@ char *web_ui_state_json(const web_ui_view_t *view)
         cJSON_AddNumberToObject(in, "runTime", view->input_runtime_s[i]);
     }
     cJSON_AddBoolToObject(root, "inputsReady", view->inputs_ready);
+    cJSON *skipped = cJSON_AddArrayToObject(root, "skipped");
+    if (!skipped) {
+        cJSON_Delete(root);
+        return NULL;
+    }
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (view->all_on_skipped & (1u << i)) {
+            cJSON_AddItemToArray(skipped, cJSON_CreateNumber(i + 1));
+        }
+    }
     char *out = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     return out;
@@ -153,4 +163,15 @@ char *web_ui_status_json(const web_ui_status_t *st)
     char *out = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     return out;
+}
+
+uint8_t web_ui_all_on_skipped(const device_config_t *cfg)
+{
+    uint8_t skipped = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (cfg->relays[i].interlock != 0) {
+            skipped |= 1u << i;
+        }
+    }
+    return skipped;
 }

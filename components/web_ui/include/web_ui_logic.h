@@ -27,15 +27,21 @@ typedef struct {
     uint32_t relay_runtime_s[BOARD_CHANNELS];
     uint32_t input_cycles[BOARD_CHANNELS];
     uint32_t input_runtime_s[BOARD_CHANNELS];
+    // "All on" (PUT /api/v1/relays {"on":true}) skips every relay in an
+    // interlocked pair (issue #8, plan 15): bit n-1 = relay n was skipped.
+    // 0 outside that response (a plain GET, "All off", or a single PUT).
+    uint8_t all_on_skipped;
 } web_ui_view_t;
 
 // {"relays":[{"channel":1,"name":"…","on":false,"momentary":false,
 //   "input":0,"inputToggle":false,"maxOnS":0,"lastSource":"boot",
 //   "lastChangeAgoS":12,"cycles":3,"runTime":120},…],
 //  "inputs":[{"channel":1,"name":"…","on":false,"alarm":false,"cycles":3,
-//   "runTime":120},…],"inputsReady":true}; an input's "on" is null until
-// inputs_ready. "alarm" is true only once settled, while the input reads on
-// and its alarm setting isn't "off" (plan 10, issue #3).
+//   "runTime":120},…],"inputsReady":true,"skipped":[]}; an input's "on" is
+// null until inputs_ready. "alarm" is true only once settled, while the
+// input reads on and its alarm setting isn't "off" (plan 10, issue #3).
+// "skipped" lists the relay numbers "All on" left alone because they're
+// interlocked (issue #8); empty otherwise.
 // Returns a malloc'ed string, or NULL when out of memory.
 char *web_ui_state_json(const web_ui_view_t *view);
 
@@ -74,6 +80,12 @@ bool web_ui_parse_on(const char *body, bool *on);
 // {"rtttl": "..."} → out (truncated to size - 1, like snprintf). False if
 // the field is missing, not a string, or empty.
 bool web_ui_parse_rtttl(const char *body, char *out, size_t size);
+
+// Relays "All on" (PUT /api/v1/relays {"on":true}) must skip (issue #8,
+// plan 15): those in a valid interlocked pair, so it never races
+// relay_ctrl's own enforcement over which side wins. Bit n-1 = relay n.
+// Not for "All off", which has no such conflict.
+uint8_t web_ui_all_on_skipped(const device_config_t *cfg);
 
 #ifdef __cplusplus
 }
