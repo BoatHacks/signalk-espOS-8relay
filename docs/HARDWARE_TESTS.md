@@ -335,6 +335,16 @@ an alarm (disconnect the relay chip's I²C, or ask for another way); pass
 if the buzzer repeats the pattern every few seconds and the LED is red.
 Restore and `setcfg '"buzzer_alarm":false'`.
 
+**Decided 2026-09-28: not opening the case to trigger this.** The only
+way to cause the one `ALARM`-level condition that doesn't force a reboot
+(`relayExpander`, an I²C fault) is physically disconnecting the relay
+chip's I²C inside the case, and that's declined as a way to run this
+test. This test stays blocked until
+[espOS#137](https://github.com/signalk-espOS/espOS/issues/137)'s
+proposed remote test-injection endpoint (like the existing buzzer-test
+endpoint) lands upstream, which would let it move to `[auto]`. Don't
+suggest opening the case as a way to unblock it.
+
 ## H. Updates
 
 **H1 [auto] The board finds and installs an update from the manifest.**
