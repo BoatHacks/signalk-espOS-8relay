@@ -38,6 +38,20 @@ key/value settings (or a page of our own, like the relay page).
   stand until the next transition — same rule as input overrides.
 - **No valid time** (no RTC time, no SNTP): schedules do nothing and a
   health warning says so.
+- **Overlapping schedules on the same relay (decided 2026-09-28):**
+  rejected, not silently resolved. `device_config` detects two or more
+  *active* entries naming the same relay and raises a health warning
+  (same pattern as `interlockInvalid`/`bankIdClash`) — the conflicting
+  entries are ignored (that relay's schedule does nothing) until fixed,
+  rather than picking a winner by slot order. More protective than
+  letting it race, consistent with how this project treats other
+  cross-key config conflicts (issue #8's interlock validation).
+- **Momentary relays (decided 2026-09-28):** allowed, no special-casing.
+  A schedule's "on" edge for a momentary relay fires
+  `relay_ctrl_set(on=true, RELAY_SRC_SCHEDULE)` once, same as any other
+  direct command — the relay's own `pulseMs` governs how long it stays
+  on, exactly like an input-triggered pulse today. The schedule's
+  off-time is simply a no-op for that relay (nothing to turn off).
 
 ## Test Strategy
 - Host tests: sunrise/sunset against published tables for a few
