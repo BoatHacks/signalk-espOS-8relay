@@ -37,6 +37,14 @@ off, optionally with a dead time before the second closes.
 - **Config change while both are on:** switch both off and warn — the
   safe choice when the setup just changed.
 - Momentary relays can be interlocked too (a jog up/down pair).
+- **wiredNC interaction (decided 2026-09-28, plan predates #13):**
+  enforcement operates on the physical coil, never the `wiredNC`-translated
+  logical/reported state — same precedent as fail-safe, boot default, and
+  momentary auto-off in plan 18. A reversing-motor contactor pair must
+  never be physically energized together regardless of which terminal a
+  load is wired to; that's a fact about the coils, not the reported
+  state. "A while B is on" throughout this plan means "A's coil while B's
+  coil is energized."
 
 ## Test Strategy
 Safety-relevant, so thorough host tests in `relay_ctrl_test`:
