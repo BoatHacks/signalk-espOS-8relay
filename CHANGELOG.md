@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Each version starts with a one-line summary (at most 127 bytes): boards show
 it as the update's notes, and *Cut release* refuses a version without one.
 
-## [Unreleased]
+## [0.3.0] - 2026-09-28
+
+Time-based schedules with the board's own real-time clock, and better buzzer diagnostics.
 
 ### Added
 
@@ -49,6 +51,14 @@ it as the update's notes, and *Cut release* refuses a version without one.
   edge-triggering, midnight-spanning windows, day-of-week interactions,
   DST transitions and polar day/night handling
   (docs/plans/16-schedules.md).
+- Every buzzer call is now logged on serial the instant it happens
+  (`indicator_play_event`/`_relay_tone`/`_relay_pulse_tone`/
+  `_input_tone`, `indicator_test_buzzer`, `indicator_play_rtttl`),
+  separate from the existing `chirp:`/`preview:`/`buzzer test:`/`alarm:`
+  lines that only fire once a request actually starts sounding — so a
+  call silently dropped downstream (event chirps off, no tone assigned,
+  the buzzer already busy) is now distinguishable on serial from nothing
+  having called it at all.
 
 ## [0.2.0] - 2026-09-28
 
