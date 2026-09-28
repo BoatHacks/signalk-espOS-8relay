@@ -45,9 +45,9 @@ The full requirements are in [SPEC.md](SPEC.md).
 | 00 — espOS fit check | Done: espOS 0.10.3 builds for the ESP32-S3 and boots on the real board |
 | 01 — project scaffold | Done: builds for the ESP32-S3, W5500 Ethernet driver initializes on the real board (link not yet tested — no cable), host tests, CI |
 | 02 — settings | Done: all settings confirmed working through the API/web UI on the real board |
-| 03 — relay control | Done: boot sequence, momentary pulses, max on-time, fail-safe, hold-state, cold power-up and OTA reboot all confirmed on the real board |
+| 03 — relay control | Done: boot sequence, momentary pulses, max on-time, fail-safe, hold-state, cold power-up and OTA reboot all confirmed on the real board. Interlocked relay pairs confirmed on the real board (issue [#8](https://github.com/BoatHacks/signalk-espOS-8relay/issues/8), closed). Per-relay cycle counters/runtime merged and host-tested (issue [#4](https://github.com/BoatHacks/signalk-espOS-8relay/issues/4)); on-board check still pending |
 | 04 — digital inputs | Done: polarity, 50 ms debounce, and toggle/follow input-to-relay overrides confirmed on the real board |
-| 05 — SignalK | Done: connection, republish interval, PUT switching, and SignalK-loss fail-safe confirmed on the real board; `controls.*` tree and renaming not yet exercised |
+| 05 — SignalK | Done: connection, republish interval, PUT switching, and SignalK-loss fail-safe confirmed on the real board; `controls.*` tree and renaming not yet exercised. Per-input alarm notifications confirmed on the real board (issue [#3](https://github.com/BoatHacks/signalk-espOS-8relay/issues/3), closed) |
 | 06 — NMEA 2000 | Done: on-bus operation, 127501 status, 127502 control, and address-claim collision handling confirmed against a real second device; MFD device listing not yet tested (no MFD on the bench) |
 | Status LED and alarm buzzer | Buzzer tone and live frequency change confirmed on the real board; LED colour not yet tested. The alarm-triggered buzzer pattern is deliberately not tested — the only way to trigger it is opening the case, which is declined; blocked until [espOS#137](https://github.com/signalk-espOS/espOS/issues/137)'s proposed remote test-injection endpoint lands upstream. Buzzer chirps on notable events (boot, BOOT-button actions, relay/input changes), the `/tones` page (Play button, CRUD, momentary/latching layout), and non-interference with the alarm and BOOT-button override are all confirmed (issue [#14](https://github.com/BoatHacks/signalk-espOS-8relay/issues/14), closed) |
 | BOOT-button setup/reset and debug console | Confirmed on real hardware: BOOT button reopens the setup portal (~5 s) or factory-resets (~15 s) (issue [#7](https://github.com/BoatHacks/signalk-espOS-8relay/issues/7), closed). A USB serial debug console (`relay`, `inputs`, `cfg`, `wifi_sta` commands) is also on `main`, useful for bench-testing without network reachability (issue [#16](https://github.com/BoatHacks/signalk-espOS-8relay/issues/16), closed) |
@@ -80,10 +80,9 @@ Known issues found so far:
 - The relay outputs' three-terminal (NO/COM/NC) wiring has a per-relay
   `wiredNC` setting so reporting/commanding reflect the load, not the
   coil, while fail-safe/boot/momentary-auto-off/hold-restore still always
-  operate on the coil directly (issue
+  operate on the coil directly, including through a factory reset (issue
   [#13](https://github.com/BoatHacks/signalk-espOS-8relay/issues/13),
-  merged, host-tested; on-board check with a real NC-wired relay still
-  pending).
+  closed, confirmed on real hardware).
 - If the `signalk-n2k-switching` plugin is installed on the SignalK server,
   it registers itself as a generic PUT handler for every
   `electrical.switches.bank.*` path and can win over the board's own
