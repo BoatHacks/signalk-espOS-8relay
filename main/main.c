@@ -23,6 +23,7 @@
 #include "espos_health.h"
 #include "espos_net.h"
 #include "espos_sk.h"
+#include "espos_time.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs.h"
@@ -40,6 +41,8 @@
 #include "n2k_bridge.h"
 #include "relay_ctrl.h"
 #include "relay_hw.h"
+#include "rtc_hw.h"
+#include "rtc_pcf85063.h"
 #include "sk_bridge.h"
 #include "sk_espos.h"
 #include "web_ui.h"
@@ -63,6 +66,14 @@ static volatile int64_t s_io_alive_us;
 static button_state_t s_button;
 static button_hw_t s_button_hw;
 static bool s_button_hw_ok;
+// The PCF85063 RTC (issue #9, plan 16): created and 24h-mode-initialised in
+// start_io(), before the network, sharing relay_hw's I2C bus (board_i2c.h).
+// espos_time_set() itself can't run that early -- it requires
+// espos_time_start(), which espos_start_network() only reaches after
+// start_io() returns -- so app_main() reads the chip and hands the value to
+// espos_time_set() right after espos_start() comes back, still well before
+// any transport actually has a link.
+static bool s_rtc_ok;
 
 static uint32_t now_ms(void)
 {
@@ -205,6 +216,25 @@ static void on_input_change(uint8_t channel, bool on, uint8_t mask, void *arg)
 static void on_sk_stream(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     sk_bridge_stream_changed(id == ESPOS_EVENT_SK_STREAM_CONNECTED);
+}
+
+// Keep the RTC current so the next boot (or a power cut before SNTP/SignalK
+// catch up again) still has a good time to start from. Skip our own source:
+// writing back what we just read from the chip is a pointless I2C round
+// trip, not a correctness issue either way (plan 16).
+static void on_time_synced(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    if (!s_rtc_ok || !data) {
+        return;
+    }
+    const espos_event_time_t *ev = data;
+    if ((espos_time_src_t)ev->source == ESPOS_TIME_SRC_RTC) {
+        return;
+    }
+    esp_err_t err = rtc_pcf85063_set_time(ev->unix_ms);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "RTC write-back failed: %s", esp_err_to_name(err));
+    }
 }
 
 // Per changed key, on the writer's task: just wake the I/O task, which
@@ -565,6 +595,16 @@ static esp_err_t start_io(void *arg)
     }
     ESP_ERROR_CHECK(relay_ctrl_add_listener(on_relay_change, NULL));
 
+    // A dead or missing RTC is handled the same way as a dead relay
+    // expander above: log it and keep booting. Without it, schedules simply
+    // have no valid time until SNTP or SignalK provides one (plan 16).
+    pcf85063_bus_t rtc_bus;
+    if (rtc_hw_create(&rtc_bus) == ESP_OK && rtc_pcf85063_init(&rtc_bus) == ESP_OK) {
+        s_rtc_ok = true;
+    } else {
+        ESP_LOGE(TAG, "RTC unavailable; schedules will not run until SNTP or SignalK sets the clock");
+    }
+
     input_sense_hw_t in_hw;
     ESP_ERROR_CHECK(input_hw_create(&in_hw));
     // Overrides are applied on the first settled reading, after the relays'
@@ -604,6 +644,26 @@ void app_main(void)
     opts.before_network = start_io;
     opts.arg = &cfg;
     ESP_ERROR_CHECK(espos_start(&opts));
+
+    // espos_time_start() has now run (inside espos_start_network(), part of
+    // espos_start() above) so espos_time_set() is finally callable -- it
+    // refuses everything until then. This is as early as the chip's time can
+    // reach espos_time: still before any transport has a link, well before
+    // SNTP or a SignalK stream could set a higher-ranked source (plan 16).
+    // ESPOS_TIME_SRC_RTC is the lowest rank above none, so this can never
+    // walk back over a better clock even if one somehow won the race.
+    if (s_rtc_ok) {
+        int64_t unix_ms;
+        if (rtc_pcf85063_get_time(&unix_ms) == ESP_OK) {
+            esp_err_t err = espos_time_set(unix_ms, ESPOS_TIME_SRC_RTC);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "espos_time_set from RTC failed: %s", esp_err_to_name(err));
+            }
+        } else {
+            ESP_LOGW(TAG, "RTC has no valid time (no battery, or first power-up)");
+        }
+    }
+    ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_TIME_SYNCED, on_time_synced, NULL));
 
 #if CONFIG_APP_DEBUG_CONSOLE
     start_debug_console();
