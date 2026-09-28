@@ -78,6 +78,7 @@
         "signalk",
         "n2k"
       ],
+      "restart_required": true,
       "group": "Schedules",
       "title": "Position source",
       "description": "Where sunrise/sunset schedule entries get the boat's position from: signalk = navigation.position from the SignalK stream, n2k = decoded from the board's own NMEA 2000 bus (PGN 129025/129029). Either way, a missing or stale reading falls back to the position below."

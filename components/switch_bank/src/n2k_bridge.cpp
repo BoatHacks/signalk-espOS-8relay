@@ -40,7 +40,18 @@ constexpr uint32_t kLoopMs = 10;
 constexpr unsigned char kPriority = 3;
 constexpr uint32_t kOpenTimeoutMs = 5000;  // report a CAN bus that won't open
 const unsigned long kTransmitPgns[] = {SWITCH_BANK_PGN_STATUS, 0};
-const unsigned long kReceivePgns[] = {SWITCH_BANK_PGN_CONTROL, 0};
+// Extended at n2k_bridge_start() with the position PGNs when
+// position_source=n2k (issue #9, plan 16) -- ExtendReceiveMessages() keeps
+// this pointer for the library's lifetime, so it must be static storage,
+// not built on the stack. Sized for the worst case: control + both
+// position PGNs + the 0 terminator.
+unsigned long g_receive_pgns[4] = {SWITCH_BANK_PGN_CONTROL, 0, 0, 0};
+
+struct MsgListener {
+  n2k_bridge_msg_listener_t cb = nullptr;
+  void *arg = nullptr;
+};
+MsgListener g_msg_listeners[N2K_BRIDGE_MAX_MSG_LISTENERS];
 
 // Status for the relay page, written by the NMEA 2000 task, read anywhere.
 std::atomic<TickType_t> g_last_rx_tick{0};
@@ -126,6 +137,13 @@ void send_all() {
 }
 
 void on_message(const tN2kMsg &msg) {
+  // Raw-message listeners (position decoding and any future use) see every
+  // PGN, whether or not switch_bank itself cares about it -- switch_bank
+  // doesn't know what they mean, it just owns the one bus the library will
+  // only hand a single message handler for.
+  for (auto &l : g_msg_listeners) {
+    if (l.cb) l.cb(static_cast<uint32_t>(msg.PGN), msg.Data, static_cast<uint8_t>(msg.DataLen), l.arg);
+  }
   if (msg.PGN != SWITCH_BANK_PGN_CONTROL) return;
   switch_bank_command_t cmd;
   if (!switch_bank_decode_control(msg.Data, msg.DataLen, s.relay_bank, BOARD_CHANNELS, &cmd)) return;
@@ -179,6 +197,17 @@ extern "C" esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_co
   s.input_bank = cfg->input_bank_id;
   s.inputs_on = device_config_input_bank_usable(cfg);
 
+  // Position PGNs only join the receive list when position_source=n2k
+  // (issue #9, plan 16): no point asking the library to hand us messages
+  // nothing will decode. restart_required in the setting's schema, since
+  // this list is fixed once ExtendReceiveMessages() below has run.
+  int pgn_idx = 1;
+  if (cfg->position_source == POSITION_SRC_N2K) {
+    g_receive_pgns[pgn_idx++] = 129025;
+    g_receive_pgns[pgn_idx++] = 129029;
+  }
+  g_receive_pgns[pgn_idx] = 0;
+
   esp_err_t err = nvs_open("n2k", NVS_READWRITE, &s.nvs);
   if (err != ESP_OK) return err;
   uint8_t address = kDefaultAddress;
@@ -198,7 +227,7 @@ extern "C" esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_co
   s.bus->SetMode(tNMEA2000::N2km_NodeOnly, address);
   s.bus->EnableForward(false);
   s.bus->ExtendTransmitMessages(kTransmitPgns);
-  s.bus->ExtendReceiveMessages(kReceivePgns);
+  s.bus->ExtendReceiveMessages(g_receive_pgns);
   s.bus->SetMsgHandler(on_message);
   // Not Open() here: the library only opens once a millisecond has passed
   // since the object was made (OpenScheduler.FromNow(0) is checked with
@@ -221,4 +250,15 @@ extern "C" void n2k_bridge_get_status(n2k_bridge_status_t *out) {
   out->started = g_started.load();
   out->address = g_address.load();
   out->traffic = g_rx_seen.load() && xTaskGetTickCount() - g_last_rx_tick.load() < pdMS_TO_TICKS(10000);
+}
+
+extern "C" esp_err_t n2k_bridge_add_msg_listener(n2k_bridge_msg_listener_t cb, void *arg) {
+  for (auto &l : g_msg_listeners) {
+    if (!l.cb) {
+      l.cb = cb;
+      l.arg = arg;
+      return ESP_OK;
+    }
+  }
+  return ESP_ERR_NO_MEM;
 }

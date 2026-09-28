@@ -39,6 +39,9 @@
 #include "input_hw.h"
 #include "input_sense.h"
 #include "n2k_bridge.h"
+#include "position.h"
+#include "position_n2k.h"
+#include "position_sk.h"
 #include "relay_ctrl.h"
 #include "relay_hw.h"
 #include "rtc_hw.h"
@@ -605,6 +608,15 @@ static esp_err_t start_io(void *arg)
         ESP_LOGE(TAG, "RTC unavailable; schedules will not run until SNTP or SignalK sets the clock");
     }
 
+    // Schedules' position sources (issue #9, plan 16): just state trackers
+    // at this point, nothing to fail. The live subscription/listener that
+    // feeds them is wired up later, once the network and NMEA 2000 (if any)
+    // are actually running.
+    static const position_sk_hw_t position_sk_hw = {.now_ms = now_ms};
+    static const position_n2k_hw_t position_n2k_hw = {.now_ms = now_ms};
+    position_sk_init(&position_sk_hw);
+    position_n2k_init(&position_n2k_hw);
+
     input_sense_hw_t in_hw;
     ESP_ERROR_CHECK(input_hw_create(&in_hw));
     // Overrides are applied on the first settled reading, after the relays'
@@ -691,6 +703,12 @@ void app_main(void)
     ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_CONNECTED, on_sk_stream, NULL));
     ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_DISCONNECTED, on_sk_stream, NULL));
     ESP_ERROR_CHECK(sk_bridge_start(&sk_espos_api, &sk_io, &cfg));
+    // Schedules' SignalK position source (issue #9, plan 16): harmless to
+    // subscribe even when position_source=n2k, it just never gets fresh
+    // enough to use (position_get() only reads the configured source).
+    if (espos_sk_subscribe("navigation.position", 0, position_sk_on_update, NULL) < 0) {
+        ESP_LOGW(TAG, "navigation.position subscription unavailable; schedules will use the fallback position");
+    }
 
     static const n2k_bridge_io_t n2k_io = {
         .set_relay = n2k_set_relay,
@@ -701,6 +719,10 @@ void app_main(void)
     // NMEA 2000 failing must not stop SignalK control.
     if (n2k_bridge_start(&n2k_io, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "NMEA 2000 unavailable");
+    } else if (n2k_bridge_add_msg_listener(position_n2k_on_msg, NULL) != ESP_OK) {
+        // Schedules' N2K position source (issue #9, plan 16): the listener
+        // table is small and shared, so log rather than fail the board over.
+        ESP_LOGW(TAG, "N2K position listener unavailable; schedules will use the fallback position");
     }
 
     static const web_ui_io_t web_io = {

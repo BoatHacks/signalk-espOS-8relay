@@ -1,6 +1,8 @@
 idf_component_register(
-    SRCS src/sun.c
-    INCLUDE_DIRS include)
+    SRCS src/sun.c src/position_n2k_pgn.c src/position_n2k.c src/position_sk.c src/position.c
+    INCLUDE_DIRS include
+    REQUIRES device_config signalk-espos__espos_sk
+    PRIV_REQUIRES espressif__cjson)
 
 # libm: sin/cos/tan/asin/acos/fmod/llround. Linked in automatically on the
 # ESP32 target (newlib pulls it in), not on the linux host target.

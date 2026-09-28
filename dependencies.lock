@@ -362,6 +362,6 @@ direct_dependencies:
 - signalk-espos/espos_ota
 - signalk-espos/espos_sk
 - ttlappalainen/nmea2000
-manifest_hash: 7b50a4cc189db1b3b6bb919d60634010982949c64506c49fa6d5fc75f39e5f0d
+manifest_hash: 0b13c387a17f98f9e8987346a6743bcfb5ab304e5fcdff4da1c29158c8168a21
 target: esp32s3
 version: 3.0.0
