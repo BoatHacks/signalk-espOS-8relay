@@ -29,6 +29,13 @@ static void get_str(const char *key, char *buf, size_t size)
     espos_config_get_str(DEVICE_CONFIG_NS, key, buf, size, NULL);
 }
 
+static float get_float(const char *key)
+{
+    float v = 0.0f;
+    espos_config_get_float(DEVICE_CONFIG_NS, key, &v);
+    return v;
+}
+
 esp_err_t device_config_load(device_config_t *out)
 {
     if (!espos_config_is_ready()) {
@@ -52,6 +59,12 @@ esp_err_t device_config_load(device_config_t *out)
     get_str("portal_tone", out->portal_tone, sizeof(out->portal_tone));
     get_str("reset_tone", out->factory_reset_tone, sizeof(out->factory_reset_tone));
     out->interlock_dead_ms = (uint32_t)get_int("interlock_dead");
+
+    char top_val[24];
+    get_str("position_src", top_val, sizeof(top_val));
+    out->position_source = strcmp(top_val, "n2k") == 0 ? POSITION_SRC_N2K : POSITION_SRC_SIGNALK;
+    out->fallback_lat = get_float("fallback_lat");
+    out->fallback_lon = get_float("fallback_lon");
 
     char key[24];
     char val[24];

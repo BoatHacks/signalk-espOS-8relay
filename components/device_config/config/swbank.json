@@ -71,6 +71,40 @@
       "description": "How long an interlocked relay's partner stays off before it switches on (issue #8). Applies to every interlocked pair."
     },
     {
+      "name": "position_src",
+      "type": "string",
+      "default": "signalk",
+      "enum": [
+        "signalk",
+        "n2k"
+      ],
+      "group": "Schedules",
+      "title": "Position source",
+      "description": "Where sunrise/sunset schedule entries get the boat's position from: signalk = navigation.position from the SignalK stream, n2k = decoded from the board's own NMEA 2000 bus (PGN 129025/129029). Either way, a missing or stale reading falls back to the position below."
+    },
+    {
+      "name": "fallback_lat",
+      "type": "float",
+      "default": 0.0,
+      "min": -90.0,
+      "max": 90.0,
+      "unit": "deg",
+      "group": "Schedules",
+      "title": "Fallback latitude",
+      "description": "Used for sunrise/sunset when the position source above has no fresh reading -- a boat that stays put, or a starting point before the first one arrives. Positive north."
+    },
+    {
+      "name": "fallback_lon",
+      "type": "float",
+      "default": 0.0,
+      "min": -180.0,
+      "max": 180.0,
+      "unit": "deg",
+      "group": "Schedules",
+      "title": "Fallback longitude",
+      "description": "As above. Positive east."
+    },
+    {
       "name": "eth_enabled",
       "type": "bool",
       "default": true,

@@ -27,6 +27,12 @@ typedef enum { FAILSAFE_DEFAULT_SAFE, FAILSAFE_HOLD } failsafe_policy_t;
 // How a relay reacts to its override input: copy it, or flip on each press.
 typedef enum { INPUT_LINK_FOLLOW, INPUT_LINK_TOGGLE } input_link_t;
 
+// Where a schedule's "sunrise"/"sunset" entries get the boat's position from
+// (issue #9, plan 16). Either way, a stale or missing live reading falls
+// back to fallback_lat/fallback_lon below -- "stale" is the schedule
+// evaluator's call (it owns the clock), not device_config's.
+typedef enum { POSITION_SRC_SIGNALK, POSITION_SRC_N2K } position_source_t;
+
 typedef struct {
     char name[DEVICE_CONFIG_NAME_MAX + 1];
     relay_mode_t mode;
@@ -104,6 +110,13 @@ typedef struct {
     // relay's coil going on (issue #8, plan 15). Stored as "interlock_dead"
     // (espOS key names cap at 15 chars).
     uint32_t interlock_dead_ms;
+    // Schedules (issue #9, plan 16): where sunrise/sunset entries get the
+    // boat's live position from, and the position to use when that source
+    // has none (not subscribed/received yet) or a stale one. Degrees,
+    // positive north/east -- SignalK's navigation.position convention.
+    position_source_t position_source;
+    float fallback_lat;
+    float fallback_lon;
     relay_cfg_t relays[BOARD_CHANNELS];  // index 0 = relay 1
     input_cfg_t inputs[BOARD_CHANNELS];  // index 0 = input 1
     // Bit n-1 = relay n's `r<n>_interlock` setting named a relay that
