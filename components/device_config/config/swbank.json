@@ -60,6 +60,17 @@
       "description": "Resend every relay and input state to SignalK this often, even when nothing changed, so apps don't show them as stale. 0 = send changes only."
     },
     {
+      "name": "interlock_dead",
+      "type": "int",
+      "default": 100,
+      "min": 0,
+      "max": 2000,
+      "unit": "ms",
+      "group": "General",
+      "title": "Interlock dead time",
+      "description": "How long an interlocked relay's partner stays off before it switches on (issue #8). Applies to every interlocked pair."
+    },
+    {
       "name": "eth_enabled",
       "type": "bool",
       "default": true,
@@ -222,6 +233,16 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "r1_interlock",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Relays",
+      "title": "Relay 1: interlocked with",
+      "description": "0 = none, 1-8 = that relay's coil must never be energized at the same time as this one's. Only takes effect when the other relay names this one back; a one-sided or self-referencing setting is ignored and raises a health warning."
+    },
+    {
       "name": "relay1_wired_nc",
       "type": "bool",
       "default": false,
@@ -341,6 +362,16 @@
       "group": "Relays",
       "title": "Relay 2: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "r2_interlock",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Relays",
+      "title": "Relay 2: interlocked with",
+      "description": "0 = none, 1-8 = that relay's coil must never be energized at the same time as this one's. Only takes effect when the other relay names this one back; a one-sided or self-referencing setting is ignored and raises a health warning."
     },
     {
       "name": "relay2_wired_nc",
@@ -464,6 +495,16 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "r3_interlock",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Relays",
+      "title": "Relay 3: interlocked with",
+      "description": "0 = none, 1-8 = that relay's coil must never be energized at the same time as this one's. Only takes effect when the other relay names this one back; a one-sided or self-referencing setting is ignored and raises a health warning."
+    },
+    {
       "name": "relay3_wired_nc",
       "type": "bool",
       "default": false,
@@ -583,6 +624,16 @@
       "group": "Relays",
       "title": "Relay 4: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "r4_interlock",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Relays",
+      "title": "Relay 4: interlocked with",
+      "description": "0 = none, 1-8 = that relay's coil must never be energized at the same time as this one's. Only takes effect when the other relay names this one back; a one-sided or self-referencing setting is ignored and raises a health warning."
     },
     {
       "name": "relay4_wired_nc",
@@ -706,6 +757,16 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "r5_interlock",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Relays",
+      "title": "Relay 5: interlocked with",
+      "description": "0 = none, 1-8 = that relay's coil must never be energized at the same time as this one's. Only takes effect when the other relay names this one back; a one-sided or self-referencing setting is ignored and raises a health warning."
+    },
+    {
       "name": "relay5_wired_nc",
       "type": "bool",
       "default": false,
@@ -825,6 +886,16 @@
       "group": "Relays",
       "title": "Relay 6: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "r6_interlock",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Relays",
+      "title": "Relay 6: interlocked with",
+      "description": "0 = none, 1-8 = that relay's coil must never be energized at the same time as this one's. Only takes effect when the other relay names this one back; a one-sided or self-referencing setting is ignored and raises a health warning."
     },
     {
       "name": "relay6_wired_nc",
@@ -948,6 +1019,16 @@
       "description": "0 = none, 1-8 = that input switches this relay directly."
     },
     {
+      "name": "r7_interlock",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Relays",
+      "title": "Relay 7: interlocked with",
+      "description": "0 = none, 1-8 = that relay's coil must never be energized at the same time as this one's. Only takes effect when the other relay names this one back; a one-sided or self-referencing setting is ignored and raises a health warning."
+    },
+    {
       "name": "relay7_wired_nc",
       "type": "bool",
       "default": false,
@@ -1067,6 +1148,16 @@
       "group": "Relays",
       "title": "Relay 8: controlled by input",
       "description": "0 = none, 1-8 = that input switches this relay directly."
+    },
+    {
+      "name": "r8_interlock",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Relays",
+      "title": "Relay 8: interlocked with",
+      "description": "0 = none, 1-8 = that relay's coil must never be energized at the same time as this one's. Only takes effect when the other relay names this one back; a one-sided or self-referencing setting is ignored and raises a health warning."
     },
     {
       "name": "relay8_wired_nc",

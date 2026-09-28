@@ -41,6 +41,17 @@ typedef struct {
     bool wired_nc;
     input_link_t link;
     uint32_t max_on_s;    // 0 = no limit; latching relays only
+    // Effective, already-validated interlock partner (issue #8, plan 15):
+    // 1-8 = that relay's *coil* must never be energized at the same time as
+    // this one's, 0 = none. This is the derived pair, not the raw
+    // `r<n>_interlock` setting -- device_config_load() zeroes it out again
+    // (and flags device_config_t.interlock_invalid) unless the partner
+    // names this relay back and neither side is self-referencing. Operates
+    // on the coil, never the `wired_nc`-translated logical state (decided
+    // 2026-09-28, predates plan 15's original writing): relay_ctrl must
+    // read and enforce this the same way it reads wired_nc, at the coil
+    // boundary.
+    uint8_t interlock;
     // Tone library entry to chirp on a direct-command on/off (plan 19).
     char on_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
     char off_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
@@ -89,8 +100,16 @@ typedef struct {
     char boot_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
     char portal_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
     char factory_reset_tone[DEVICE_CONFIG_TONE_NAME_MAX + 1];
+    // Dead time between a partner's coil going off and an interlocked
+    // relay's coil going on (issue #8, plan 15). Stored as "interlock_dead"
+    // (espOS key names cap at 15 chars).
+    uint32_t interlock_dead_ms;
     relay_cfg_t relays[BOARD_CHANNELS];  // index 0 = relay 1
     input_cfg_t inputs[BOARD_CHANNELS];  // index 0 = input 1
+    // Bit n-1 = relay n's `r<n>_interlock` setting named a relay that
+    // didn't name it back, or named itself: ignored (relays[n-1].interlock
+    // reads 0), and device_config_report_health() warns about it.
+    uint8_t interlock_invalid;
 } device_config_t;
 
 // Read every setting. Missing or invalid stored values read as their

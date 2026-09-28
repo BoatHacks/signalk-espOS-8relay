@@ -7,6 +7,7 @@
 #include "espos_health.h"
 
 #define HEALTH_KEY "bankIdClash"
+#define HEALTH_KEY_INTERLOCK "interlockInvalid"
 
 static int32_t get_int(const char *key)
 {
@@ -50,6 +51,7 @@ esp_err_t device_config_load(device_config_t *out)
     get_str("boot_tone", out->boot_tone, sizeof(out->boot_tone));
     get_str("portal_tone", out->portal_tone, sizeof(out->portal_tone));
     get_str("reset_tone", out->factory_reset_tone, sizeof(out->factory_reset_tone));
+    out->interlock_dead_ms = (uint32_t)get_int("interlock_dead");
 
     char key[24];
     char val[24];
@@ -74,6 +76,11 @@ esp_err_t device_config_load(device_config_t *out)
         r->link = strcmp(val, "toggle") == 0 ? INPUT_LINK_TOGGLE : INPUT_LINK_FOLLOW;
         snprintf(key, sizeof(key), "relay%d_max_on_s", n);
         r->max_on_s = (uint32_t)get_int(key);
+        // Raw for now: r%d_interlock, 0-8 (schema-enforced). Reduced to the
+        // validated, effective pair below, once every relay's raw value has
+        // been read.
+        snprintf(key, sizeof(key), "r%d_interlock", n);
+        r->interlock = (uint8_t)get_int(key);
         snprintf(key, sizeof(key), "relay%d_on_tone", n);
         get_str(key, r->on_tone, sizeof(r->on_tone));
         snprintf(key, sizeof(key), "relay%d_off_tone", n);
@@ -104,6 +111,36 @@ esp_err_t device_config_load(device_config_t *out)
         snprintf(key, sizeof(key), "input%d_alm_msg", n);
         get_str(key, in->alarm_msg, sizeof(in->alarm_msg));
     }
+
+    // Derive the effective interlock pairs (issue #8, plan 15): a pair
+    // counts only if both sides name each other. espOS can't validate
+    // across keys, so a one-sided or self-referencing r<n>_interlock is
+    // ignored here (relays[i].interlock -> 0) and flagged in
+    // interlock_invalid for device_config_report_health(). Snapshot the raw
+    // values first: every relay's reciprocity check must see what every
+    // *other* relay originally had stored, not an already-zeroed neighbour.
+    uint8_t raw_interlock[BOARD_CHANNELS];
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        raw_interlock[i] = out->relays[i].interlock;
+    }
+    out->interlock_invalid = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        const int n = i + 1;
+        const uint8_t partner = raw_interlock[i];
+        if (partner == 0) {
+            out->relays[i].interlock = 0;
+            continue;
+        }
+        const bool self_ref = partner == n;
+        const bool out_of_range = partner < 1 || partner > BOARD_CHANNELS;
+        const bool reciprocated = !self_ref && !out_of_range && raw_interlock[partner - 1] == n;
+        if (reciprocated) {
+            out->relays[i].interlock = partner;
+        } else {
+            out->relays[i].interlock = 0;
+            out->interlock_invalid |= (uint8_t)(1u << i);
+        }
+    }
     return ESP_OK;
 }
 
@@ -121,10 +158,30 @@ void device_config_report_health(const device_config_t *cfg)
 {
     if (device_config_input_bank_usable(cfg)) {
         espos_health_report(HEALTH_KEY, ESPOS_HEALTH_NORMAL, NULL);
+    } else {
+        char msg[ESPOS_HEALTH_MSG_MAX];
+        snprintf(msg, sizeof(msg), "Input bank id %u equals relay bank id; inputs not published until changed",
+                 cfg->input_bank_id);
+        espos_health_report(HEALTH_KEY, ESPOS_HEALTH_WARN, msg);
+    }
+
+    if (cfg->interlock_invalid == 0) {
+        espos_health_report(HEALTH_KEY_INTERLOCK, ESPOS_HEALTH_NORMAL, NULL);
         return;
     }
+    // "Relay 3, 6: ..." -- list every relay whose setting was ignored.
+    char list[32] = "";
+    size_t len = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (!(cfg->interlock_invalid & (1u << i))) {
+            continue;
+        }
+        int n = snprintf(list + len, sizeof(list) - len, "%s%d", len ? ", " : "", i + 1);
+        if (n > 0 && (size_t)n < sizeof(list) - len) {
+            len += (size_t)n;
+        }
+    }
     char msg[ESPOS_HEALTH_MSG_MAX];
-    snprintf(msg, sizeof(msg), "Input bank id %u equals relay bank id; inputs not published until changed",
-             cfg->input_bank_id);
-    espos_health_report(HEALTH_KEY, ESPOS_HEALTH_WARN, msg);
+    snprintf(msg, sizeof(msg), "Relay %s: interlock setting not reciprocated; ignored", list);
+    espos_health_report(HEALTH_KEY_INTERLOCK, ESPOS_HEALTH_WARN, msg);
 }
