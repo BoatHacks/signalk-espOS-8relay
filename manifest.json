@@ -5,11 +5,29 @@
     {
       "target": "esp32s3",
       "channel": "stable",
+      "version": "v0.3.0",
+      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.3.0/signalk-espOS-8relay-v0.3.0-ota.bin",
+      "size": 1708032,
+      "sha256": "088198176069296cacd5cf49070a3a5d4c199d91269627647ba7b2e61009daf0",
+      "notes": "Time-based schedules with the board's own real-time clock, and better buzzer diagnostics."
+    },
+    {
+      "target": "esp32s3",
+      "channel": "stable",
       "version": "v0.1.0",
       "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.1.0/signalk-espOS-8relay-v0.1.0-ota.bin",
       "size": 1576960,
       "sha256": "b496904c0584269c80650a9df8e975a9832102423c2472c21aedcf5a22e465ae",
       "notes": "First release tested end to end on real hardware: relays, inputs, SignalK, NMEA 2000 (bench-tested, not on a boat yet)."
+    },
+    {
+      "target": "esp32s3",
+      "channel": "beta",
+      "version": "v0.3.0",
+      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.3.0/signalk-espOS-8relay-v0.3.0-ota.bin",
+      "size": 1708032,
+      "sha256": "088198176069296cacd5cf49070a3a5d4c199d91269627647ba7b2e61009daf0",
+      "notes": "Time-based schedules with the board's own real-time clock, and better buzzer diagnostics."
     },
     {
       "target": "esp32s3",
@@ -28,15 +46,6 @@
       "size": 1576960,
       "sha256": "b496904c0584269c80650a9df8e975a9832102423c2472c21aedcf5a22e465ae",
       "notes": "First release tested end to end on real hardware: relays, inputs, SignalK, NMEA 2000 (bench-tested, not on a boat yet)."
-    },
-    {
-      "target": "esp32s3",
-      "channel": "beta",
-      "version": "v0.0.10",
-      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.0.10/signalk-espOS-8relay-v0.0.10-ota.bin",
-      "size": 1576960,
-      "sha256": "898aab29ccc13f7a659a12d712aab0dede1f6af3bc57440a53d55cfc2bed4435",
-      "notes": "NMEA 2000 could stay off after boot (`n2k: could not open the CAN"
     }
   ]
 }
