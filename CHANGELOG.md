@@ -10,6 +10,10 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-28
+
+Input alarms, cycle counters, interlocked pairs and NC wiring, all confirmed on real hardware.
+
 ### Added
 
 - Per-input alarms (issue #3): a new *Alarm* setting per input
@@ -336,6 +340,8 @@ First build for hardware bring-up. Not usable: it boot-loops (fixed in 0.0.2).
 - All settings in espOS's web UI.
 - Signed release builds with a merged image for USB and an image for OTA.
 
+[0.2.0]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.10...v0.1.0
 [0.0.10]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.9...v0.0.10
 [0.0.9]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.8...v0.0.9
 [0.0.8]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.7...v0.0.8
