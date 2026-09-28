@@ -713,3 +713,254 @@ TEST_CASE("is_momentary reports each relay's current mode", "[relay_ctrl]")
     relay_ctrl_update_config(&cfg);
     TEST_ASSERT_FALSE(relay_ctrl_is_momentary(3));
 }
+
+// --------------------------------------------------- interlock (issue #8)
+
+static espos_health_state_t interlock_health(void)
+{
+    espos_health_condition_t c[8];
+    size_t n = espos_health_snapshot(c, 8);
+    for (size_t i = 0; i < n && i < 8; i++) {
+        if (strcmp(c[i].key, "interlockBothOn") == 0) {
+            return c[i].state;
+        }
+    }
+    return ESPOS_HEALTH_NORMAL;
+}
+
+// No single expander write may ever set both of a pair's bits.
+static void assert_never_both(uint8_t bit_a, uint8_t bit_b)
+{
+    const uint8_t both = bit_a | bit_b;
+    for (int i = 0; i < chip.n_writes; i++) {
+        if (chip.writes[i].reg == TCA9554_REG_OUTPUT) {
+            TEST_ASSERT_NOT_EQUAL(both, chip.writes[i].val & both);
+        }
+    }
+}
+
+TEST_CASE("interlock: on to a relay kills its partner's coil now and pends its own", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].interlock = 2;
+    cfg.relays[1].interlock = 1;
+    cfg.interlock_dead_ms = 50;
+    start();
+
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));
+    TEST_ASSERT_EQUAL_HEX8(0x02, relay_ctrl_get_mask());
+    n_events = 0;
+
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_WEB));
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());  // relay 2 off now, relay 1 not yet on
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));
+    TEST_ASSERT_FALSE(relay_ctrl_get(2));
+
+    clock_ms += 49;
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());  // dead time not up yet
+
+    clock_ms += 1;  // 50ms elapsed
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x01, relay_ctrl_get_mask());  // relay 1 on now
+
+    assert_never_both(0x01, 0x02);
+
+    // Relay 2 off, then relay 1 on, both with the original command's source.
+    TEST_ASSERT_EQUAL(2, n_events);
+    TEST_ASSERT_EQUAL(2, events[0].channel);
+    TEST_ASSERT_FALSE(events[0].on);
+    TEST_ASSERT_EQUAL(RELAY_SRC_WEB, events[0].src);
+    TEST_ASSERT_EQUAL(1, events[1].channel);
+    TEST_ASSERT_TRUE(events[1].on);
+    TEST_ASSERT_EQUAL(RELAY_SRC_WEB, events[1].src);
+}
+
+TEST_CASE("interlock: a repeated on while pending is a no-op", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].interlock = 2;
+    cfg.relays[1].interlock = 1;
+    cfg.interlock_dead_ms = 50;
+    start();
+
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));  // kills 2, pends 1
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());
+
+    clock_ms += 20;
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));  // repeat: still waiting, no restart
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());
+
+    clock_ms += 29;  // 49ms since the original "on"
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());  // not yet -- the repeat didn't restart it
+
+    clock_ms += 1;  // 50ms since the original "on"
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x01, relay_ctrl_get_mask());
+}
+
+TEST_CASE("interlock: an off to the pending relay cancels it", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].interlock = 2;
+    cfg.relays[1].interlock = 1;
+    cfg.interlock_dead_ms = 50;
+    start();
+
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));  // kills 2, pends 1
+    TEST_ESP_OK(relay_ctrl_set(1, false, RELAY_SRC_SK));  // cancel 1's own pending
+
+    clock_ms += 100;
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());  // relay 1 never came on
+}
+
+TEST_CASE("interlock: an on to the partner cancels a relay's pending-on", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].interlock = 2;
+    cfg.relays[1].interlock = 1;
+    cfg.interlock_dead_ms = 50;
+    start();
+
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));  // kills 2, pends 1
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());
+
+    // Relay 2 isn't on yet (relay 1 is still only pending): its own "on"
+    // proceeds immediately, and that cancels relay 1's pending.
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));
+    TEST_ASSERT_EQUAL_HEX8(0x02, relay_ctrl_get_mask());
+
+    clock_ms += 100;
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x02, relay_ctrl_get_mask());  // relay 1 never came on
+    assert_never_both(0x01, 0x02);
+}
+
+TEST_CASE("interlock: a fired pending-on starts a momentary relay's pulse from when its coil actually turns on",
+          "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].mode = RELAY_MODE_MOMENTARY;
+    cfg.relays[0].pulse_ms = 1000;
+    cfg.relays[0].interlock = 2;
+    cfg.relays[1].interlock = 1;
+    cfg.interlock_dead_ms = 50;
+    start();
+
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));  // kills 2, pends 1 (a pulse relay)
+
+    clock_ms += 50;
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x01, relay_ctrl_get_mask());  // relay 1's coil energizes now
+
+    // If the pulse had wrongly started counting from the original command
+    // (50ms before the coil actually turned on), it would already have
+    // ended by now. It must still be on: the pulse starts from this tick.
+    clock_ms += 999;
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x01, relay_ctrl_get_mask());
+
+    clock_ms += 2;  // 1001ms since the coil turned on
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());  // pulse over
+}
+
+TEST_CASE("interlock: SignalK loss cancels a pending-on for a default-safe relay, not a hold one", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].interlock = 2;  // default-safe (fresh()'s default)
+    cfg.relays[1].interlock = 1;
+    cfg.relays[2].interlock = 4;
+    cfg.relays[2].failsafe = FAILSAFE_HOLD;
+    cfg.relays[3].interlock = 3;
+    cfg.relays[3].failsafe = FAILSAFE_HOLD;
+    cfg.interlock_dead_ms = 50;
+    start();
+
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));  // kills 2, pends 1 (default-safe)
+    TEST_ESP_OK(relay_ctrl_set(4, true, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(3, true, RELAY_SRC_SK));  // kills 4, pends 3 (hold)
+
+    relay_ctrl_sk_lost();
+
+    clock_ms += 100;
+    relay_ctrl_tick();
+    TEST_ASSERT_FALSE(relay_ctrl_get(1));  // default-safe: pending cancelled, never came on
+    TEST_ASSERT_TRUE(relay_ctrl_get(3));   // hold: fail-safe doesn't touch it, still fires
+}
+
+TEST_CASE("interlock: boot restores neither side of a both-on interlocked pair", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].failsafe = FAILSAFE_HOLD;
+    cfg.relays[1].failsafe = FAILSAFE_HOLD;
+    cfg.relays[0].interlock = 2;
+    cfg.relays[1].interlock = 1;
+    store.has_value = true;
+    store.value = 0x03;  // relays 1 and 2 both stored on -- shouldn't happen, but did
+    TEST_ESP_OK(relay_ctrl_init(&hw, &cfg));
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());  // neither restored
+    TEST_ASSERT_EQUAL(ESPOS_HEALTH_WARN, interlock_health());
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x00, store.value);  // the corrected (safe) state is persisted
+}
+
+TEST_CASE("interlock: a config change finding both interlocked coils on switches both off and warns",
+          "[relay_ctrl]")
+{
+    fresh();
+    start();
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_SK));
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SK));  // no interlock yet: both on
+    TEST_ASSERT_EQUAL_HEX8(0x03, relay_ctrl_get_mask());
+
+    n_events = 0;
+    cfg.relays[0].interlock = 2;  // now pair them up, while both are on
+    cfg.relays[1].interlock = 1;
+    relay_ctrl_update_config(&cfg);
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());
+    TEST_ASSERT_EQUAL(ESPOS_HEALTH_WARN, interlock_health());
+    TEST_ASSERT_EQUAL(2, n_events);
+    TEST_ASSERT_EQUAL(RELAY_SRC_INTERLOCK, events[0].src);
+    TEST_ASSERT_FALSE(events[0].on);
+    TEST_ASSERT_FALSE(events[1].on);
+
+    // A later, unrelated config save with nothing wrong clears the warning.
+    relay_ctrl_update_config(&cfg);
+    TEST_ASSERT_EQUAL(ESPOS_HEALTH_NORMAL, interlock_health());
+}
+
+// Decided 2026-09-28: two interlocked relays' override inputs both reading
+// "on" at boot is left to the normal live enforcement (kill the partner,
+// delay this one) rather than a dedicated "restore neither" path -- the
+// safety invariant (never both coils energized together) holds either way,
+// only one relay briefly flickers on and off before the other settles.
+TEST_CASE("interlock: input overrides get the same enforcement as any other source", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[0].interlock = 2;
+    cfg.relays[1].interlock = 1;
+    cfg.interlock_dead_ms = 50;
+    start();
+
+    // Both override inputs read "on" at boot; input_sense applies them in
+    // channel order.
+    TEST_ESP_OK(relay_ctrl_set(1, true, RELAY_SRC_INPUT));
+    TEST_ASSERT_EQUAL_HEX8(0x01, relay_ctrl_get_mask());  // no conflict yet: on immediately
+
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_INPUT));
+    TEST_ASSERT_EQUAL_HEX8(0x00, relay_ctrl_get_mask());  // relay 1 killed, relay 2 pending
+
+    clock_ms += 50;
+    relay_ctrl_tick();
+    TEST_ASSERT_EQUAL_HEX8(0x02, relay_ctrl_get_mask());  // relay 2 settles on
+    assert_never_both(0x01, 0x02);
+    TEST_ASSERT_EQUAL(RELAY_SRC_INPUT, events[n_events - 1].src);
+}
