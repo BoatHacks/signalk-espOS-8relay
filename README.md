@@ -30,8 +30,13 @@ updates. This project adds everything specific to the board.
   [SignalK RFC 0009](https://github.com/SignalK/specification/issues/441).
 - Ethernet preferred, WiFi as fallback; setup through espOS's access point
   and web page.
+- Time-based schedules (issue [#9](https://github.com/BoatHacks/signalk-espOS-8relay/issues/9)):
+  up to 8 entries, each switching a relay by a fixed time of day, a
+  sunrise/sunset offset, or a repeating duty cycle (e.g. a fan 10 minutes
+  every hour), kept by the board's own real-time clock so schedules work
+  without a SignalK server.
 
-**Out of scope for the first release:** dimmers, scenes/groups, schedules,
+**Out of scope for the first release:** dimmers, scenes/groups,
 multi-condition interlocks, and the board's RS485/expansion header.
 
 The full requirements are in [SPEC.md](SPEC.md).
@@ -52,6 +57,7 @@ The full requirements are in [SPEC.md](SPEC.md).
 | Status LED and alarm buzzer | Buzzer tone and live frequency change confirmed on the real board; LED colour not yet tested. The alarm-triggered buzzer pattern is deliberately not tested — the only way to trigger it is opening the case, which is declined; blocked until [espOS#137](https://github.com/signalk-espOS/espOS/issues/137)'s proposed remote test-injection endpoint lands upstream. Buzzer chirps on notable events (boot, BOOT-button actions, relay/input changes), the `/tones` page (Play button, CRUD, momentary/latching layout), and non-interference with the alarm and BOOT-button override are all confirmed (issue [#14](https://github.com/BoatHacks/signalk-espOS-8relay/issues/14), closed) |
 | BOOT-button setup/reset and debug console | Confirmed on real hardware: BOOT button reopens the setup portal (~5 s) or factory-resets (~15 s) (issue [#7](https://github.com/BoatHacks/signalk-espOS-8relay/issues/7), closed). A USB serial debug console (`relay`, `inputs`, `cfg`, `wifi_sta` commands) is also on `main`, useful for bench-testing without network reachability (issue [#16](https://github.com/BoatHacks/signalk-espOS-8relay/issues/16), closed) |
 | 07 — hardware bring-up and first release | In progress: most of the bring-up checklist passed on the first physical unit (2026-09-26); see [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the full results. Ethernet-plugged-in, captive portal, MFD-listing, and a signed release are still open. |
+| Schedules (issue [#9](https://github.com/BoatHacks/signalk-espOS-8relay/issues/9), [plan 16](docs/plans/16-schedules.md)) | Implemented and host-tested: PCF85063 RTC driver and clock sync, timezone/position settings (SignalK or NMEA 2000 PGN 129025/129029), NOAA sunrise/sunset calculation, 8 schedule entries (fixed time, sunrise/sunset offset, or repeating duty cycle), overlapping-schedule and no-valid-time health warnings. Not yet confirmed on real hardware: RTC keeping time across a power cut, and a live sunrise/sunset transition. |
 
 Known issues found so far:
 - espOS does not support this board's W5500 Ethernet chip, so this project
@@ -161,7 +167,7 @@ without error but haven't been tested with a cable plugged in.
 | W5500 Ethernet, RJ45 | SPI MOSI 13, MISO 14, SCLK 15, CS 16, INT 12 | Yes | `eth_w5500` |
 | WS2812 RGB LED | GPIO 38 | Yes | `indicator`: status colour |
 | Passive piezo buzzer | GPIO 46 | Yes | `indicator`: Morse alarm (off by default) |
-| PCF85063 real-time clock | same I²C bus as the relays | **No** | Would keep time across power loss, e.g. for scheduled switching |
+| PCF85063 real-time clock | same I²C bus as the relays | Yes | `rtc_pcf85063`: keeps time across power loss, feeding `schedule`'s sunrise/sunset and time-of-day switching (issue #9) |
 | BOOT button | GPIO 0 | Yes | USB bootloader, and (confirmed on real hardware) a held press reopens the setup access point (~5 s) or factory-resets (~15 s), release to trigger |
 | microSD (TF) card slot | SPI MISO 45, MOSI 47, SCLK 48 | **No** | Could hold an event log; chip-select pin not yet known |
 | GPIO expansion header | various | **No** | Out of scope (SPEC.md §10.2) |

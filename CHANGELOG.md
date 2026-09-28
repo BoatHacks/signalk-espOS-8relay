@@ -10,6 +10,46 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ## [Unreleased]
 
+### Added
+
+- Time-based schedules (issue #9): up to 8 schedule entries, each
+  switching one relay either by an on-time/off-time pair (a fixed
+  `HH:MM`, or a sunrise/sunset offset like `sunset-30`/`sunrise+15m`) or a
+  repeating duty cycle ("on for X minutes every Y minutes", anchored to
+  local midnight — a fan, say), restricted to any combination of days of
+  the week. Kept by a new PCF85063 real-time clock driver
+  (`rtc_pcf85063`), which keeps time across a power cut, so schedules work
+  before (or entirely without) a SignalK server: the clock is handed to
+  espOS as soon as the API allows after boot, and written back whenever a
+  better source (SNTP or SignalK) syncs. A new *Position source* setting
+  picks where sunrise/sunset math gets the boat's position from — SignalK
+  `navigation.position`, or the board's own NMEA 2000 bus (PGN 129025/
+  129029) — falling back to a configured fixed position when the live
+  source has nothing recent. Time zone uses espOS's existing POSIX-TZ
+  *Timezone* setting; nothing new was needed there. A schedule's
+  transitions switch relays through the existing `relay_ctrl_set()`
+  entry point (a new `RELAY_SRC_SCHEDULE`, edge-triggered only, so a
+  manual command in between two scheduled transitions stands until the
+  next one — the same rule input overrides already follow), which means
+  `wiredNC` translation and interlock enforcement apply automatically with
+  no special-casing, and a momentary relay's scheduled "on" just starts
+  its usual pulse. Two or more enabled schedule entries naming the same
+  relay are rejected outright (all of them disabled until fixed) with a
+  new health warning, the same shallow shape as a clashing bank id or an
+  unreciprocated interlock — it doesn't ask whether the entries' days/
+  times could ever actually collide, only whether they name the same
+  relay at all. No valid time yet (no RTC, no SNTP, no SignalK) makes
+  every schedule do nothing, with its own health warning. On a permanent
+  polar day or night (no sunrise/sunset that day), a schedule referencing
+  the missing boundary treats the whole day as continuously on the
+  correct side of it, rather than doing nothing. Host-tested throughout,
+  including the RTC driver against a fake I²C bus, sunrise/sunset math
+  cross-checked against independently computed instants (several
+  latitudes, both hemispheres, and the polar cases), and the evaluator's
+  edge-triggering, midnight-spanning windows, day-of-week interactions,
+  DST transitions and polar day/night handling
+  (docs/plans/16-schedules.md).
+
 ## [0.2.0] - 2026-09-28
 
 Input alarms, cycle counters, interlocked pairs and NC wiring, all confirmed on real hardware.

@@ -404,9 +404,10 @@ Fixed (not user-tunable, board/firmware constants):
 
 - Multi-relay group/scene control (e.g. "all off") — not needed until
   real usage shows a pattern; keep MVP to per-channel control.
-- Local scheduling/timers (e.g. time-of-day relay control) — **decided
-  2026-09-25: to be built on the board**, using the PCF85063 real-time
-  clock, so schedules work without a SignalK server (plan 16).
+- Local scheduling/timers (e.g. time-of-day relay control) — **shipped**
+  (issue #9, plan 16): built on the board using the PCF85063 real-time
+  clock, so schedules work without a SignalK server, per the 2026-09-25
+  decision.
 - Interlock logic: **pairwise interlocks (two relays never on together)
   shipped** (issue #8, plan 15; §2). Multi-condition rules stay deferred
   until a real use case needs them.
