@@ -254,6 +254,100 @@ TEST_CASE("sunset-30/sunrise+15 spans midnight using real sun times", "[schedule
     TEST_ASSERT_FALSE(calls[1].on);
 }
 
+// Svalbard (78.0N, 15.6E), the same coordinates and dates test_sun.c's own
+// polar cases use: 2026-12-21 is permanent night (SUN_ALWAYS_DOWN),
+// 2026-06-21 permanent day (SUN_ALWAYS_UP). Decided 2026-09-28: rather than
+// having no window at all, the whole day counts as continuously on one
+// side of the sunrise/sunset boundary.
+TEST_CASE("polar night: a sunset-to-sunrise (anchor light) entry is on all day", "[schedule_eval]")
+{
+    fresh();
+    reset_cfg();
+    entry(1)->relay = 1;
+    entry(1)->days = 0x7F;
+    entry(1)->on = (schedule_time_t){.kind = SCHEDULE_TIME_SUNSET, .offset_min = 0};
+    entry(1)->off = (schedule_time_t){.kind = SCHEDULE_TIME_SUNRISE, .offset_min = 0};
+
+    const double lat = 78.0, lon = 15.6;
+    espos_time_parts_t local = local_at(2026, 12, 21, 1, 0, 0, 3600);  // just after local midnight
+    schedule_eval_tick(&s_cfg, true, &local, lat, lon);
+    TEST_ASSERT_EQUAL(1, n_calls);
+    TEST_ASSERT_TRUE(calls[0].on);
+
+    local.hour = 12;
+    local.minute = 0;  // midday: still continuous night, no edge
+    schedule_eval_tick(&s_cfg, true, &local, lat, lon);
+    TEST_ASSERT_EQUAL(1, n_calls);
+
+    local.hour = 23;
+    local.minute = 59;  // last minute of the day: still on
+    schedule_eval_tick(&s_cfg, true, &local, lat, lon);
+    TEST_ASSERT_EQUAL(1, n_calls);
+}
+
+TEST_CASE("polar night: a sunrise-to-sunset (daytime) entry is off all day", "[schedule_eval]")
+{
+    fresh();
+    reset_cfg();
+    entry(1)->relay = 1;
+    entry(1)->days = 0x7F;
+    entry(1)->on = (schedule_time_t){.kind = SCHEDULE_TIME_SUNRISE, .offset_min = 0};
+    entry(1)->off = (schedule_time_t){.kind = SCHEDULE_TIME_SUNSET, .offset_min = 0};
+
+    const double lat = 78.0, lon = 15.6;
+    espos_time_parts_t local = local_at(2026, 12, 21, 1, 12, 0, 3600);  // midday
+    schedule_eval_tick(&s_cfg, true, &local, lat, lon);
+    TEST_ASSERT_EQUAL(1, n_calls);
+    TEST_ASSERT_FALSE(calls[0].on);  // sync: inactive, and stays that way
+
+    local.hour = 23;
+    local.minute = 59;
+    schedule_eval_tick(&s_cfg, true, &local, lat, lon);
+    TEST_ASSERT_EQUAL(1, n_calls);  // no edge
+}
+
+TEST_CASE("polar day: a sunrise-to-sunset (daytime) entry is on all day", "[schedule_eval]")
+{
+    fresh();
+    reset_cfg();
+    entry(1)->relay = 1;
+    entry(1)->days = 0x7F;
+    entry(1)->on = (schedule_time_t){.kind = SCHEDULE_TIME_SUNRISE, .offset_min = 0};
+    entry(1)->off = (schedule_time_t){.kind = SCHEDULE_TIME_SUNSET, .offset_min = 0};
+
+    const double lat = 78.0, lon = 15.6;
+    espos_time_parts_t local = local_at(2026, 6, 21, 0, 0, 0, 7200);  // just after local midnight
+    schedule_eval_tick(&s_cfg, true, &local, lat, lon);
+    TEST_ASSERT_EQUAL(1, n_calls);
+    TEST_ASSERT_TRUE(calls[0].on);
+
+    local.hour = 23;
+    local.minute = 59;
+    schedule_eval_tick(&s_cfg, true, &local, lat, lon);
+    TEST_ASSERT_EQUAL(1, n_calls);  // no edge: still on
+}
+
+TEST_CASE("polar day: a sunset-to-sunrise (anchor light) entry is off all day", "[schedule_eval]")
+{
+    fresh();
+    reset_cfg();
+    entry(1)->relay = 1;
+    entry(1)->days = 0x7F;
+    entry(1)->on = (schedule_time_t){.kind = SCHEDULE_TIME_SUNSET, .offset_min = 0};
+    entry(1)->off = (schedule_time_t){.kind = SCHEDULE_TIME_SUNRISE, .offset_min = 0};
+
+    const double lat = 78.0, lon = 15.6;
+    espos_time_parts_t local = local_at(2026, 6, 21, 0, 12, 0, 7200);  // midday
+    schedule_eval_tick(&s_cfg, true, &local, lat, lon);
+    TEST_ASSERT_EQUAL(1, n_calls);
+    TEST_ASSERT_FALSE(calls[0].on);
+
+    local.hour = 0;
+    local.minute = 1;  // just after midnight too: still off
+    schedule_eval_tick(&s_cfg, true, &local, lat, lon);
+    TEST_ASSERT_EQUAL(1, n_calls);
+}
+
 // ---------------------------------------------------------------------- DST
 
 TEST_CASE("a spring-forward jump across an on-time still fires the edge", "[schedule_eval]")

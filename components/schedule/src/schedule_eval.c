@@ -38,18 +38,28 @@ static int wrap_minute(int m)
     return m;
 }
 
-// Local minute-of-day (0-1439) `t` names, or -1 for a sunrise/sunset
-// reference on a day with no transition (polar day/night): the caller
-// treats that as "this entry has no window today" -- a documented
-// simplification, not an attempt at "stays on/off all day" behaviour for
-// the polar case.
+// Local minute-of-day `t` names. 0-1439 for an ordinary day; for a
+// sunrise/sunset reference on a polar day/night (no transition -- issue
+// #9, plan 16, decided 2026-09-28), a constant standing in for "this
+// boundary already happened" (0) or "this boundary never happens today"
+// (1440, deliberately one past the last real minute): the whole day counts
+// as continuously on one side of the sunrise/sunset line, and every actual
+// `now` (always in 0-1439) falls on the correct side of that constant
+// without clock_active() needing to know polar conditions exist at all.
+// Permanent polar night (SUN_ALWAYS_DOWN): sunset already happened (0),
+// sunrise never comes (1440) -- continuously night. Permanent polar day
+// (SUN_ALWAYS_UP): the mirror image -- continuously day. An offset
+// ("sunset-30") is not applied here: there is no actual event today to
+// offset from.
 static int resolve_minute(const schedule_time_t *t, const espos_time_parts_t *local, const sun_times_t *sun)
 {
     if (t->kind == SCHEDULE_TIME_CLOCK) {
         return t->minute_of_day;
     }
     if (sun->kind != SUN_TRANSITION) {
-        return -1;
+        const bool boundary_already_passed = (sun->kind == SUN_ALWAYS_DOWN && t->kind == SCHEDULE_TIME_SUNSET) ||
+                                              (sun->kind == SUN_ALWAYS_UP && t->kind == SCHEDULE_TIME_SUNRISE);
+        return boundary_already_passed ? 0 : 1440;
     }
     const int64_t instant_ms = t->kind == SCHEDULE_TIME_SUNRISE ? sun->sunrise_unix_ms : sun->sunset_unix_ms;
     // Local minute-of-day of that instant, using *today's* utc_offset_s as
@@ -76,11 +86,10 @@ static bool clock_active(const schedule_cfg_t *sc, const espos_time_parts_t *loc
     const int today_wday = local->wday;
     const int yesterday_wday = (today_wday + 6) % 7;
 
+    // Never negative: resolve_minute() always returns 0-1439 for a real
+    // transition or a clock time, or the polar-day/night constant 0/1440.
     const int on_min = resolve_minute(&sc->on, local, sun_today);
     const int off_min = resolve_minute(&sc->off, local, sun_today);
-    if (on_min < 0 || off_min < 0) {
-        return false;  // a referenced sunrise/sunset didn't happen today
-    }
 
     bool active = false;
     if (day_in_mask(sc->days, (uint8_t)today_wday)) {
