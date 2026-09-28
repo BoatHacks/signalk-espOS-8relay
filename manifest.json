@@ -14,6 +14,15 @@
     {
       "target": "esp32s3",
       "channel": "beta",
+      "version": "v0.2.0",
+      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.2.0/signalk-espOS-8relay-v0.2.0-ota.bin",
+      "size": 1642496,
+      "sha256": "879f3f18d8d14fd832e986f947c1f009b7d3ef6867ad56cdabf8ae6f1d4f715f",
+      "notes": "Input alarms, cycle counters, interlocked pairs and NC wiring, all confirmed on real hardware."
+    },
+    {
+      "target": "esp32s3",
+      "channel": "beta",
       "version": "v0.1.0",
       "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.1.0/signalk-espOS-8relay-v0.1.0-ota.bin",
       "size": 1576960,
@@ -28,15 +37,6 @@
       "size": 1576960,
       "sha256": "898aab29ccc13f7a659a12d712aab0dede1f6af3bc57440a53d55cfc2bed4435",
       "notes": "NMEA 2000 could stay off after boot (`n2k: could not open the CAN"
-    },
-    {
-      "target": "esp32s3",
-      "channel": "beta",
-      "version": "v0.0.9",
-      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.0.9/signalk-espOS-8relay-v0.0.9-ota.bin",
-      "size": 1576960,
-      "sha256": "05b6a893fb21b99bb1232d76cfc50c5765d5525c1bd9b9ee7193a1a0b33a8b1d",
-      "notes": "The settings page still failed with `ESP_ERR_NO_MEM` in 0.0.8. The"
     }
   ]
 }
