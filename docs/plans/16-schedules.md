@@ -30,9 +30,25 @@ key/value settings (or a page of our own, like the relay page).
   week, on-time, off-time, where a time is `HH:MM`, `sunrise±m` or
   `sunset±m`; or a repeating "on for X min every Y min". Stored as a few
   keys per entry (`s<k>_relay`, `s<k>_on`, `s<k>_off`, `s<k>_days`).
-- **Sun times** from position: SignalK `navigation.position` when
-  subscribed and fresh, else a configured fallback position. A small
-  sunrise/sunset function (NOAA algorithm), host-tested.
+- **Sun times** from position. **Position source (decided 2026-09-28,
+  user-requested): a setting, not hardcoded** — `position_source`:
+  `"signalk"` (default) or `"n2k"`.
+  - `"signalk"`: SignalK `navigation.position` when subscribed and
+    fresh, as originally planned.
+  - `"n2k"`: decoded from the board's own NMEA 2000 bus — PGN 129025
+    (Position, Rapid Update) and/or 129029 (GNSS Position Data). No
+    position decoding exists anywhere in this codebase yet (only
+    switch-bank PGNs 127501/127502 are handled today); the vendored
+    `ttlappalainen/NMEA2000` library (`managed_components/
+    ttlappalainen__nmea2000`) is a generic N2K stack and should already
+    support parsing these standard PGNs — confirm and wire up handling
+    in `components/switch_bank/` alongside the existing PGN code, don't
+    assume it needs writing from scratch.
+  - Either way, if the selected source has no fresh position (not
+    subscribed/decoded recently), fall back to the configured static
+    position setting — this fallback already existed in the original
+    plan and still applies regardless of which live source is chosen.
+  - A small sunrise/sunset function (NOAA algorithm), host-tested.
 - **Switching** through `relay_ctrl_set(..., RELAY_SRC_SCHEDULE)` only
   at the transitions (edge-triggered), so manual commands in between
   stand until the next transition — same rule as input overrides.
