@@ -120,6 +120,7 @@ static const char *source_name(relay_source_t src)
     case RELAY_SRC_WEB: return "web";
     case RELAY_SRC_MAX_ON: return "maxOn";
     case RELAY_SRC_INTERLOCK: return "interlock";
+    case RELAY_SRC_SCHEDULE: return "schedule";
     }
     return "unknown";
 }
