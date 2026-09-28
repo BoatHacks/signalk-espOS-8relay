@@ -237,6 +237,151 @@ TEST_CASE("interlock: a bad setting raises a warning, fixing it clears it", "[de
     store_down();
 }
 
+TEST_CASE("schedule: defaults are all unused", "[device_config]")
+{
+    store_up();
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    for (int i = 0; i < SCHEDULE_MAX_ENTRIES; i++) {
+        TEST_ASSERT_EQUAL(0, c.schedules[i].relay);
+    }
+    TEST_ASSERT_EQUAL(0, c.schedule_relay_conflict);
+    store_down();
+}
+
+TEST_CASE("schedule: clock mode parses HH:MM on/off and a days bitmask", "[device_config]")
+{
+    store_up();
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s1_relay", 3));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s1_on", "18:30"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s1_off", "06:00"));
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s1_days", 62));  // Mon-Fri
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    const schedule_cfg_t *sc = &c.schedules[0];
+    TEST_ASSERT_EQUAL(3, sc->relay);
+    TEST_ASSERT_EQUAL(SCHEDULE_MODE_CLOCK, sc->mode);
+    TEST_ASSERT_EQUAL(SCHEDULE_TIME_CLOCK, sc->on.kind);
+    TEST_ASSERT_EQUAL(18 * 60 + 30, sc->on.minute_of_day);
+    TEST_ASSERT_EQUAL(SCHEDULE_TIME_CLOCK, sc->off.kind);
+    TEST_ASSERT_EQUAL(6 * 60, sc->off.minute_of_day);
+    TEST_ASSERT_EQUAL(62, sc->days);
+    store_down();
+}
+
+TEST_CASE("schedule: sunrise/sunset with a signed minute offset parses", "[device_config]")
+{
+    store_up();
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s2_relay", 1));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s2_on", "sunset-30"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s2_off", "sunrise+15m"));
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    const schedule_cfg_t *sc = &c.schedules[1];
+    TEST_ASSERT_EQUAL(1, sc->relay);
+    TEST_ASSERT_EQUAL(SCHEDULE_TIME_SUNSET, sc->on.kind);
+    TEST_ASSERT_EQUAL(-30, sc->on.offset_min);
+    TEST_ASSERT_EQUAL(SCHEDULE_TIME_SUNRISE, sc->off.kind);
+    TEST_ASSERT_EQUAL(15, sc->off.offset_min);
+    store_down();
+}
+
+TEST_CASE("schedule: a bare \"sunrise\"/\"sunset\" is offset 0", "[device_config]")
+{
+    store_up();
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s1_relay", 1));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s1_on", "sunrise"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s1_off", "sunset"));
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    TEST_ASSERT_EQUAL(0, c.schedules[0].on.offset_min);
+    TEST_ASSERT_EQUAL(0, c.schedules[0].off.offset_min);
+    store_down();
+}
+
+TEST_CASE("schedule: repeat mode parses on-minutes and period-minutes", "[device_config]")
+{
+    store_up();
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s3_relay", 5));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s3_mode", "repeat"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s3_on", "10"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s3_off", "60"));
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    const schedule_cfg_t *sc = &c.schedules[2];
+    TEST_ASSERT_EQUAL(5, sc->relay);
+    TEST_ASSERT_EQUAL(SCHEDULE_MODE_REPEAT, sc->mode);
+    TEST_ASSERT_EQUAL(10, sc->on_min);
+    TEST_ASSERT_EQUAL(60, sc->period_min);
+    store_down();
+}
+
+TEST_CASE("schedule: repeat mode with on-minutes >= period is disabled", "[device_config]")
+{
+    store_up();
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s4_relay", 2));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s4_mode", "repeat"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s4_on", "60"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s4_off", "60"));  // not longer than on: invalid
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    TEST_ASSERT_EQUAL(0, c.schedules[3].relay);
+    store_down();
+}
+
+TEST_CASE("schedule: a malformed clock time disables the entry", "[device_config]")
+{
+    store_up();
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s5_relay", 1));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s5_on", "25:00"));  // no such hour
+    TEST_ESP_OK(espos_config_set_str("swbank", "s5_off", "06:00"));
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    TEST_ASSERT_EQUAL(0, c.schedules[4].relay);
+    store_down();
+}
+
+TEST_CASE("schedule: two entries naming the same relay are both disabled, with a warning", "[device_config]")
+{
+    store_up();
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s6_relay", 4));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s6_on", "08:00"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s6_off", "09:00"));
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s7_relay", 4));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s7_on", "20:00"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s7_off", "21:00"));
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    TEST_ASSERT_EQUAL(0, c.schedules[5].relay);  // s6: disabled
+    TEST_ASSERT_EQUAL(0, c.schedules[6].relay);  // s7: disabled
+    TEST_ASSERT_EQUAL(1u << 3, c.schedule_relay_conflict);  // relay 4
+    device_config_report_health(&c);
+    TEST_ASSERT_EQUAL(ESPOS_HEALTH_WARN, health_of("scheduleOverlap"));
+
+    // Fixed: move s7 to a different relay.
+    TEST_ESP_OK(espos_config_set_i32("swbank", "s7_relay", 2));
+    TEST_ESP_OK(device_config_load(&c));
+    TEST_ASSERT_EQUAL(4, c.schedules[5].relay);
+    TEST_ASSERT_EQUAL(2, c.schedules[6].relay);
+    TEST_ASSERT_EQUAL(0, c.schedule_relay_conflict);
+    device_config_report_health(&c);
+    TEST_ASSERT_EQUAL(ESPOS_HEALTH_NORMAL, health_of("scheduleOverlap"));
+    store_down();
+}
+
+TEST_CASE("schedule: an unused entry's on/off is never parsed", "[device_config]")
+{
+    store_up();
+    // relay left at its default (0, unused); on/off are garbage that would
+    // fail to parse if it were ever tried.
+    TEST_ESP_OK(espos_config_set_str("swbank", "s8_on", "not a time"));
+    TEST_ESP_OK(espos_config_set_str("swbank", "s8_off", "also not a time"));
+    device_config_t c;
+    TEST_ESP_OK(device_config_load(&c));
+    TEST_ASSERT_EQUAL(0, c.schedules[7].relay);
+    store_down();
+}
+
 TEST_CASE("load fails before the store is up", "[device_config]")
 {
     device_config_t c;

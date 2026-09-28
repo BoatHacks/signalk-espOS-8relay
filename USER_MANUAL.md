@@ -258,7 +258,49 @@ overrides.
 | Interlock dead time | 100 ms | How long an interlocked relay's partner stays off before it switches on (0–2000 ms). Applies to every interlocked pair (section 6.3). |
 | Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
 
-## 7. Everyday use
+### 6.6 Schedules
+
+The board's own real-time clock keeps schedules running before, or
+entirely without, a SignalK server (section 7.8). Time zone is espOS's own
+*Timezone* setting (Clock settings page, POSIX TZ form, e.g. `UTC0` or
+`CET-1CEST,M3.5.0,M10.5.0/3` for central Europe) -- nothing new here, a
+schedule's `HH:MM` and days of the week are read in that zone.
+
+| Setting | Default | Notes |
+|---|---|---|
+| Position source | SignalK | Where sunrise/sunset math gets the boat's position: `navigation.position` from the SignalK stream, or decoded from the board's own NMEA 2000 bus (PGN 129025/129029). *Restart.* |
+| Fallback latitude / longitude | 0°, 0° | Used when the position source above has no fresh reading yet (nothing received in the last 10 minutes) -- a boat that stays put, or a starting point before the first live reading arrives. |
+
+**Each of the 8 schedule entries:**
+
+| Setting | Default | Notes |
+|---|---|---|
+| Relay | None | 1–8, or *none* to leave this entry unused. |
+| Mode | Clock | *Clock*: an on-time and an off-time (below). *Repeat*: a duty cycle -- on for a set number of minutes, repeating every so many minutes, restarting fresh at local midnight. |
+| On time / on-minutes | *(none)* | Clock mode: `HH:MM` (24-hour), or a sunrise/sunset offset -- `sunrise`, `sunset+30`, `sunset-45m` (minutes before/after, the trailing `m` is optional). Repeat mode: how many minutes on, e.g. `10`. |
+| Off time / cycle minutes | *(none)* | Clock mode: same form as the on time. An off time earlier than the on time means the schedule runs overnight, across midnight. Repeat mode: the full cycle length in minutes, e.g. `60` for "every hour" -- must be longer than the on-minutes above. |
+| Days | Every day | Which days of the week this entry runs. |
+
+An on-time and an off-time can be mixed freely -- e.g. on at a fixed
+`18:00`, off at `sunrise+30`. A schedule's transitions behave like any
+other command: an entry switching a momentary relay just starts its usual
+pulse (the *off* transition is then a no-op, nothing left to switch off);
+a `wiredNC` relay reports and is commanded by its load state as usual; an
+interlocked relay still can't be switched on while its partner is on.
+Between two scheduled transitions, a manual command from SignalK, NMEA
+2000, the relay page or an input override stands -- a schedule only acts
+at its own on/off instants, the same rule an input override follows.
+
+**Two or more entries switching the same relay** is rejected, not resolved
+by which one is listed first: every entry naming that relay does nothing
+until the clash is fixed, and the health page warns which relay. This
+check only looks at whether the entries name the same relay, not whether
+their days or times could ever actually overlap -- simpler and more
+cautious than trying to work that out.
+
+**No valid time yet** (freshly powered on with a dead RTC battery, and
+neither SNTP nor SignalK have set the clock) makes every schedule do
+nothing, with its own health warning, until a source sets the clock.
 
 ### 7.1 From SignalK
 
@@ -485,6 +527,45 @@ Open `http://<board address>/tones` to manage this. It has:
   which library tone plays for it, or *(none)* for silence. Changes here
   apply immediately.
 
+### 7.8 Schedules
+
+Settings are in section 6.6. A few things worth knowing about how a
+schedule actually behaves once it's set up:
+
+- **The board's own clock keeps schedules running without SignalK.** The
+  PCF85063 real-time clock survives a power cut, so a schedule set to
+  switch a relay at sunset still does, even if the board has never
+  connected to a SignalK server, or lost power the night before and came
+  back up mid-window. On the very first evaluation after boot (or after
+  the clock first becomes valid), a relay that *should already be on* by
+  its schedule switches on immediately -- it doesn't wait for the next
+  transition, which could be up to a day away.
+- **A midnight-spanning schedule isn't cut short by the days setting.** A
+  "Friday 22:00 to 06:00" entry stays on into Saturday morning even if
+  *Days* doesn't include Saturday -- the window already started on a day
+  it was allowed to, and finishing it out is the point of an overnight
+  schedule. A *repeat*-mode duty cycle is different: it resets cleanly at
+  local midnight and simply does nothing on an excluded day, with no
+  carry-over from the day before.
+- **A sunrise/sunset-referenced schedule during permanent polar day or
+  night treats the whole day as continuously on the correct side of the
+  boundary**, rather than doing nothing that day. A sunset-to-sunrise
+  entry (an anchor light, say) stays on right through a polar night, and
+  off right through a polar day; a sunrise-to-sunset entry is the mirror
+  image.
+- **Daylight saving changes are handled through the board's own local
+  clock**, the same as any household timer: a "spring forward" that skips
+  over a scheduled time still catches it on the next check (at most a
+  second later); a "fall back" that repeats an hour runs that hour's
+  schedule twice, which is the same thing a mechanical timer on the wall
+  would do.
+- **A schedule switching a relay counts as an automatic change, not a
+  direct command** -- it doesn't chirp (section 7.7) even with *Buzzer on
+  events* on, the same as a maximum on-time expiring or the SignalK-loss
+  fail-safe. It also doesn't fight a manual override: between two
+  scheduled transitions, whatever SignalK, NMEA 2000, the relay page or an
+  input override last set stands until the schedule's next transition.
+
 ## 8. Troubleshooting
 
 ### Recovering a board that's lost its network, with the BOOT button
@@ -537,3 +618,35 @@ counters, which tell the causes apart:
 
 The CAN interface is isolated from the rest of the board, so its ground
 is not the power supply's ground.
+
+### A schedule isn't switching the relay
+
+Check the health page first for one of two schedule-specific warnings:
+
+- **"No valid time"**: the board doesn't know what time it is yet -- a
+  brand-new board before its first SNTP or SignalK sync, or one whose RTC
+  battery has died and lost power completely. Every schedule does nothing
+  until a source sets the clock. Confirm the board has a network route to
+  an NTP server or a SignalK connection; `http://<board>/api/v1/time`
+  shows whether the clock is currently synced and from which source.
+- **A relay named by two or more schedules**: rejected outright, not
+  resolved by listing order -- every entry naming that relay does nothing
+  until only one of them still does. The health message names the relay;
+  fix it in section 6.6's schedule list.
+
+If neither warning is showing and the schedule still isn't switching:
+
+- **Check the days setting** -- it's easy to leave a day unticked by
+  mistake, and a schedule simply does nothing on an excluded day.
+- **For a sunrise/sunset-referenced entry, check the position.** With
+  *Position source* set to SignalK, the board needs a `navigation.position`
+  update from the server within the last 10 minutes, or it falls back to
+  the configured fixed position -- which may be far enough from the boat's
+  actual location to shift sunrise/sunset by more than expected. With
+  *Position source* set to NMEA 2000, confirm the board is actually
+  receiving PGN 129025 or 129029 from a GPS on the bus (section 8's NMEA
+  2000 troubleshooting above covers diagnosing bus traffic generally).
+- **Double-check the time zone** (espOS's *Timezone* setting, section
+  6.6) -- a schedule's `HH:MM` and its sunrise/sunset offsets are read in
+  that zone, so a wrong or default (`UTC0`) time zone shifts every
+  clock-mode entry by the difference.

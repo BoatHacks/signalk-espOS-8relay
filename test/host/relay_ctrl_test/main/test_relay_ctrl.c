@@ -233,6 +233,35 @@ TEST_CASE("a momentary pulse ends on time", "[relay_ctrl]")
     TEST_ASSERT_EQUAL(RELAY_SRC_PULSE_END, events[1].src);
 }
 
+// Issue #9, plan 16, decided 2026-09-28: a schedule's "on" edge for a
+// momentary relay is just another RELAY_SRC_SCHEDULE call to
+// relay_ctrl_set(on=true) -- no special-casing anywhere in relay_ctrl, the
+// relay's own pulse_ms governs it exactly like any other source. The
+// schedule's "off" edge is simply a no-op: relay_ctrl_set(false) on a relay
+// that already switched itself off does nothing (no coil write, no event).
+TEST_CASE("a schedule's on edge starts a pulse; its off edge is a no-op", "[relay_ctrl]")
+{
+    fresh();
+    cfg.relays[1].mode = RELAY_MODE_MOMENTARY;
+    start();
+    TEST_ESP_OK(relay_ctrl_set(2, true, RELAY_SRC_SCHEDULE));
+    TEST_ASSERT_TRUE(relay_ctrl_get(2));
+    TEST_ASSERT_EQUAL(1, n_events);
+    TEST_ASSERT_EQUAL(RELAY_SRC_SCHEDULE, events[0].src);
+
+    clock_ms += 1000;  // the pulse runs out on its own
+    relay_ctrl_tick();
+    TEST_ASSERT_FALSE(relay_ctrl_get(2));
+    TEST_ASSERT_EQUAL(2, n_events);
+    TEST_ASSERT_EQUAL(RELAY_SRC_PULSE_END, events[1].src);
+
+    // The schedule's own off-time, arriving after the pulse already ended:
+    // a no-op, not a second event.
+    n_events = 0;
+    TEST_ESP_OK(relay_ctrl_set(2, false, RELAY_SRC_SCHEDULE));
+    TEST_ASSERT_EQUAL(0, n_events);
+}
+
 TEST_CASE("a repeated on restarts the pulse; off cancels it", "[relay_ctrl]")
 {
     fresh();

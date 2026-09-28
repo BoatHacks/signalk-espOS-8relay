@@ -1,0 +1,5 @@
+dependencies:
+  idf: ">=6.0.0,<6.1.0"
+  signalk-espos/espos_sk: "0.10.3"
+  signalk-espos/espos_time: "0.10.3"
+  signalk-espos/espos_health: "0.10.3"

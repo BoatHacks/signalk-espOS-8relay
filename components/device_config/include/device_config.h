@@ -27,6 +27,48 @@ typedef enum { FAILSAFE_DEFAULT_SAFE, FAILSAFE_HOLD } failsafe_policy_t;
 // How a relay reacts to its override input: copy it, or flip on each press.
 typedef enum { INPUT_LINK_FOLLOW, INPUT_LINK_TOGGLE } input_link_t;
 
+// Where a schedule's "sunrise"/"sunset" entries get the boat's position from
+// (issue #9, plan 16). Either way, a stale or missing live reading falls
+// back to fallback_lat/fallback_lon below -- "stale" is the schedule
+// evaluator's call (it owns the clock), not device_config's.
+typedef enum { POSITION_SRC_SIGNALK, POSITION_SRC_N2K } position_source_t;
+
+// A schedule entry (issue #9, plan 16): either an on-time/off-time pair
+// (SCHEDULE_MODE_CLOCK) or a duty cycle (SCHEDULE_MODE_REPEAT, "on for X
+// min every Y min" -- a fan, say). Which of the two union-like halves below
+// is meaningful follows `mode`; the other is simply unused, the same shape
+// device_config already uses for e.g. `relay_cfg_t.max_on_s` being ignored
+// in momentary mode.
+typedef enum { SCHEDULE_MODE_CLOCK, SCHEDULE_MODE_REPEAT } schedule_mode_t;
+
+// A CLOCK-mode on-time or off-time: a fixed time of day, or a sunrise/sunset
+// offset (issue #9, plan 16). `offset_min` is signed, e.g. -30 for
+// "sunrise-30m" (half an hour before sunrise).
+typedef enum { SCHEDULE_TIME_CLOCK, SCHEDULE_TIME_SUNRISE, SCHEDULE_TIME_SUNSET } schedule_time_kind_t;
+typedef struct {
+    schedule_time_kind_t kind;
+    int16_t minute_of_day; // SCHEDULE_TIME_CLOCK only, 0-1439
+    int16_t offset_min;    // SCHEDULE_TIME_SUNRISE/SUNSET only
+} schedule_time_t;
+
+#define SCHEDULE_MAX_ENTRIES 8
+
+typedef struct {
+    // 0 = unused: an entry with nothing configured, one whose on/off string
+    // didn't parse, or one that lost a same-relay conflict below -- all the
+    // same "does nothing" outcome to the evaluator, whatever the reason.
+    uint8_t relay;
+    schedule_mode_t mode;
+    schedule_time_t on;  // SCHEDULE_MODE_CLOCK
+    schedule_time_t off; // SCHEDULE_MODE_CLOCK
+    uint16_t on_min;     // SCHEDULE_MODE_REPEAT: on-duration, minutes
+    uint16_t period_min; // SCHEDULE_MODE_REPEAT: cycle length, minutes
+    // Bit 0 = Sunday .. bit 6 = Saturday, matching espos_time_parts_t.wday's
+    // own convention -- both modes use this, a repeat-mode fan can still be
+    // "weekdays only".
+    uint8_t days;
+} schedule_cfg_t;
+
 typedef struct {
     char name[DEVICE_CONFIG_NAME_MAX + 1];
     relay_mode_t mode;
@@ -104,12 +146,28 @@ typedef struct {
     // relay's coil going on (issue #8, plan 15). Stored as "interlock_dead"
     // (espOS key names cap at 15 chars).
     uint32_t interlock_dead_ms;
+    // Schedules (issue #9, plan 16): where sunrise/sunset entries get the
+    // boat's live position from, and the position to use when that source
+    // has none (not subscribed/received yet) or a stale one. Degrees,
+    // positive north/east -- SignalK's navigation.position convention.
+    position_source_t position_source;
+    float fallback_lat;
+    float fallback_lon;
     relay_cfg_t relays[BOARD_CHANNELS];  // index 0 = relay 1
     input_cfg_t inputs[BOARD_CHANNELS];  // index 0 = input 1
+    schedule_cfg_t schedules[SCHEDULE_MAX_ENTRIES];  // index 0 = schedule 1
     // Bit n-1 = relay n's `r<n>_interlock` setting named a relay that
     // didn't name it back, or named itself: ignored (relays[n-1].interlock
     // reads 0), and device_config_report_health() warns about it.
     uint8_t interlock_invalid;
+    // Bit n-1 = relay n was named by two or more *enabled* schedule entries
+    // (issue #9, plan 16): rejected, not resolved by slot order -- every
+    // entry naming that relay reads relay=0 (inert) until fixed, and
+    // device_config_report_health() warns about it. A static check on the
+    // settings themselves, the same shallow shape as interlock_invalid
+    // above: it does not ask whether the entries' days/times could ever
+    // actually collide, only whether they name the same relay at all.
+    uint8_t schedule_relay_conflict;
 } device_config_t;
 
 // Read every setting. Missing or invalid stored values read as their

@@ -1,6 +1,7 @@
 #include "relay_hw.h"
 
 #include "board.h"
+#include "board_i2c.h"
 #include "driver/i2c_master.h"
 #include "esp_timer.h"
 #include "nvs.h"
@@ -50,18 +51,10 @@ esp_err_t relay_hw_clear_hold_state(void)
 
 esp_err_t relay_hw_create(relay_ctrl_hw_t *out)
 {
-    // The RTC shares this bus; whoever adds RTC support should move the bus
-    // into the board component and hand the handle to both.
-    i2c_master_bus_config_t bus_cfg = {
-        .i2c_port = I2C_NUM_0,
-        .scl_io_num = BOARD_I2C_SCL,
-        .sda_io_num = BOARD_I2C_SDA,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .flags.enable_internal_pullup = true,
-    };
+    // Shared with the RTC (PCF85063, components/rtc_pcf85063): the bus
+    // itself lives in board_i2c so nothing initialises the peripheral twice.
     i2c_master_bus_handle_t bus;
-    esp_err_t err = i2c_new_master_bus(&bus_cfg, &bus);
+    esp_err_t err = board_i2c_bus(&bus);
     if (err != ESP_OK) {
         return err;
     }

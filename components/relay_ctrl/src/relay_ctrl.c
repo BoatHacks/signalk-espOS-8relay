@@ -595,7 +595,8 @@ bool relay_ctrl_source_chirps(relay_source_t src)
     case RELAY_SRC_PULSE_END:
     case RELAY_SRC_FAILSAFE:
     case RELAY_SRC_MAX_ON:
-    case RELAY_SRC_INTERLOCK: return false;
+    case RELAY_SRC_INTERLOCK:
+    case RELAY_SRC_SCHEDULE: return false;
     }
     return false;
 }

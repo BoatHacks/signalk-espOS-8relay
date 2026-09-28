@@ -28,6 +28,20 @@ esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_config_t *cfg
 // periodic broadcast. Callable from any task.
 void n2k_bridge_state_changed(void);
 
+// Every received NMEA 2000 message's PGN and data bytes, for a use that
+// isn't the switch-bank control PGN handled internally above -- e.g.
+// components/schedule's position decoding (PGN 129025/129029, issue #9,
+// plan 16). switch_bank owns the one CAN/N2K bus on the board and the
+// library allows only one SetMsgHandler() for it, so this is the seam:
+// switch_bank stays scoped to switch banks, forwarding raw messages rather
+// than knowing what any of them mean. Same shape as
+// relay_ctrl_add_listener()/input_sense_add_listener() elsewhere in this
+// codebase. `data`/`len` are borrowed for the call only -- copy, don't
+// hold the pointer. Runs on the NMEA 2000 task; keep it short.
+typedef void (*n2k_bridge_msg_listener_t)(uint32_t pgn, const uint8_t *data, uint8_t len, void *arg);
+#define N2K_BRIDGE_MAX_MSG_LISTENERS 4
+esp_err_t n2k_bridge_add_msg_listener(n2k_bridge_msg_listener_t cb, void *arg);
+
 typedef struct {
     bool started;    // CAN open and the NMEA 2000 task running
     uint8_t address; // our current source address (after address claim)

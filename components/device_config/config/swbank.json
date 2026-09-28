@@ -71,6 +71,441 @@
       "description": "How long an interlocked relay's partner stays off before it switches on (issue #8). Applies to every interlocked pair."
     },
     {
+      "name": "position_src",
+      "type": "string",
+      "default": "signalk",
+      "enum": [
+        "signalk",
+        "n2k"
+      ],
+      "restart_required": true,
+      "group": "Schedules",
+      "title": "Position source",
+      "description": "Where sunrise/sunset schedule entries get the boat's position from: signalk = navigation.position from the SignalK stream, n2k = decoded from the board's own NMEA 2000 bus (PGN 129025/129029). Either way, a missing or stale reading falls back to the position below."
+    },
+    {
+      "name": "fallback_lat",
+      "type": "float",
+      "default": 0.0,
+      "min": -90.0,
+      "max": 90.0,
+      "unit": "deg",
+      "group": "Schedules",
+      "title": "Fallback latitude",
+      "description": "Used for sunrise/sunset when the position source above has no fresh reading -- a boat that stays put, or a starting point before the first one arrives. Positive north."
+    },
+    {
+      "name": "fallback_lon",
+      "type": "float",
+      "default": 0.0,
+      "min": -180.0,
+      "max": 180.0,
+      "unit": "deg",
+      "group": "Schedules",
+      "title": "Fallback longitude",
+      "description": "As above. Positive east."
+    },
+    {
+      "name": "s1_relay",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Schedules",
+      "title": "Schedule 1: relay",
+      "description": "0 = unused. 1-8 = the relay this schedule switches."
+    },
+    {
+      "name": "s1_mode",
+      "type": "string",
+      "default": "clock",
+      "enum": [
+        "clock",
+        "repeat"
+      ],
+      "group": "Schedules",
+      "title": "Schedule 1: mode",
+      "description": "clock = an on-time/off-time pair (below). repeat = a duty cycle: on for the \"on\" field's minutes, every \"off\" field's minutes, anchored to local midnight."
+    },
+    {
+      "name": "s1_on",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 1: on time / on-minutes",
+      "description": "clock mode: HH:MM, sunrise, sunrise+30, sunset-45m (minutes before/after sunrise or sunset; the trailing \"m\" is optional). repeat mode: on-duration in minutes (e.g. 10)."
+    },
+    {
+      "name": "s1_off",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 1: off time / cycle minutes",
+      "description": "clock mode: same form as the on time above; an off time earlier than the on time means the schedule spans midnight. repeat mode: the cycle length in minutes (e.g. 60 for \"every hour\") -- must be longer than the on-minutes above."
+    },
+    {
+      "name": "s1_days",
+      "type": "int",
+      "default": 127,
+      "min": 0,
+      "max": 127,
+      "group": "Schedules",
+      "title": "Schedule 1: days",
+      "description": "Bitmask, bit 0 = Sunday .. bit 6 = Saturday (add the days' values: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64). 127 = every day."
+    },
+    {
+      "name": "s2_relay",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Schedules",
+      "title": "Schedule 2: relay",
+      "description": "0 = unused. 1-8 = the relay this schedule switches."
+    },
+    {
+      "name": "s2_mode",
+      "type": "string",
+      "default": "clock",
+      "enum": [
+        "clock",
+        "repeat"
+      ],
+      "group": "Schedules",
+      "title": "Schedule 2: mode",
+      "description": "clock = an on-time/off-time pair (below). repeat = a duty cycle: on for the \"on\" field's minutes, every \"off\" field's minutes, anchored to local midnight."
+    },
+    {
+      "name": "s2_on",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 2: on time / on-minutes",
+      "description": "clock mode: HH:MM, sunrise, sunrise+30, sunset-45m (minutes before/after sunrise or sunset; the trailing \"m\" is optional). repeat mode: on-duration in minutes (e.g. 10)."
+    },
+    {
+      "name": "s2_off",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 2: off time / cycle minutes",
+      "description": "clock mode: same form as the on time above; an off time earlier than the on time means the schedule spans midnight. repeat mode: the cycle length in minutes (e.g. 60 for \"every hour\") -- must be longer than the on-minutes above."
+    },
+    {
+      "name": "s2_days",
+      "type": "int",
+      "default": 127,
+      "min": 0,
+      "max": 127,
+      "group": "Schedules",
+      "title": "Schedule 2: days",
+      "description": "Bitmask, bit 0 = Sunday .. bit 6 = Saturday (add the days' values: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64). 127 = every day."
+    },
+    {
+      "name": "s3_relay",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Schedules",
+      "title": "Schedule 3: relay",
+      "description": "0 = unused. 1-8 = the relay this schedule switches."
+    },
+    {
+      "name": "s3_mode",
+      "type": "string",
+      "default": "clock",
+      "enum": [
+        "clock",
+        "repeat"
+      ],
+      "group": "Schedules",
+      "title": "Schedule 3: mode",
+      "description": "clock = an on-time/off-time pair (below). repeat = a duty cycle: on for the \"on\" field's minutes, every \"off\" field's minutes, anchored to local midnight."
+    },
+    {
+      "name": "s3_on",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 3: on time / on-minutes",
+      "description": "clock mode: HH:MM, sunrise, sunrise+30, sunset-45m (minutes before/after sunrise or sunset; the trailing \"m\" is optional). repeat mode: on-duration in minutes (e.g. 10)."
+    },
+    {
+      "name": "s3_off",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 3: off time / cycle minutes",
+      "description": "clock mode: same form as the on time above; an off time earlier than the on time means the schedule spans midnight. repeat mode: the cycle length in minutes (e.g. 60 for \"every hour\") -- must be longer than the on-minutes above."
+    },
+    {
+      "name": "s3_days",
+      "type": "int",
+      "default": 127,
+      "min": 0,
+      "max": 127,
+      "group": "Schedules",
+      "title": "Schedule 3: days",
+      "description": "Bitmask, bit 0 = Sunday .. bit 6 = Saturday (add the days' values: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64). 127 = every day."
+    },
+    {
+      "name": "s4_relay",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Schedules",
+      "title": "Schedule 4: relay",
+      "description": "0 = unused. 1-8 = the relay this schedule switches."
+    },
+    {
+      "name": "s4_mode",
+      "type": "string",
+      "default": "clock",
+      "enum": [
+        "clock",
+        "repeat"
+      ],
+      "group": "Schedules",
+      "title": "Schedule 4: mode",
+      "description": "clock = an on-time/off-time pair (below). repeat = a duty cycle: on for the \"on\" field's minutes, every \"off\" field's minutes, anchored to local midnight."
+    },
+    {
+      "name": "s4_on",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 4: on time / on-minutes",
+      "description": "clock mode: HH:MM, sunrise, sunrise+30, sunset-45m (minutes before/after sunrise or sunset; the trailing \"m\" is optional). repeat mode: on-duration in minutes (e.g. 10)."
+    },
+    {
+      "name": "s4_off",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 4: off time / cycle minutes",
+      "description": "clock mode: same form as the on time above; an off time earlier than the on time means the schedule spans midnight. repeat mode: the cycle length in minutes (e.g. 60 for \"every hour\") -- must be longer than the on-minutes above."
+    },
+    {
+      "name": "s4_days",
+      "type": "int",
+      "default": 127,
+      "min": 0,
+      "max": 127,
+      "group": "Schedules",
+      "title": "Schedule 4: days",
+      "description": "Bitmask, bit 0 = Sunday .. bit 6 = Saturday (add the days' values: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64). 127 = every day."
+    },
+    {
+      "name": "s5_relay",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Schedules",
+      "title": "Schedule 5: relay",
+      "description": "0 = unused. 1-8 = the relay this schedule switches."
+    },
+    {
+      "name": "s5_mode",
+      "type": "string",
+      "default": "clock",
+      "enum": [
+        "clock",
+        "repeat"
+      ],
+      "group": "Schedules",
+      "title": "Schedule 5: mode",
+      "description": "clock = an on-time/off-time pair (below). repeat = a duty cycle: on for the \"on\" field's minutes, every \"off\" field's minutes, anchored to local midnight."
+    },
+    {
+      "name": "s5_on",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 5: on time / on-minutes",
+      "description": "clock mode: HH:MM, sunrise, sunrise+30, sunset-45m (minutes before/after sunrise or sunset; the trailing \"m\" is optional). repeat mode: on-duration in minutes (e.g. 10)."
+    },
+    {
+      "name": "s5_off",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 5: off time / cycle minutes",
+      "description": "clock mode: same form as the on time above; an off time earlier than the on time means the schedule spans midnight. repeat mode: the cycle length in minutes (e.g. 60 for \"every hour\") -- must be longer than the on-minutes above."
+    },
+    {
+      "name": "s5_days",
+      "type": "int",
+      "default": 127,
+      "min": 0,
+      "max": 127,
+      "group": "Schedules",
+      "title": "Schedule 5: days",
+      "description": "Bitmask, bit 0 = Sunday .. bit 6 = Saturday (add the days' values: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64). 127 = every day."
+    },
+    {
+      "name": "s6_relay",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Schedules",
+      "title": "Schedule 6: relay",
+      "description": "0 = unused. 1-8 = the relay this schedule switches."
+    },
+    {
+      "name": "s6_mode",
+      "type": "string",
+      "default": "clock",
+      "enum": [
+        "clock",
+        "repeat"
+      ],
+      "group": "Schedules",
+      "title": "Schedule 6: mode",
+      "description": "clock = an on-time/off-time pair (below). repeat = a duty cycle: on for the \"on\" field's minutes, every \"off\" field's minutes, anchored to local midnight."
+    },
+    {
+      "name": "s6_on",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 6: on time / on-minutes",
+      "description": "clock mode: HH:MM, sunrise, sunrise+30, sunset-45m (minutes before/after sunrise or sunset; the trailing \"m\" is optional). repeat mode: on-duration in minutes (e.g. 10)."
+    },
+    {
+      "name": "s6_off",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 6: off time / cycle minutes",
+      "description": "clock mode: same form as the on time above; an off time earlier than the on time means the schedule spans midnight. repeat mode: the cycle length in minutes (e.g. 60 for \"every hour\") -- must be longer than the on-minutes above."
+    },
+    {
+      "name": "s6_days",
+      "type": "int",
+      "default": 127,
+      "min": 0,
+      "max": 127,
+      "group": "Schedules",
+      "title": "Schedule 6: days",
+      "description": "Bitmask, bit 0 = Sunday .. bit 6 = Saturday (add the days' values: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64). 127 = every day."
+    },
+    {
+      "name": "s7_relay",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Schedules",
+      "title": "Schedule 7: relay",
+      "description": "0 = unused. 1-8 = the relay this schedule switches."
+    },
+    {
+      "name": "s7_mode",
+      "type": "string",
+      "default": "clock",
+      "enum": [
+        "clock",
+        "repeat"
+      ],
+      "group": "Schedules",
+      "title": "Schedule 7: mode",
+      "description": "clock = an on-time/off-time pair (below). repeat = a duty cycle: on for the \"on\" field's minutes, every \"off\" field's minutes, anchored to local midnight."
+    },
+    {
+      "name": "s7_on",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 7: on time / on-minutes",
+      "description": "clock mode: HH:MM, sunrise, sunrise+30, sunset-45m (minutes before/after sunrise or sunset; the trailing \"m\" is optional). repeat mode: on-duration in minutes (e.g. 10)."
+    },
+    {
+      "name": "s7_off",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 7: off time / cycle minutes",
+      "description": "clock mode: same form as the on time above; an off time earlier than the on time means the schedule spans midnight. repeat mode: the cycle length in minutes (e.g. 60 for \"every hour\") -- must be longer than the on-minutes above."
+    },
+    {
+      "name": "s7_days",
+      "type": "int",
+      "default": 127,
+      "min": 0,
+      "max": 127,
+      "group": "Schedules",
+      "title": "Schedule 7: days",
+      "description": "Bitmask, bit 0 = Sunday .. bit 6 = Saturday (add the days' values: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64). 127 = every day."
+    },
+    {
+      "name": "s8_relay",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 8,
+      "group": "Schedules",
+      "title": "Schedule 8: relay",
+      "description": "0 = unused. 1-8 = the relay this schedule switches."
+    },
+    {
+      "name": "s8_mode",
+      "type": "string",
+      "default": "clock",
+      "enum": [
+        "clock",
+        "repeat"
+      ],
+      "group": "Schedules",
+      "title": "Schedule 8: mode",
+      "description": "clock = an on-time/off-time pair (below). repeat = a duty cycle: on for the \"on\" field's minutes, every \"off\" field's minutes, anchored to local midnight."
+    },
+    {
+      "name": "s8_on",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 8: on time / on-minutes",
+      "description": "clock mode: HH:MM, sunrise, sunrise+30, sunset-45m (minutes before/after sunrise or sunset; the trailing \"m\" is optional). repeat mode: on-duration in minutes (e.g. 10)."
+    },
+    {
+      "name": "s8_off",
+      "type": "string",
+      "default": "",
+      "maxLength": 15,
+      "group": "Schedules",
+      "title": "Schedule 8: off time / cycle minutes",
+      "description": "clock mode: same form as the on time above; an off time earlier than the on time means the schedule spans midnight. repeat mode: the cycle length in minutes (e.g. 60 for \"every hour\") -- must be longer than the on-minutes above."
+    },
+    {
+      "name": "s8_days",
+      "type": "int",
+      "default": 127,
+      "min": 0,
+      "max": 127,
+      "group": "Schedules",
+      "title": "Schedule 8: days",
+      "description": "Bitmask, bit 0 = Sunday .. bit 6 = Saturday (add the days' values: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64). 127 = every day."
+    },
+    {
       "name": "eth_enabled",
       "type": "bool",
       "default": true,

@@ -23,6 +23,7 @@
 #include "espos_health.h"
 #include "espos_net.h"
 #include "espos_sk.h"
+#include "espos_time.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs.h"
@@ -38,8 +39,14 @@
 #include "input_hw.h"
 #include "input_sense.h"
 #include "n2k_bridge.h"
+#include "position.h"
+#include "position_n2k.h"
+#include "position_sk.h"
 #include "relay_ctrl.h"
 #include "relay_hw.h"
+#include "rtc_hw.h"
+#include "rtc_pcf85063.h"
+#include "schedule_eval.h"
 #include "sk_bridge.h"
 #include "sk_espos.h"
 #include "web_ui.h"
@@ -63,6 +70,14 @@ static volatile int64_t s_io_alive_us;
 static button_state_t s_button;
 static button_hw_t s_button_hw;
 static bool s_button_hw_ok;
+// The PCF85063 RTC (issue #9, plan 16): created and 24h-mode-initialised in
+// start_io(), before the network, sharing relay_hw's I2C bus (board_i2c.h).
+// espos_time_set() itself can't run that early -- it requires
+// espos_time_start(), which espos_start_network() only reaches after
+// start_io() returns -- so app_main() reads the chip and hands the value to
+// espos_time_set() right after espos_start() comes back, still well before
+// any transport actually has a link.
+static bool s_rtc_ok;
 
 static uint32_t now_ms(void)
 {
@@ -94,6 +109,11 @@ static esp_err_t web_set_relay(uint8_t relay, bool on)
     return relay_ctrl_set(relay, on, RELAY_SRC_WEB);
 }
 
+static esp_err_t schedule_set_relay(uint8_t relay, bool on)
+{
+    return relay_ctrl_set(relay, on, RELAY_SRC_SCHEDULE);
+}
+
 // Short, stable names: the relay page shows them and the log prints them.
 static const char *source_name(relay_source_t src)
 {
@@ -106,6 +126,7 @@ static const char *source_name(relay_source_t src)
     case RELAY_SRC_WEB: return "web";
     case RELAY_SRC_MAX_ON: return "maxOn";
     case RELAY_SRC_INTERLOCK: return "interlock";
+    case RELAY_SRC_SCHEDULE: return "schedule";
     }
     return "unknown";
 }
@@ -207,6 +228,25 @@ static void on_sk_stream(void *arg, esp_event_base_t base, int32_t id, void *dat
     sk_bridge_stream_changed(id == ESPOS_EVENT_SK_STREAM_CONNECTED);
 }
 
+// Keep the RTC current so the next boot (or a power cut before SNTP/SignalK
+// catch up again) still has a good time to start from. Skip our own source:
+// writing back what we just read from the chip is a pointless I2C round
+// trip, not a correctness issue either way (plan 16).
+static void on_time_synced(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    if (!s_rtc_ok || !data) {
+        return;
+    }
+    const espos_event_time_t *ev = data;
+    if ((espos_time_src_t)ev->source == ESPOS_TIME_SRC_RTC) {
+        return;
+    }
+    esp_err_t err = rtc_pcf85063_set_time(ev->unix_ms);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "RTC write-back failed: %s", esp_err_to_name(err));
+    }
+}
+
 // Per changed key, on the writer's task: just wake the I/O task, which
 // reloads once however many keys changed.
 static void on_config_change(const char *ns, const char *key, void *arg)
@@ -289,6 +329,35 @@ static void button_poll(void)
 // If this loop stalls, pulses stop ending and the fail-safe stops firing, so
 // the device restarts within IO_RESTART_US (io_supervisor) and relays take
 // their boot state. espOS's task watchdog (30 s) is the backstop.
+// static: device_config_t now carries the tone_patterns table (up to
+// ~4 KB), far too big for a local on io_task's 4 KB stack. io_task is the
+// only writer; schedule_tick() (also io_task) only reads it.
+static device_config_t s_cfg;
+static uint32_t s_last_schedule_tick_ms;
+
+// Schedules run at their own, much coarser rate (plan 16): minute-
+// resolution settings have no use for relay_ctrl's 10 ms tick, and
+// espos_time_parts()/sun_times() are needlessly expensive to call that
+// often. Called from io_task, at most once a second.
+static void schedule_tick(uint32_t now)
+{
+    if (now - s_last_schedule_tick_ms < 1000) {
+        return;
+    }
+    s_last_schedule_tick_ms = now;
+
+    bool time_valid = espos_time_is_synced();
+    espos_time_parts_t local = {0};
+    if (time_valid && espos_time_parts(&local) != ESP_OK) {
+        time_valid = false;  // defensive: a read failure is "no valid time", not a crash
+    }
+    double lat = 0, lon = 0;
+    if (time_valid) {
+        position_get(&s_cfg, now, &lat, &lon);
+    }
+    schedule_eval_tick(&s_cfg, time_valid, &local, lat, lon);
+}
+
 static void io_task(void *arg)
 {
     ESP_ERROR_CHECK(espos_health_watch_task("io", IO_STALL_MS));
@@ -296,21 +365,17 @@ static void io_task(void *arg)
         espos_health_kick();
         s_io_alive_us = esp_timer_get_time();
         if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(TICK_MS)) > 0) {
-            // static: device_config_t now carries the tone_patterns table
-            // (up to ~4 KB), far too big for a local on this task's 4 KB
-            // stack. io_task is the only caller, so this is safe unshared.
-            static device_config_t cfg;
-            if (device_config_load(&cfg) == ESP_OK) {
+            if (device_config_load(&s_cfg) == ESP_OK) {
                 // Unlike bank_id/input_bank_id (restart_required), a bad
                 // r<n>_interlock setting takes effect live: re-check it on
                 // every save, not just at boot (issue #8), so the warning
                 // tracks the config instead of lagging a restart behind.
-                device_config_report_health(&cfg);
-                relay_ctrl_update_config(&cfg);
-                input_sense_update_config(&cfg);
-                sk_bridge_update_config(&cfg);
-                indicator_update_config(&cfg);
-                web_ui_update_config(&cfg);
+                device_config_report_health(&s_cfg);
+                relay_ctrl_update_config(&s_cfg);
+                input_sense_update_config(&s_cfg);
+                sk_bridge_update_config(&s_cfg);
+                indicator_update_config(&s_cfg);
+                web_ui_update_config(&s_cfg);
             }
         }
         relay_ctrl_tick();
@@ -318,6 +383,7 @@ static void io_task(void *arg)
         button_poll();
         sk_bridge_tick();
         counters_tick(now_ms());
+        schedule_tick(now_ms());
     }
 }
 
@@ -565,6 +631,27 @@ static esp_err_t start_io(void *arg)
     }
     ESP_ERROR_CHECK(relay_ctrl_add_listener(on_relay_change, NULL));
 
+    // A dead or missing RTC is handled the same way as a dead relay
+    // expander above: log it and keep booting. Without it, schedules simply
+    // have no valid time until SNTP or SignalK provides one (plan 16).
+    pcf85063_bus_t rtc_bus;
+    if (rtc_hw_create(&rtc_bus) == ESP_OK && rtc_pcf85063_init(&rtc_bus) == ESP_OK) {
+        s_rtc_ok = true;
+    } else {
+        ESP_LOGE(TAG, "RTC unavailable; schedules will not run until SNTP or SignalK sets the clock");
+    }
+
+    // Schedules' position sources (issue #9, plan 16): just state trackers
+    // at this point, nothing to fail. The live subscription/listener that
+    // feeds them is wired up later, once the network and NMEA 2000 (if any)
+    // are actually running.
+    static const position_sk_hw_t position_sk_hw = {.now_ms = now_ms};
+    static const position_n2k_hw_t position_n2k_hw = {.now_ms = now_ms};
+    position_sk_init(&position_sk_hw);
+    position_n2k_init(&position_n2k_hw);
+    static const schedule_eval_io_t schedule_io = {.set_relay = schedule_set_relay};
+    schedule_eval_init(&schedule_io);
+
     input_sense_hw_t in_hw;
     ESP_ERROR_CHECK(input_hw_create(&in_hw));
     // Overrides are applied on the first settled reading, after the relays'
@@ -605,6 +692,26 @@ void app_main(void)
     opts.arg = &cfg;
     ESP_ERROR_CHECK(espos_start(&opts));
 
+    // espos_time_start() has now run (inside espos_start_network(), part of
+    // espos_start() above) so espos_time_set() is finally callable -- it
+    // refuses everything until then. This is as early as the chip's time can
+    // reach espos_time: still before any transport has a link, well before
+    // SNTP or a SignalK stream could set a higher-ranked source (plan 16).
+    // ESPOS_TIME_SRC_RTC is the lowest rank above none, so this can never
+    // walk back over a better clock even if one somehow won the race.
+    if (s_rtc_ok) {
+        int64_t unix_ms;
+        if (rtc_pcf85063_get_time(&unix_ms) == ESP_OK) {
+            esp_err_t err = espos_time_set(unix_ms, ESPOS_TIME_SRC_RTC);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "espos_time_set from RTC failed: %s", esp_err_to_name(err));
+            }
+        } else {
+            ESP_LOGW(TAG, "RTC has no valid time (no battery, or first power-up)");
+        }
+    }
+    ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_TIME_SYNCED, on_time_synced, NULL));
+
 #if CONFIG_APP_DEBUG_CONSOLE
     start_debug_console();
 #endif
@@ -631,6 +738,12 @@ void app_main(void)
     ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_CONNECTED, on_sk_stream, NULL));
     ESP_ERROR_CHECK(espos_event_subscribe(ESPOS_EVENT_SK_STREAM_DISCONNECTED, on_sk_stream, NULL));
     ESP_ERROR_CHECK(sk_bridge_start(&sk_espos_api, &sk_io, &cfg));
+    // Schedules' SignalK position source (issue #9, plan 16): harmless to
+    // subscribe even when position_source=n2k, it just never gets fresh
+    // enough to use (position_get() only reads the configured source).
+    if (espos_sk_subscribe("navigation.position", 0, position_sk_on_update, NULL) < 0) {
+        ESP_LOGW(TAG, "navigation.position subscription unavailable; schedules will use the fallback position");
+    }
 
     static const n2k_bridge_io_t n2k_io = {
         .set_relay = n2k_set_relay,
@@ -641,6 +754,10 @@ void app_main(void)
     // NMEA 2000 failing must not stop SignalK control.
     if (n2k_bridge_start(&n2k_io, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "NMEA 2000 unavailable");
+    } else if (n2k_bridge_add_msg_listener(position_n2k_on_msg, NULL) != ESP_OK) {
+        // Schedules' N2K position source (issue #9, plan 16): the listener
+        // table is small and shared, so log rather than fail the board over.
+        ESP_LOGW(TAG, "N2K position listener unavailable; schedules will use the fallback position");
     }
 
     static const web_ui_io_t web_io = {

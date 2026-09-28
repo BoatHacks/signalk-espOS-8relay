@@ -1,13 +1,18 @@
 #include "device_config.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "esp_log.h"
 #include "espos_config.h"
 #include "espos_health.h"
 
 #define HEALTH_KEY "bankIdClash"
 #define HEALTH_KEY_INTERLOCK "interlockInvalid"
+#define HEALTH_KEY_SCHEDULE "scheduleOverlap"
+
+static const char *TAG = "device_config";
 
 static int32_t get_int(const char *key)
 {
@@ -27,6 +32,111 @@ static void get_str(const char *key, char *buf, size_t size)
 {
     buf[0] = '\0';
     espos_config_get_str(DEVICE_CONFIG_NS, key, buf, size, NULL);
+}
+
+static float get_float(const char *key)
+{
+    float v = 0.0f;
+    espos_config_get_float(DEVICE_CONFIG_NS, key, &v);
+    return v;
+}
+
+// "HH:MM", exactly 5 characters, both fields two digits (no single-digit
+// short form): 0 <= h <= 23, 0 <= m <= 59.
+static bool parse_hhmm(const char *s, int *minute_of_day)
+{
+    if (!isdigit((unsigned char)s[0]) || !isdigit((unsigned char)s[1]) || s[2] != ':' ||
+        !isdigit((unsigned char)s[3]) || !isdigit((unsigned char)s[4]) || s[5] != '\0') {
+        return false;
+    }
+    const int h = (s[0] - '0') * 10 + (s[1] - '0');
+    const int m = (s[3] - '0') * 10 + (s[4] - '0');
+    if (h > 23 || m > 59) {
+        return false;
+    }
+    *minute_of_day = h * 60 + m;
+    return true;
+}
+
+// The "+30", "-45m" (a trailing "m" is optional and ignored) part of
+// "sunrise+30"/"sunset-45m", or "" for a bare "sunrise"/"sunset" (offset 0).
+// 0-1439 minutes either side of the sign.
+static bool parse_offset_suffix(const char *s, int16_t *offset_min)
+{
+    if (*s == '\0') {
+        *offset_min = 0;
+        return true;
+    }
+    int sign = 1;
+    if (*s == '+') {
+        s++;
+    } else if (*s == '-') {
+        sign = -1;
+        s++;
+    } else {
+        return false;
+    }
+    int v = 0;
+    int digits = 0;
+    while (isdigit((unsigned char)*s) && digits < 4) {
+        v = v * 10 + (*s - '0');
+        s++;
+        digits++;
+    }
+    if (digits == 0) {
+        return false;
+    }
+    if (*s == 'm') {
+        s++;
+    }
+    if (*s != '\0' || v > 1439) {
+        return false;
+    }
+    *offset_min = (int16_t)(sign * v);
+    return true;
+}
+
+// SCHEDULE_MODE_CLOCK's on/off strings: "HH:MM", "sunrise[+-Nm]" or
+// "sunset[+-Nm]" (issue #9, plan 16).
+static bool parse_schedule_time(const char *s, schedule_time_t *out)
+{
+    if (strncmp(s, "sunrise", 7) == 0) {
+        out->kind = SCHEDULE_TIME_SUNRISE;
+        return parse_offset_suffix(s + 7, &out->offset_min);
+    }
+    if (strncmp(s, "sunset", 6) == 0) {
+        out->kind = SCHEDULE_TIME_SUNSET;
+        return parse_offset_suffix(s + 6, &out->offset_min);
+    }
+    int minute_of_day;
+    if (!parse_hhmm(s, &minute_of_day)) {
+        return false;
+    }
+    out->kind = SCHEDULE_TIME_CLOCK;
+    out->minute_of_day = (int16_t)minute_of_day;
+    return true;
+}
+
+// SCHEDULE_MODE_REPEAT's on/off strings: plain decimal minutes, 1-1439 (no
+// sign, no unit suffix -- unlike the clock-mode offsets above, there's
+// nothing here for a sign to mean).
+static bool parse_minutes(const char *s, uint16_t *out)
+{
+    if (!isdigit((unsigned char)*s)) {
+        return false;
+    }
+    int v = 0;
+    int digits = 0;
+    while (isdigit((unsigned char)*s) && digits < 4) {
+        v = v * 10 + (*s - '0');
+        s++;
+        digits++;
+    }
+    if (*s != '\0' || v < 1 || v > 1439) {
+        return false;
+    }
+    *out = (uint16_t)v;
+    return true;
 }
 
 esp_err_t device_config_load(device_config_t *out)
@@ -52,6 +162,12 @@ esp_err_t device_config_load(device_config_t *out)
     get_str("portal_tone", out->portal_tone, sizeof(out->portal_tone));
     get_str("reset_tone", out->factory_reset_tone, sizeof(out->factory_reset_tone));
     out->interlock_dead_ms = (uint32_t)get_int("interlock_dead");
+
+    char top_val[24];
+    get_str("position_src", top_val, sizeof(top_val));
+    out->position_source = strcmp(top_val, "n2k") == 0 ? POSITION_SRC_N2K : POSITION_SRC_SIGNALK;
+    out->fallback_lat = get_float("fallback_lat");
+    out->fallback_lon = get_float("fallback_lon");
 
     char key[24];
     char val[24];
@@ -112,6 +228,81 @@ esp_err_t device_config_load(device_config_t *out)
         get_str(key, in->alarm_msg, sizeof(in->alarm_msg));
     }
 
+    // Schedules (issue #9, plan 16). relay=0 is both "unconfigured" and
+    // this loop's own "the on/off string didn't parse" outcome -- a bad
+    // string is logged (there's no dedicated health key for it, unlike the
+    // cross-entry conflict below: nothing about a single entry's own string
+    // is a cross-key validation problem espOS's schema couldn't already
+    // have caught with a stricter type, it's just malformed free text) but
+    // otherwise degrades the same as an empty entry, not a fatal load.
+    char sched_val[24];
+    for (int k = 1; k <= SCHEDULE_MAX_ENTRIES; k++) {
+        schedule_cfg_t *sc = &out->schedules[k - 1];
+        snprintf(key, sizeof(key), "s%d_relay", k);
+        sc->relay = (uint8_t)get_int(key);
+        if (sc->relay > BOARD_CHANNELS) {
+            sc->relay = 0;
+        }
+        snprintf(key, sizeof(key), "s%d_mode", k);
+        get_str(key, sched_val, sizeof(sched_val));
+        sc->mode = strcmp(sched_val, "repeat") == 0 ? SCHEDULE_MODE_REPEAT : SCHEDULE_MODE_CLOCK;
+        snprintf(key, sizeof(key), "s%d_days", k);
+        sc->days = (uint8_t)(get_int(key) & 0x7F);
+
+        if (sc->relay == 0) {
+            continue;  // nothing configured; don't bother parsing on/off
+        }
+        char on_str[24], off_str[24];
+        snprintf(key, sizeof(key), "s%d_on", k);
+        get_str(key, on_str, sizeof(on_str));
+        snprintf(key, sizeof(key), "s%d_off", k);
+        get_str(key, off_str, sizeof(off_str));
+
+        bool ok;
+        if (sc->mode == SCHEDULE_MODE_REPEAT) {
+            ok = parse_minutes(on_str, &sc->on_min) && parse_minutes(off_str, &sc->period_min) &&
+                 sc->on_min < sc->period_min;
+        } else {
+            ok = parse_schedule_time(on_str, &sc->on) && parse_schedule_time(off_str, &sc->off);
+        }
+        if (!ok) {
+            ESP_LOGW(TAG, "s%d: \"%s\"/\"%s\" not valid for %s mode; schedule %d disabled", k, on_str, off_str,
+                     sc->mode == SCHEDULE_MODE_REPEAT ? "repeat" : "clock", k);
+            sc->relay = 0;
+        }
+    }
+    // Overlapping schedules on the same relay (decided 2026-09-28): two or
+    // more *enabled* entries naming the same relay is rejected outright,
+    // not resolved by slot order -- every one of them reads relay=0 until
+    // fixed. A static check on the settings themselves, like interlock's
+    // reciprocity check below: it does not ask whether the entries' days or
+    // times could ever actually collide, only whether they name the same
+    // relay at all. Snapshot first, same reason as raw_interlock below: the
+    // count must see every entry's original target, not an already-cleared
+    // one.
+    uint8_t raw_sched_relay[SCHEDULE_MAX_ENTRIES];
+    for (int i = 0; i < SCHEDULE_MAX_ENTRIES; i++) {
+        raw_sched_relay[i] = out->schedules[i].relay;
+    }
+    out->schedule_relay_conflict = 0;
+    for (int r = 1; r <= BOARD_CHANNELS; r++) {
+        int count = 0;
+        for (int i = 0; i < SCHEDULE_MAX_ENTRIES; i++) {
+            if (raw_sched_relay[i] == r) {
+                count++;
+            }
+        }
+        if (count < 2) {
+            continue;
+        }
+        out->schedule_relay_conflict |= (uint8_t)(1u << (r - 1));
+        for (int i = 0; i < SCHEDULE_MAX_ENTRIES; i++) {
+            if (raw_sched_relay[i] == r) {
+                out->schedules[i].relay = 0;
+            }
+        }
+    }
+
     // Derive the effective interlock pairs (issue #8, plan 15): a pair
     // counts only if both sides name each other. espOS can't validate
     // across keys, so a one-sided or self-referencing r<n>_interlock is
@@ -167,21 +358,44 @@ void device_config_report_health(const device_config_t *cfg)
 
     if (cfg->interlock_invalid == 0) {
         espos_health_report(HEALTH_KEY_INTERLOCK, ESPOS_HEALTH_NORMAL, NULL);
+    } else {
+        // "Relay 3, 6: ..." -- list every relay whose setting was ignored.
+        char list[32] = "";
+        size_t len = 0;
+        for (int i = 0; i < BOARD_CHANNELS; i++) {
+            if (!(cfg->interlock_invalid & (1u << i))) {
+                continue;
+            }
+            int n = snprintf(list + len, sizeof(list) - len, "%s%d", len ? ", " : "", i + 1);
+            if (n > 0 && (size_t)n < sizeof(list) - len) {
+                len += (size_t)n;
+            }
+        }
+        char msg[ESPOS_HEALTH_MSG_MAX];
+        snprintf(msg, sizeof(msg), "Relay %s: interlock setting not reciprocated; ignored", list);
+        espos_health_report(HEALTH_KEY_INTERLOCK, ESPOS_HEALTH_WARN, msg);
+    }
+
+    if (cfg->schedule_relay_conflict == 0) {
+        espos_health_report(HEALTH_KEY_SCHEDULE, ESPOS_HEALTH_NORMAL, NULL);
         return;
     }
-    // "Relay 3, 6: ..." -- list every relay whose setting was ignored.
-    char list[32] = "";
-    size_t len = 0;
+    // "Relay 2, 5: ..." -- list every relay with two or more conflicting
+    // schedule entries.
+    char sched_list[32] = "";
+    size_t sched_len = 0;
     for (int i = 0; i < BOARD_CHANNELS; i++) {
-        if (!(cfg->interlock_invalid & (1u << i))) {
+        if (!(cfg->schedule_relay_conflict & (1u << i))) {
             continue;
         }
-        int n = snprintf(list + len, sizeof(list) - len, "%s%d", len ? ", " : "", i + 1);
-        if (n > 0 && (size_t)n < sizeof(list) - len) {
-            len += (size_t)n;
+        int n = snprintf(sched_list + sched_len, sizeof(sched_list) - sched_len, "%s%d", sched_len ? ", " : "",
+                          i + 1);
+        if (n > 0 && (size_t)n < sizeof(sched_list) - sched_len) {
+            sched_len += (size_t)n;
         }
     }
-    char msg[ESPOS_HEALTH_MSG_MAX];
-    snprintf(msg, sizeof(msg), "Relay %s: interlock setting not reciprocated; ignored", list);
-    espos_health_report(HEALTH_KEY_INTERLOCK, ESPOS_HEALTH_WARN, msg);
+    char sched_msg[ESPOS_HEALTH_MSG_MAX];
+    snprintf(sched_msg, sizeof(sched_msg), "Relay %s: two or more schedules target the same relay; all ignored",
+             sched_list);
+    espos_health_report(HEALTH_KEY_SCHEDULE, ESPOS_HEALTH_WARN, sched_msg);
 }

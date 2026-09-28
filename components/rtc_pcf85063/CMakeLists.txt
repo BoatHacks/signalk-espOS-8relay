@@ -1,10 +1,10 @@
 idf_build_get_property(target IDF_TARGET)
 
-set(srcs "")
+set(srcs src/pcf85063.c src/rtc_pcf85063.c)
 set(priv_reqs "")
 if(NOT target STREQUAL "linux")
-    list(APPEND srcs src/board_i2c.c)
-    list(APPEND priv_reqs esp_driver_i2c)
+    list(APPEND srcs src/rtc_hw.c)
+    list(APPEND priv_reqs board esp_driver_i2c)
 endif()
 
 idf_component_register(

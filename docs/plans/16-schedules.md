@@ -25,30 +25,37 @@ key/value settings (or a page of our own, like the relay page).
   so the whole firmware sees a synced clock before the network is up.
   On `ESPOS_EVENT_TIME_SYNCED` from SNTP (or SignalK), write the time
   back to the RTC.
-- **Time zone:** a setting (POSIX TZ string, default UTC).
-- **Schedule entries**, a fixed number (e.g. 8), each: relay, days of
-  week, on-time, off-time, where a time is `HH:MM`, `sunrise±m` or
-  `sunset±m`; or a repeating "on for X min every Y min". Stored as a few
-  keys per entry (`s<k>_relay`, `s<k>_on`, `s<k>_off`, `s<k>_days`).
-- **Sun times** from position. **Position source (decided 2026-09-28,
-  user-requested): a setting, not hardcoded** — `position_source`:
-  `"signalk"` (default) or `"n2k"`.
-  - `"signalk"`: SignalK `navigation.position` when subscribed and
-    fresh, as originally planned.
-  - `"n2k"`: decoded from the board's own NMEA 2000 bus — PGN 129025
-    (Position, Rapid Update) and/or 129029 (GNSS Position Data). No
-    position decoding exists anywhere in this codebase yet (only
-    switch-bank PGNs 127501/127502 are handled today); the vendored
-    `ttlappalainen/NMEA2000` library (`managed_components/
-    ttlappalainen__nmea2000`) is a generic N2K stack and should already
-    support parsing these standard PGNs — confirm and wire up handling
-    in `components/switch_bank/` alongside the existing PGN code, don't
-    assume it needs writing from scratch.
-  - Either way, if the selected source has no fresh position (not
-    subscribed/decoded recently), fall back to the configured static
-    position setting — this fallback already existed in the original
-    plan and still applies regardless of which live source is chosen.
-  - A small sunrise/sunset function (NOAA algorithm), host-tested.
+- **Time zone:** needed no new setting — espOS's own `time.tz` (POSIX TZ
+  string, default `UTC0`, its own settings-page entry) already does this;
+  the schedule evaluator just reads local time through
+  `espos_time_parts()`.
+- **Schedule entries**, a fixed number (8), each: relay, days of week, a
+  mode (`s<k>_mode`: `clock` or `repeat`, decided 2026-09-28 — see below),
+  and two mode-dependent fields (`s<k>_on`/`s<k>_off`): in `clock` mode
+  each independently `HH:MM`, `sunrise±m` or `sunset±m`; in `repeat` mode
+  on-duration/cycle-length minutes ("on for X min every Y min", anchored
+  to local midnight). Stored as `s<k>_relay`, `s<k>_mode`, `s<k>_on`,
+  `s<k>_off`, `s<k>_days` (days a bitmask, bit 0 = Sunday, matching
+  `espos_time_parts_t.wday`).
+- **Position source (decided 2026-09-28, added mid-implementation):** a
+  setting, `signalk` (default) or `n2k`. `signalk`: SignalK
+  `navigation.position` when subscribed and fresh. `n2k`: decoded from
+  the board's own NMEA 2000 bus, PGN 129025 ("Position, Rapid Update")
+  and 129029 ("GNSS Position Data") — hand-rolled decode of just the
+  lat/lon fields rather than the vendored NMEA2000 library's own parsers,
+  since that library is excluded from the linux host-test target and
+  routing through it would put the decode path outside test coverage.
+  Either way, a live reading older than 10 minutes (fixed, not another
+  setting) falls back to a configured fixed position. `switch_bank`'s
+  `n2k_bridge` gained one generic addition for this,
+  `n2k_bridge_add_msg_listener()` (forwarding raw PGN/bytes, same shape as
+  `relay_ctrl_add_listener()`), so it stays scoped to switch banks and
+  the position decode logic lives entirely in `components/schedule/`.
+- **Sun times**: a small sunrise/sunset function (NOAA's low-precision
+  solar-position algorithm), host-tested against instants computed
+  independently in Python from the same algorithm (not derived from the
+  C port), plus two hand-checked against commonly published times for
+  real cities/dates.
 - **Switching** through `relay_ctrl_set(..., RELAY_SRC_SCHEDULE)` only
   at the transitions (edge-triggered), so manual commands in between
   stand until the next transition — same rule as input overrides.
@@ -68,26 +75,49 @@ key/value settings (or a page of our own, like the relay page).
   direct command — the relay's own `pulseMs` governs how long it stays
   on, exactly like an input-triggered pulse today. The schedule's
   off-time is simply a no-op for that relay (nothing to turn off).
+- **Overlapping-schedule key shape (decided 2026-09-28):** an explicit
+  `s<k>_mode` key (see above), not overloading `s<k>_on`'s string format
+  to signal a repeating schedule — clearer for a settings page (a mode
+  dropdown that swaps the field meaning, the same shape `relay1_mode`
+  already uses) and for the evaluator (switches on an explicit mode
+  rather than sniffing a string).
+- **Polar day/night in the evaluator (decided 2026-09-28):** a
+  sunrise/sunset reference on a day with no transition treats the whole
+  day as continuously on one side of the boundary — permanent polar
+  night is continuously past sunset/before sunrise ("always night"),
+  permanent polar day continuously between sunrise/sunset ("always
+  day") — rather than having no window that day. Implemented as a
+  substitution in the minute-resolution function alone (the boundary a
+  polar day's condition already includes resolves to "already happened",
+  the one it doesn't to "never happens today"), not a new branch in the
+  window-comparison logic itself.
 
 ## Test Strategy
-- Host tests: sunrise/sunset against published tables for a few
-  latitudes and dates (including polar day/night: no transition);
-  schedule evaluation (edges only, across midnight, day-of-week, DST
-  change); "no valid time" does nothing.
+- Host tests: sunrise/sunset against instants cross-checked independently
+  (several latitudes and dates, both hemispheres, including polar
+  day/night: no transition); schedule evaluation (edges only, across
+  midnight, day-of-week — including a midnight-spanning window not cut
+  short by an excluded following day, DST transitions, and the polar
+  day/night substitution above); "no valid time" does nothing; the
+  overlapping-schedule validation; a momentary relay's on-edge pulse and
+  no-op off-edge.
 - RTC driver against a fake I²C bus.
 On the board: RTC keeps time across a power cut; a 2-minute schedule.
 
 ## Implementation Steps
 - [x] Decision: on the board; SPEC.md updated
-- [ ] PCF85063 driver and clock sync
-- [ ] Time zone and position settings; sun calculation
-- [ ] Schedule settings and evaluator; `RELAY_SRC_SCHEDULE`
-- [ ] Host tests
-- [ ] USER_MANUAL new section; README hardware table; CHANGELOG
+- [x] PCF85063 driver and clock sync
+- [x] Time zone and position settings; sun calculation
+- [x] Schedule settings and evaluator; `RELAY_SRC_SCHEDULE`
+- [x] Host tests
+- [x] USER_MANUAL new section; README hardware table; CHANGELOG
 
 ## Files to Create/Modify
 - `components/rtc_pcf85063/` (new), `components/schedule/` (new)
 - `components/device_config/`, `components/relay_ctrl/` (source)
+- `components/switch_bank/` (n2k_bridge raw-message listener, for
+  position_source=n2k)
 - `main/main.c`
-- `test/host/schedule_test/` (new)
+- `test/host/schedule_test/`, `test/host/device_config_test/`,
+  `test/host/rtc_pcf85063_test/` (new/extended)
 - `SPEC.md`, `USER_MANUAL.md`, `README.md`, `CHANGELOG.md`

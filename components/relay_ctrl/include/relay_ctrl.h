@@ -25,6 +25,7 @@ typedef enum {
     RELAY_SRC_WEB,         // the device's own relay page
     RELAY_SRC_MAX_ON,      // a relay's maximum on-time ran out
     RELAY_SRC_INTERLOCK,   // an interlocked pair was found both on and forced off (issue #8)
+    RELAY_SRC_SCHEDULE,    // a schedule's on/off transition (issue #9, plan 16)
 } relay_source_t;
 
 // Persists the on/off state of `hold` relays (bit n-1 = relay n).
@@ -47,9 +48,9 @@ typedef void (*relay_listener_t)(uint8_t channel, bool on, relay_source_t src, u
 // Whether an event chirp (plan 19, issue #14) should play for a change from
 // `src`: true for a direct command (SignalK, NMEA 2000, web page, an input
 // override), false for an automatic one (a momentary pulse ending, the
-// SignalK-loss fail-safe, a maximum on-time expiring) -- those can happen
-// often and unattended, so a chirp for them would be noise rather than
-// useful feedback.
+// SignalK-loss fail-safe, a maximum on-time expiring, a schedule transition)
+// -- those can happen often and unattended, so a chirp for them would be
+// noise rather than useful feedback.
 bool relay_ctrl_source_chirps(relay_source_t src);
 
 // How long a changed `hold` state may wait before being written to flash.
