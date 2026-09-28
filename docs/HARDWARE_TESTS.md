@@ -200,6 +200,20 @@ the relay outputs, if available, should show no overlap at all). Then
 while relay 1's pending-on is still waiting (no double-flip). Finally
 `setcfg '"r1_interlock":0,"r2_interlock":0'`.
 
+**B11 [human] RTC-backed schedule (#9).** On a spare relay (e.g. 6),
+`setcfg '"s0_relay":6,"s0_mode":"clock","s0_on":"<now+2min HH:MM>",
+"s0_off":"<now+4min HH:MM>","s0_days":127'` (all seven days). Pass if
+the log shows `relay 6 on by schedule` at the on-time and `relay 6 off
+by schedule` two minutes later, both within the 1 s evaluator tick
+(check log timestamps, not a stopwatch). Then power-cycle the board
+(supply off 10 s, back on) partway through a fresh on-window (set a new
+`s0_on`/`s0_off` pair that straddles the restart) — pass if, after boot,
+the log's very first schedule evaluation immediately turns relay 6 on
+(the resync-on-first-evaluation behavior, not waiting for the next edge)
+without needing SNTP or SignalK, proving the RTC alone survived the
+power cut with a good time. Finally `setcfg '"s0_relay":0'` to disable
+the entry.
+
 ## C. Inputs
 
 **C1 [loop] Input polarity.** As B1, from the input side: with relay 8
