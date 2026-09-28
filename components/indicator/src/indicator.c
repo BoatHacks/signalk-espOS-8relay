@@ -289,8 +289,26 @@ static void request_chirp(int idx)
     atomic_store(&s.chirp_request, idx);
 }
 
+// Logged unconditionally, the instant each entry point below is called --
+// distinct from the "chirp:"/"preview:"/"buzzer test:" lines in
+// indicator_task() above, which only fire once a request actually starts
+// sounding. A call can be silently dropped downstream (buzzer_on_event off,
+// no tone assigned to that slot, another chirp/alarm/test already has the
+// buzzer), which is correct behavior, but that would otherwise look
+// identical to "nothing called indicator at all" from the serial log alone.
+static const char *event_name(indicator_event_t event)
+{
+    switch (event) {
+    case INDICATOR_EVENT_BOOT: return "boot";
+    case INDICATOR_EVENT_PORTAL: return "portal";
+    case INDICATOR_EVENT_FACTORY_RESET: return "factory-reset";
+    }
+    return "?";
+}
+
 void indicator_play_event(indicator_event_t event)
 {
+    ESP_LOGI(TAG, "indicator_play_event(%s)", event_name(event));
     switch (event) {
     case INDICATOR_EVENT_BOOT: request_chirp(atomic_load(&s.boot_idx)); break;
     case INDICATOR_EVENT_PORTAL: request_chirp(atomic_load(&s.portal_idx)); break;
@@ -300,6 +318,7 @@ void indicator_play_event(indicator_event_t event)
 
 void indicator_play_relay_tone(uint8_t channel, bool on)
 {
+    ESP_LOGI(TAG, "indicator_play_relay_tone(%u, %s)", channel, on ? "on" : "off");
     if (channel < 1 || channel > BOARD_CHANNELS) {
         return;
     }
@@ -308,6 +327,7 @@ void indicator_play_relay_tone(uint8_t channel, bool on)
 
 void indicator_play_relay_pulse_tone(uint8_t channel, bool start)
 {
+    ESP_LOGI(TAG, "indicator_play_relay_pulse_tone(%u, %s)", channel, start ? "start" : "stop");
     if (channel < 1 || channel > BOARD_CHANNELS) {
         return;
     }
@@ -316,6 +336,7 @@ void indicator_play_relay_pulse_tone(uint8_t channel, bool start)
 
 void indicator_play_input_tone(uint8_t channel, bool on)
 {
+    ESP_LOGI(TAG, "indicator_play_input_tone(%u, %s)", channel, on ? "on" : "off");
     if (channel < 1 || channel > BOARD_CHANNELS) {
         return;
     }
@@ -324,6 +345,7 @@ void indicator_play_input_tone(uint8_t channel, bool on)
 
 esp_err_t indicator_test_buzzer(void)
 {
+    ESP_LOGI(TAG, "indicator_test_buzzer()");
     if (!atomic_load(&s.started) || atomic_load(&s.busy) || atomic_load(&s.test_requested)) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -333,6 +355,7 @@ esp_err_t indicator_test_buzzer(void)
 
 esp_err_t indicator_play_rtttl(const char *rtttl)
 {
+    ESP_LOGI(TAG, "indicator_play_rtttl(\"%s\")", rtttl ? rtttl : "");
     tone_t tone = {0};
     tone.n_notes = rtttl_parse(rtttl, tone.notes, RTTTL_MAX_NOTES);
     if (tone.n_notes == 0) {
