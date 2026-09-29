@@ -37,13 +37,16 @@ summary; tick items here as the procedure passes them.
       `setcfg` across the C-series tests with no unexpected relay
       switching on a bare config change (2026-09-26)
 
-- [ ] Status LED: colour order right (green shows green), brightness
-      setting works, blue until SignalK connects
+- [x] Status LED: colour order right (green shows green), brightness
+      setting works, blue until SignalK connects — confirmed by the
+      operator from prior observation, green when connected and blue
+      within ~30 s of the server stopping (2026-09-28)
 - [x] Buzzer: tone audible (2700 Hz default, 1000/5000 Hz both audible
-      with a pitch change, applied live); "Buzzer on alarm" **not**
-      exercised — the only alarm condition that doesn't force a reboot
-      needs opening the case; see espOS#137 for a proposed remote
-      test-injection endpoint (2026-09-26)
+      with a pitch change, applied live) (2026-09-26). "Buzzer on
+      alarm" still not exercised, but no longer blocked: espOS 0.12's
+      health drill endpoint (espOS#137, added in espOS#149) raises a
+      synthetic alarm condition remotely, and HARDWARE_TESTS G4 now runs
+      through it
 
 **Relays and inputs**
 - [x] Momentary relay turns off after its pulse time — 1510 ms measured
@@ -86,10 +89,14 @@ summary; tick items here as the procedure passes them.
 - [x] Production signing key created (fingerprint `4b1b12689b58f2f3`),
       kept in the private BoatHacks/laserbrain repo
 - [x] Key added as the repository secret `SIGNING_KEY_PEM`
-- [ ] Publish a GitHub release: Actions → "Cut release" (`cut-release.yml`)
+- [x] Publish a GitHub release: Actions → "Cut release" (`cut-release.yml`)
       tags main and calls `release-firmware.yml`, which builds, signs,
-      merges and attaches `-merged.bin` (USB) and `-ota.bin` (OTA)
-- [ ] Published where `signalk-espos-manager` can find and install it
+      merges and attaches `-merged.bin` (USB) and `-ota.bin` (OTA) —
+      v0.1.0 (2026-09-26) through v0.3.0 (2026-09-28) all cut this way
+- [x] Published where `signalk-espos-manager` can find and install it —
+      `release-firmware.yml`'s `manifest` job adds each build to
+      `manifest.json` on the `ota` branch; a board offered and took an
+      update from it (HARDWARE_TESTS H1)
 - [x] OTA update from the release manifest (HARDWARE_TESTS H1): a board
       on v0.0.6, pointed at `manifest.json` on the `beta` channel, was
       offered v0.0.7 and updated without problems (2026-09-25)
@@ -128,11 +135,25 @@ summary; tick items here as the procedure passes them.
   meaningless).
 
 ## Implementation Steps
-- [ ] Wire the board to test loads, a CAN bus and a SignalK server
-- [ ] Run the checklist; fix failures in their owning plan
-- [ ] Update ARCHITECTURE.md with hardware facts and SPEC.md with any
-      behaviour that changed
-- [ ] Cut the first release
+- [x] Wire the board to test loads, a CAN bus and a SignalK server
+- [x] Run the checklist; fix failures in their owning plan — everything
+      except the items still listed as open above
+- [x] Update ARCHITECTURE.md with hardware facts and SPEC.md with any
+      behaviour that changed (relay/input polarity, debounce)
+- [x] Cut the first release (v0.1.0, 2026-09-26)
+
+**Still open before 1.0.0**
+- Ethernet with a cable plugged in (F1), and WiFi fallback / return to
+  Ethernet — the port isn't wired on the bench yet
+- Captive-portal provisioning on a fresh board (F2)
+- An MFD listing the device and switching from a keypad (E3) — no MFD on
+  the bench
+- `controls.*` tree: switching through either tree, input paths rejecting
+  PUT, and display names after renaming
+- Alarm buzzer on a real alarm condition (G4), now runnable through the
+  health drill endpoint
+- Schedules on hardware (B11): the RTC keeping time across a power cut,
+  and a live sunrise/sunset transition (issue #9)
 
 ## Files to Create/Modify
 - `ARCHITECTURE.md`, `SPEC.md` (findings)

@@ -111,6 +111,8 @@ On the board: RTC keeps time across a power cut; a 2-minute schedule.
 - [x] Schedule settings and evaluator; `RELAY_SRC_SCHEDULE`
 - [x] Host tests
 - [x] USER_MANUAL new section; README hardware table; CHANGELOG
+- [ ] On-board check (HARDWARE_TESTS.md B11): a schedule fires on the
+      board, and the RTC still holds the time across a power cut
 
 ## Files to Create/Modify
 - `components/rtc_pcf85063/` (new), `components/schedule/` (new)
