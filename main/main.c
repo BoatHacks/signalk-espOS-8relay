@@ -360,8 +360,9 @@ static void button_poll(void)
 // the device restarts within IO_RESTART_US (io_supervisor) and relays take
 // their boot state. espOS's task watchdog (30 s) is the backstop.
 // static: device_config_t now carries the tone_patterns table (up to
-// ~4 KB), far too big for a local on io_task's 4 KB stack. io_task is the
-// only writer; schedule_tick() (also io_task) only reads it.
+// ~4 KB), far too big for a local on io_task's 4 KB stack. start_io()
+// seeds it before io_task exists; after that io_task is the only writer,
+// and schedule_tick() (also io_task) only reads it.
 static device_config_t s_cfg;
 static uint32_t s_last_schedule_tick_ms;
 
@@ -704,6 +705,9 @@ static esp_err_t start_io(void *arg)
         ESP_LOGE(TAG, "BOOT button unavailable");
     }
 
+    // io_task's own copy: schedule_tick() reads it every second, and until
+    // the first settings save nothing else would fill it in.
+    s_cfg = *cfg;
     s_io_alive_us = esp_timer_get_time();
     xTaskCreate(io_task, "io", 4096, NULL, 5, &s_io_task);
     const esp_timer_create_args_t sup = {.callback = io_supervisor, .name = "io_sup"};
