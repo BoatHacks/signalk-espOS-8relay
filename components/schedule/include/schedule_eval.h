@@ -37,7 +37,8 @@ void schedule_eval_init(const schedule_eval_io_t *io);
 // config never touches them.
 //
 // The very first evaluation -- ever, or after time_valid returns to true,
-// or after a previously-disabled entry (relay=0) becomes enabled again --
+// after a previously-disabled entry (relay=0) becomes enabled again, or
+// after an entry is moved to another relay --
 // brings that entry's relay in line with what it should already be,
 // unconditionally, rather than waiting for the next edge: the point of an
 // RTC-backed schedule is that a reboot during what should be an "on"
