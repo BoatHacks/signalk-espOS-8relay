@@ -21,6 +21,12 @@ it as the update's notes, and *Cut release* refuses a version without one.
   acknowledged. New setting *Input alarms on NMEA 2000* (on by default,
   applies live). Host-tested; not yet checked on a real bus
   (HARDWARE_TESTS.md E6).
+- Input alarms on the buzzer (plan 10 follow-up, issue #3): new per-input
+  setting *Alarm buzzer* (`input<n>_alm_buzz`, off by default). While that
+  input's alarm is active the buzzer sounds "IN" and the input's number in
+  Morse ("IN 3"), independent of *Buzzer on alarm*, and takes over from a
+  health alarm's pattern. Applies live. Host-tested; not yet checked on
+  the board (HARDWARE_TESTS.md C7).
 
 ### Changed
 

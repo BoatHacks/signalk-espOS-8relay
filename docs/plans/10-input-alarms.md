@@ -71,6 +71,13 @@ On the board: float switch on DI → alarm on a SignalK display.
 - [x] USER_MANUAL §6.4, §7.1; CHANGELOG
 - [x] On-board check: float switch on a DI raises the alarm on a SignalK
       display (HARDWARE_TESTS.md C6, passed 2026-09-28)
+- [x] Follow-up: `input<n>_alm_buzz` (the key is short for espOS's 15-char
+      limit) sounds "IN <n>" in Morse on the buzzer while the alarm is
+      active. Didn't need plan 17's refactor after all: it reuses the
+      health alarm's Morse path in `indicator`, fed the settled input mask
+      from `on_input_change()`. An input alarm wins over a health alarm on
+      the buzzer; the LED still shows health.
+- [ ] On-board check of the buzzer (HARDWARE_TESTS.md C7)
 
 ## Files to Create/Modify
 - `components/device_config/`

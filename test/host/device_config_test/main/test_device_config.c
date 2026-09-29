@@ -78,6 +78,7 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
         TEST_ASSERT_EQUAL_STRING("input", c.inputs[i].off_tone);
         TEST_ASSERT_EQUAL(INPUT_ALARM_OFF, c.inputs[i].alarm);
         TEST_ASSERT_EQUAL_STRING("", c.inputs[i].alarm_msg);
+        TEST_ASSERT_FALSE(c.inputs[i].alarm_buzz);
     }
     TEST_ASSERT_EQUAL(0, c.interlock_invalid);
     store_down();
@@ -107,6 +108,7 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ESP_OK(espos_config_set_str("swbank", "input2_off_tone", "custom-input-off"));
     TEST_ESP_OK(espos_config_set_str("swbank", "input4_alarm", "alarm"));
     TEST_ESP_OK(espos_config_set_str("swbank", "input4_alm_msg", "Bilge water high"));
+    TEST_ESP_OK(espos_config_set_bool("swbank", "input4_alm_buzz", true));
     TEST_ESP_OK(espos_config_set_str("swbank", "input7_alarm", "emergency"));
 
     device_config_t c;
@@ -134,6 +136,8 @@ TEST_CASE("stored values are read into the right channel", "[device_config]")
     TEST_ASSERT_EQUAL_STRING("custom-input-off", c.inputs[1].off_tone);
     TEST_ASSERT_EQUAL(INPUT_ALARM_ALARM, c.inputs[3].alarm);
     TEST_ASSERT_EQUAL_STRING("Bilge water high", c.inputs[3].alarm_msg);
+    TEST_ASSERT_TRUE(c.inputs[3].alarm_buzz);
+    TEST_ASSERT_FALSE(c.inputs[6].alarm_buzz);
     TEST_ASSERT_EQUAL(INPUT_ALARM_EMERGENCY, c.inputs[6].alarm);
     TEST_ASSERT_EQUAL(INPUT_ALARM_OFF, c.inputs[0].alarm);
     store_down();

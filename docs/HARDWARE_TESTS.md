@@ -253,6 +253,15 @@ message appears within the SignalK republish interval; flip off: pass
 if it clears to `"state":"normal"`. Then `setcfg
 '"input1_alarm":"off"'`.
 
+**C7 [human] Input alarm buzzer (plan 10 follow-up).** Reuse C6's wiring
+on DI1. `setcfg '"input1_alarm":"alarm","input1_alm_buzz":true'` (leave
+*Buzzer on alarm* off). Flip the switch on: pass if the buzzer sounds
+`.. -.  .----` ("IN 1") every few seconds and the serial log shows
+`alarm: buzzing "IN 1"`; flip off: pass if it stops within a second.
+Flip on again, then `setcfg '"input1_alm_buzz":false'`: pass if it stops
+at once while the switch is still on. Then `setcfg
+'"input1_alarm":"off"'`.
+
 ## D. SignalK
 
 Needs a SignalK server with the board approved (read/write).

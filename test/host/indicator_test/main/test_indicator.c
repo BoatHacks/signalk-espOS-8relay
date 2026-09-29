@@ -103,6 +103,34 @@ TEST_CASE("without a usable address the alarm text is ESP AP", "[indicator]")
     }
 }
 
+TEST_CASE("input alarm text lists every alarmed input, lowest first", "[indicator]")
+{
+    char t[INDICATOR_INPUT_ALARM_TEXT_MAX];
+    indicator_input_alarm_text(0x04, t, sizeof(t));
+    TEST_ASSERT_EQUAL_STRING("IN 3", t);
+    indicator_input_alarm_text(0x14, t, sizeof(t));
+    TEST_ASSERT_EQUAL_STRING("IN 3 5", t);
+    indicator_input_alarm_text(0xFF, t, sizeof(t));
+    TEST_ASSERT_EQUAL_STRING("IN 1 2 3 4 5 6 7 8", t);
+    indicator_input_alarm_text(0, t, sizeof(t));
+    TEST_ASSERT_EQUAL_STRING("", t);
+}
+
+TEST_CASE("input alarm text is truncated, never overrun", "[indicator]")
+{
+    char t[6];
+    indicator_input_alarm_text(0xFF, t, sizeof(t));
+    TEST_ASSERT_EQUAL_STRING("IN 1 ", t);
+}
+
+TEST_CASE("every input alarmed still fits the segment buffer", "[indicator]")
+{
+    char t[INDICATOR_INPUT_ALARM_TEXT_MAX];
+    morse_seg_t s[129];
+    indicator_input_alarm_text(0xFF, t, sizeof(t));
+    TEST_ASSERT_LESS_THAN(128, morse_encode(t, s, 129));
+}
+
 // ----------------------------------------------------------------- tone
 
 TEST_CASE("the tone follows the segments, then pauses, then repeats", "[indicator]")

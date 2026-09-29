@@ -21,7 +21,7 @@ static const char *TAG = "indicator";
 #define LOOP_MS 10
 #define MORSE_UNIT_MS 80  // about 15 words per minute
 #define MORSE_PAUSE_MS 5000
-#define MAX_SEGS 64
+#define MAX_SEGS 128  // "IN 1 2 3 4 5 6 7 8" needs about 90
 
 #define BUZZER_TIMER LEDC_TIMER_0
 #define BUZZER_CHANNEL LEDC_CHANNEL_0
@@ -38,6 +38,12 @@ static struct {
     atomic_bool busy;            // an alarm, a test or a chirp is sounding
     atomic_bool started;
     atomic_int override;         // indicator_override_t; NONE = 0, show status as usual
+
+    // Input alarms on the buzzer (plan 10 follow-up): the inputs that read
+    // on (from input_sense's listener, so only once they have settled) and
+    // the ones whose alarm is set to buzz.
+    atomic_uchar input_mask;
+    atomic_uchar input_buzz_mask;
 
     // Event chirps (plan 19, issue #14). `tones`/`n_tones` are written by
     // indicator_update_config() (the I/O task) and read by indicator_task();
@@ -80,9 +86,10 @@ static void indicator_task(void *arg)
 {
     indicator_rgb_t shown = {1, 1, 1};  // differs from every real colour's first frame
     bool alarm_was = false;
+    uint8_t alarm_inputs_was = 0;
     bool tone_was = false;
     int64_t alarm_start_us = 0;
-    morse_seg_t segs[MAX_SEGS];
+    static morse_seg_t segs[MAX_SEGS];  // off the stack: this task is the only user
     size_t n_segs = 0;
     bool testing = false;
     int64_t test_start_us = 0;
@@ -114,7 +121,12 @@ static void indicator_task(void *arg)
             shown = c;
         }
 
-        const bool alarm = state == INDICATOR_ALARM && atomic_load(&s.buzzer_enabled);
+        // An input alarm (plan 10's buzzer follow-up) sounds whether or not
+        // the buzzer is enabled for health alarms, and wins over one: it is
+        // the alarm someone set up for a physical danger (a bilge float
+        // switch), while a health alarm still shows on the LED.
+        const uint8_t input_alarms = atomic_load(&s.input_mask) & atomic_load(&s.input_buzz_mask);
+        const bool alarm = input_alarms != 0 || (state == INDICATOR_ALARM && atomic_load(&s.buzzer_enabled));
 
         // Priority, highest first (plan 19): the BOOT-button override (LED
         // only, checked above) > alarm > test tone > event chirp. A chirp is
@@ -146,18 +158,24 @@ static void indicator_task(void *arg)
             testing = true;
             ESP_LOGI(TAG, "buzzer test: \"%s\" at %u Hz", text, (unsigned)applied_freq);
         }
-        if (alarm && !alarm_was) {
-            // The address is read when the alarm starts, so the message stays
-            // the same for the whole alarm.
-            espos_net_status_t net = {0};
-            char text[16];
-            espos_net_get_status(&net);
-            indicator_alarm_text(net.up ? net.ip : NULL, text, sizeof(text));
+        if (alarm && (!alarm_was || input_alarms != alarm_inputs_was)) {
+            // Rebuilt when the alarm starts or the set of alarmed inputs
+            // changes. For a health alarm the address is read when it starts,
+            // so the message stays the same for the whole alarm.
+            char text[INDICATOR_INPUT_ALARM_TEXT_MAX];
+            if (input_alarms) {
+                indicator_input_alarm_text(input_alarms, text, sizeof(text));
+            } else {
+                espos_net_status_t net = {0};
+                espos_net_get_status(&net);
+                indicator_alarm_text(net.up ? net.ip : NULL, text, sizeof(text));
+            }
             n_segs = morse_encode(text, segs, MAX_SEGS);
             alarm_start_us = esp_timer_get_time();
             ESP_LOGW(TAG, "alarm: buzzing \"%s\"", text);
         }
         alarm_was = alarm;
+        alarm_inputs_was = input_alarms;
 
         if (!suppress_chirp && !testing && !chirping && !previewing) {
             const int req = atomic_exchange(&s.chirp_request, -1);
@@ -250,6 +268,13 @@ void indicator_update_config(const device_config_t *cfg)
     atomic_store(&s.sk_relevant, cfg->publish_switches_tree || cfg->publish_controls_tree);
     atomic_store(&s.freq_hz, cfg->buzzer_freq_hz);
     atomic_store(&s.event_enabled, cfg->buzzer_on_event);
+    uint8_t buzz = 0;
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        if (cfg->inputs[i].alarm != INPUT_ALARM_OFF && cfg->inputs[i].alarm_buzz) {
+            buzz |= (uint8_t)(1u << i);
+        }
+    }
+    atomic_store(&s.input_buzz_mask, buzz);
 
     // `tone_t` is too big (RTTTL_MAX_NOTES notes each) for a whole
     // array of them to be a stack local -- indicator_update_config() runs on
@@ -274,6 +299,11 @@ void indicator_update_config(const device_config_t *cfg)
         atomic_store(&s.input_on_idx[i], tone_library_find(tones, n, cfg->inputs[i].on_tone));
         atomic_store(&s.input_off_idx[i], tone_library_find(tones, n, cfg->inputs[i].off_tone));
     }
+}
+
+void indicator_set_inputs(uint8_t mask)
+{
+    atomic_store(&s.input_mask, mask);
 }
 
 void indicator_set_override(indicator_override_t override)

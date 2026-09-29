@@ -227,6 +227,8 @@ esp_err_t device_config_load(device_config_t *out)
         // "alm_msg": espOS key names cap at 15 chars.
         snprintf(key, sizeof(key), "input%d_alm_msg", n);
         get_str(key, in->alarm_msg, sizeof(in->alarm_msg));
+        snprintf(key, sizeof(key), "input%d_alm_buzz", n);
+        in->alarm_buzz = get_bool(key);
     }
 
     // Schedules (issue #9, plan 16). relay=0 is both "unconfigured" and

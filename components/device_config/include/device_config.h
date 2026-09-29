@@ -120,6 +120,8 @@ typedef struct {
     input_alarm_t alarm;
     // Empty = "<name> active".
     char alarm_msg[DEVICE_CONFIG_NAME_MAX + 1];
+    // Also sound the buzzer while the alarm is active (needs `alarm` on).
+    bool alarm_buzz;
 } input_cfg_t;
 
 typedef struct {

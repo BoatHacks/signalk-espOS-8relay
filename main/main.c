@@ -225,6 +225,7 @@ static void on_input_change(uint8_t channel, bool on, uint8_t mask, void *arg)
     counters_on_change(COUNTERS_INPUT, channel, on, now_ms());
     sk_bridge_input_changed(channel, on);
     n2k_bridge_state_changed();
+    indicator_set_inputs(mask);
     indicator_play_input_tone(channel, on);
 }
 

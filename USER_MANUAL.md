@@ -253,6 +253,7 @@ overrides.
 | Off chirp | input | As above, for changing to off. |
 | Alarm | Off | Raise a SignalK notification (section 7.1), and an NMEA 2000 alert (section 7.3), while this input reads on, e.g. a bilge float switch. `off`/`warn`/`alarm`/`emergency` set the severity; `off` raises nothing. |
 | Alarm message | *(none)* | Notification text. Empty = "*name* active". |
+| Alarm buzzer | Off | Also sound the board's buzzer while this input's alarm is active (section 7.6). Needs *Alarm* set to something other than `off`; works whether or not *Buzzer on alarm* is on. |
 
 ### 6.5 Other
 
@@ -511,6 +512,16 @@ complaining: `. ... .--.  ....- ..---` is "ESP 42", the board at
 192.168.x.42. Without a network address (for example when WiFi is down)
 it beeps "ESP AP" (`. ... .--.  .- .--.`): join the board's setup access
 point, `espOS-xxxx`, to reconfigure it.
+
+An input with *Alarm buzzer* turned on (section 6.4) sounds the buzzer
+while its alarm is active, whether or not *Buzzer on alarm* is on: "IN"
+and the input's number in Morse, every few seconds, so `.. -.  ...--`
+("IN 3") is input 3's float switch. Several inputs at once are all named,
+lowest first ("IN 3 5"). It stops when the input reads off again; to
+silence it before then, turn *Alarm buzzer* off (applies at once). An
+input alarm takes the buzzer over from a health alarm, which still shows
+on the LED; the health alarm's pattern comes back once no input alarm is
+left.
 
 To hear the buzzer without waiting for an alarm, press *Test buzzer* on
 the relay page (section 7.2). It plays the same pattern once, whether or
