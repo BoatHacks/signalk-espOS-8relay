@@ -148,6 +148,7 @@ GitHub issue.
 | 19 | [Buzzer sound effects on events](docs/plans/19-buzzer-event-sounds.md) |
 | 20 | [CODE_OF_CONDUCT.md and CONTRIBUTING.md](docs/plans/20-community-docs.md) |
 | 21 | [Input alarms as NMEA 2000 alerts](docs/plans/21-n2k-alerts.md) |
+| 22 | [Full code review before 1.0.0](docs/plans/22-pre-1.0-code-review.md) |
 
 ## Documentation
 
