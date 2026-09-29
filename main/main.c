@@ -15,6 +15,7 @@
 #include "esp_console.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_ota_ops.h"
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "espos.h"
@@ -635,6 +636,24 @@ static void start_debug_console(void)
 // relays reach their boot state (SPEC.md section 3.2) as early as possible:
 // after a warm reset, default-safe relays would otherwise stay on until the
 // network is up.
+// espOS confirms a freshly installed image once the network is up; it knows
+// nothing of the relays. An update that can't drive the relay expander goes
+// back to the previous firmware instead (plan 22, 6.1). If that one fails
+// too, the fault is the hardware: it is already confirmed, so it keeps
+// booting and reports the expander through health as before.
+static void rollback_if_unconfirmed(void)
+{
+    esp_ota_img_states_t state;
+    if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &state) != ESP_OK ||
+        state != ESP_OTA_IMG_PENDING_VERIFY) {
+        return;
+    }
+    ESP_LOGE(TAG, "new firmware can't drive the relays: rolling back to the previous one");
+    esp_err_t err = esp_ota_mark_app_invalid_rollback_and_reboot();
+    // Only returns when there is no valid image to go back to.
+    ESP_LOGE(TAG, "rollback failed (%s); keeping this firmware", esp_err_to_name(err));
+}
+
 static esp_err_t start_io(void *arg)
 {
     device_config_t *cfg = arg;
@@ -656,6 +675,7 @@ static esp_err_t start_io(void *arg)
     // device stays reachable for diagnosis and updates.
     if (relay_ctrl_init(&hw, cfg) != ESP_OK) {
         ESP_LOGE(TAG, "relay expander did not respond; relays unavailable");
+        rollback_if_unconfirmed();
     }
     // Every relay's state now is its start-up state (off, or held).
     // relay_ctrl never notifies listeners of it (there is no listener yet),

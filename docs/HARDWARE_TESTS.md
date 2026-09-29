@@ -457,8 +457,10 @@ and the board keeps running its version without restarting.
 **H3 [auto] Rollback (plan 22, 6.1).** After H1 has installed the new
 version, `curl -s -X POST -H "$H" -d '{}' $B/api/v1/ota/rollback`. Pass
 if the board restarts into the previous version and `ota/status` reports
-`rolled_back: true`. Rolling back on its own after a boot that breaks the
-relay expander is finding 6.1, not built yet.
+`rolled_back: true`. For finding 6.1, check that H1's normal update logs
+`new image confirmed` and no `rolling back` line; the failing-expander
+path itself isn't tested on the board, because that means opening the case
+(declined, see G4).
 
 ---
 
