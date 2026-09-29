@@ -74,15 +74,15 @@ Known issues found so far:
   network access and re-enabling the station while the setup portal was
   still open was once observed stuck for several minutes before recovering
   (investigated as [#15](https://github.com/BoatHacks/signalk-espOS-8relay/issues/15),
-  closed as tracking the same upstream root cause). Upstream shipped a
-  partial fix ([PR #139](https://github.com/signalk-espOS/espOS/pull/139),
-  merged): it removes the ~2.3 s full-channel rescan on the first few
-  retries by reconnecting to the last-known AP/channel directly, but does
-  **not** fix the underlying `AUTH_EXPIRE` timing miss itself. That fix
-  hasn't reached an `espos_wifi` release on the ESP Component Registry yet
-  (still 0.10.3 as of 2026-09-27), so this repo vendors it locally under
-  `components/signalk-espos__espos_wifi` in the meantime — see that
-  directory's `idf_component.yml` for how/when to remove the override.
+  closed as tracking the same upstream root cause). espOS 0.11.0 carries
+  two upstream fixes for it: [PR #139](https://github.com/signalk-espOS/espOS/pull/139)
+  reconnects to the last-known AP/channel directly instead of spending
+  ~2.3 s on a full-channel rescan before each retry, and
+  [PR #146](https://github.com/signalk-espOS/espOS/pull/146) no longer
+  raises the setup portal in the middle of a connection attempt (the
+  multi-minute stall). Neither fixes the underlying `AUTH_EXPIRE` timing
+  miss itself, which is why espOS#136 stays open. This repo now takes both
+  from the registry (espOS 0.12.1) instead of vendoring `espos_wifi`.
 - The relay outputs' three-terminal (NO/COM/NC) wiring has a per-relay
   `wiredNC` setting so reporting/commanding reflect the load, not the
   coil, while fail-safe/boot/momentary-auto-off/hold-restore still always

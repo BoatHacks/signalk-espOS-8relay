@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Each version starts with a one-line summary (at most 127 bytes): boards show
 it as the update's notes, and *Cut release* refuses a version without one.
 
+## [Unreleased]
+
+### Changed
+
+- espOS 0.10.3 -> 0.12.1. The locally vendored `espos_wifi` (upstream PR
+  #139, fast reconnect to the last-known AP) is gone: espOS 0.11.0 ships it
+  from the registry, together with PR #146, which stops the setup portal
+  from opening in the middle of a connection attempt (the multi-minute
+  WiFi stall, issue #15 / espOS#136).
+
 ## [0.3.0] - 2026-09-28
 
 Time-based schedules with the board's own real-time clock, and better buzzer diagnostics.

@@ -1,11 +1,11 @@
 dependencies:
   idf: ">=6.0.0,<6.1.0"
   signalk-espos/espos_sk:
-    version: "0.10.3"
+    version: "0.12.1"
     rules:
       - if: "target != linux"
   signalk-espos/espos_n2k:
-    version: "0.10.3"
+    version: "0.12.1"
     rules:
       - if: "target != linux"
   # NMEA 2000 protocol layer (MIT). No releases are tagged, so pin a commit.
