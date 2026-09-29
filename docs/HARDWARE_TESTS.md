@@ -201,18 +201,44 @@ while relay 1's pending-on is still waiting (no double-flip). Finally
 `setcfg '"r1_interlock":0,"r2_interlock":0'`.
 
 **B11 [human] RTC-backed schedule (#9).** On a spare relay (e.g. 6),
-`setcfg '"s0_relay":6,"s0_mode":"clock","s0_on":"<now+2min HH:MM>",
-"s0_off":"<now+4min HH:MM>","s0_days":127'` (all seven days). Pass if
+`setcfg '"s1_relay":6,"s1_mode":"clock","s1_on":"<now+2min HH:MM>",
+"s1_off":"<now+4min HH:MM>","s1_days":127'` (all seven days). Pass if
 the log shows `relay 6 on by schedule` at the on-time and `relay 6 off
 by schedule` two minutes later, both within the 1 s evaluator tick
 (check log timestamps, not a stopwatch). Then power-cycle the board
 (supply off 10 s, back on) partway through a fresh on-window (set a new
-`s0_on`/`s0_off` pair that straddles the restart) — pass if, after boot,
+`s1_on`/`s1_off` pair that straddles the restart) — pass if, after boot,
 the log's very first schedule evaluation immediately turns relay 6 on
 (the resync-on-first-evaluation behavior, not waiting for the next edge)
 without needing SNTP or SignalK, proving the RTC alone survived the
-power cut with a good time. Finally `setcfg '"s0_relay":0'` to disable
+power cut with a good time. Finally `setcfg '"s1_relay":0'` to disable
 the entry.
+
+Schedule entries are numbered `s1_`…`s8_`; there is no `s0_`.
+
+**B12 [human] Sunset schedule (#9).** Takes a real sunset, so start it
+in the afternoon. Set the board's position and zone so the expected time
+is known: `setcfg '"fallback_lat":<lat>,"fallback_lon":<lon>'` for the
+bench, and check espOS's *Timezone* is the local one. With no fresh
+position from SignalK (or the NMEA 2000 source), the fallback is used.
+Look up today's sunset for that position (e.g. NOAA's solar calculator),
+then on a spare relay:
+`setcfg '"s2_relay":5,"s2_mode":"clock","s2_on":"sunset","s2_off":"sunset+10","s2_days":127'`.
+Pass if the log shows `relay 5 on by schedule` within ±2 minutes of the
+published sunset, and `relay 5 off by schedule` ten minutes after that
+(check log timestamps). A larger error usually means a wrong timezone or
+position, not the sun math. Finally `setcfg '"s2_relay":0'`. The same
+check at sunrise, with `sunrise`/`sunrise+10`, covers the other
+calculation.
+
+**B13 [human] Repeating duty cycle (#9).**
+`setcfg '"s3_relay":4,"s3_mode":"repeat","s3_on":"1","s3_off":"3","s3_days":127'`
+(on 1 minute out of every 3). Cycles count from local midnight, so the
+relay is on during every minute whose minutes-since-midnight is a
+multiple of 3 (e.g. 14:00, 14:03, 14:06). Pass if, over three cycles,
+the log shows `relay 4 on by schedule` at the start of each such minute
+and `relay 4 off by schedule` one minute later. Then
+`setcfg '"s3_relay":0'`.
 
 ## C. Inputs
 
