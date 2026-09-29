@@ -240,11 +240,12 @@ static esp_err_t put_all(httpd_req_t *req)
     // reaches every relay.
     uint8_t skipped = 0;
     if (on) {
-        device_config_t cfg;
+        // Read in place: a device_config_t copy (~6.7 KB with the tone
+        // table) would take most of the 8 KB httpd stack before
+        // set_relay() and its listeners even run.
         taskENTER_CRITICAL(&s_mux);
-        cfg = s_cfg;
+        skipped = web_ui_all_on_skipped(&s_cfg);
         taskEXIT_CRITICAL(&s_mux);
-        skipped = web_ui_all_on_skipped(&cfg);
     }
     // Every relay attempted (not skipped) is switched even if one fails.
     esp_err_t first = ESP_OK;
