@@ -24,7 +24,11 @@ typedef enum {
     INDICATOR_EVENT_FACTORY_RESET,
 } indicator_event_t;
 
-void indicator_play_event(indicator_event_t event);
+// Returns the requested tone's length in ms, or 0 if none will be requested
+// (buzzer_on_event off, no tone assigned, or before indicator_start()). A
+// non-zero length doesn't promise the tone is heard: it can still be skipped
+// or cut off by the override, an alarm, or another chirp already playing.
+uint32_t indicator_play_event(indicator_event_t event);
 void indicator_play_relay_tone(uint8_t channel, bool on);
 void indicator_play_input_tone(uint8_t channel, bool on);
 

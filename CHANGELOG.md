@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Each version starts with a one-line summary (at most 127 bytes): boards show
 it as the update's notes, and *Cut release* refuses a version without one.
 
+## [Unreleased]
+
+### Fixed
+
+- The BOOT button's portal and factory-reset chirps are no longer cut off:
+  the restart used to follow 700 ms after the chirp started, shorter than
+  the new ~2 s default melodies. It now waits for the chirp's own length
+  (plus a small margin, capped at 10 s) on a timer, so the I/O loop's stall
+  alarm can't silence it either.
+
 ## [0.3.0] - 2026-09-28
 
 Time-based schedules with the board's own real-time clock, and better buzzer diagnostics.
