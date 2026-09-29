@@ -5,14 +5,14 @@ dependencies:
     rules:
       - if: "target != linux"
   signalk-espos/espos_health:
-    version: "0.10.3"
+    version: "0.12.1"
     rules:
       - if: "target != linux"
   signalk-espos/espos_net:
-    version: "0.10.3"
+    version: "0.12.1"
     rules:
       - if: "target != linux"
   signalk-espos/espos_sk:
-    version: "0.10.3"
+    version: "0.12.1"
     rules:
       - if: "target != linux"

@@ -60,10 +60,15 @@ static const char *TAG = "app";
 #define TICK_MS 10
 #define IO_STALL_MS 2000        // raise espOS's taskStalled alarm after this
 #define IO_RESTART_US 3000000LL // restart if the I/O loop is silent this long
-// The BOOT-button chirps (plan 19) are requested right before esp_restart();
-// the indicator task's own 10 ms polling loop would otherwise never get
-// scheduled in time to be heard. Comfortably longer than any shipped chirp.
-#define RESTART_CHIRP_DELAY_MS 700
+// The BOOT-button chirps (plan 19) are requested right before the restart,
+// which then waits for the chirp's own length plus this margin (the
+// indicator task's 10 ms polling loop has to pick it up first), capped at
+// RESTART_CHIRP_MAX_MS so an overly long library tone can't hold off the
+// restart indefinitely. The wait runs on a one-shot esp_timer, not io_task:
+// blocking io_task for longer than IO_STALL_MS raises the taskStalled alarm,
+// which cuts the chirp off, and the shipped portal/reset tones are ~2 s.
+#define RESTART_CHIRP_MARGIN_MS 300
+#define RESTART_CHIRP_MAX_MS 10000
 
 static TaskHandle_t s_io_task;
 static volatile int64_t s_io_alive_us;
@@ -273,6 +278,34 @@ static void on_config_change(const char *ns, const char *key, void *arg)
     }
 }
 
+static esp_timer_handle_t s_restart_timer;
+static bool s_restart_pending;  // io_task only
+
+static void restart_cb(void *arg)
+{
+    esp_restart();
+}
+
+// Plays `event`'s chirp, then restarts once it has finished (see
+// RESTART_CHIRP_MARGIN_MS). Returns straight away; from here on io_task only
+// keeps the health watch fed and does no I/O, exactly as if it were blocked
+// until the restart (no relay switching, no hold-state or counter saves that
+// could undo a factory reset, no further button actions).
+static void restart_after_chirp(indicator_event_t event)
+{
+    s_restart_pending = true;
+    uint32_t ms = indicator_play_event(event) + RESTART_CHIRP_MARGIN_MS;
+    if (ms > RESTART_CHIRP_MAX_MS) {
+        ms = RESTART_CHIRP_MAX_MS;
+    }
+    const esp_timer_create_args_t args = {.callback = restart_cb, .name = "restart"};
+    if (esp_timer_create(&args, &s_restart_timer) != ESP_OK ||
+        esp_timer_start_once(s_restart_timer, (uint64_t)ms * 1000) != ESP_OK) {
+        ESP_LOGE(TAG, "restart timer unavailable; restarting now");
+        esp_restart();
+    }
+}
+
 // BOOT button actions (plan 14, issue #7). Both restart so the relays take
 // their fail-safe/boot rules (SPEC.md §3.2) rather than being left in
 // whatever state a settings change happened to catch them in.
@@ -282,9 +315,7 @@ static void do_reopen_portal(void)
     // espOS 0.10.3 has no public "start the portal now" call; with the
     // station off, it opens its portal instead of trying to connect.
     espos_config_set_bool("wifi", "sta_enabled", false);
-    indicator_play_event(INDICATOR_EVENT_PORTAL);
-    vTaskDelay(pdMS_TO_TICKS(RESTART_CHIRP_DELAY_MS));
-    esp_restart();
+    restart_after_chirp(INDICATOR_EVENT_PORTAL);
 }
 
 static void do_factory_reset(void)
@@ -297,9 +328,7 @@ static void do_factory_reset(void)
     relay_hw_clear_hold_state();
     espos_sk_forget_token();
     espos_config_factory_reset();
-    indicator_play_event(INDICATOR_EVENT_FACTORY_RESET);
-    vTaskDelay(pdMS_TO_TICKS(RESTART_CHIRP_DELAY_MS));
-    esp_restart();
+    restart_after_chirp(INDICATOR_EVENT_FACTORY_RESET);
 }
 
 static void button_poll(void)
@@ -364,6 +393,10 @@ static void io_task(void *arg)
     for (;;) {
         espos_health_kick();
         s_io_alive_us = esp_timer_get_time();
+        if (s_restart_pending) {
+            vTaskDelay(pdMS_TO_TICKS(TICK_MS));
+            continue;
+        }
         if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(TICK_MS)) > 0) {
             if (device_config_load(&s_cfg) == ESP_OK) {
                 // Unlike bank_id/input_bank_id (restart_required), a bad

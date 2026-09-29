@@ -1,2 +1,2 @@
 dependencies:
-  signalk-espos/espos_health: "0.10.3"
+  signalk-espos/espos_health: "0.12.1"

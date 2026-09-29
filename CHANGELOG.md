@@ -22,6 +22,22 @@ it as the update's notes, and *Cut release* refuses a version without one.
   applies live). Host-tested; not yet checked on a real bus
   (HARDWARE_TESTS.md E6).
 
+### Changed
+
+- espOS 0.10.3 -> 0.12.1. The locally vendored `espos_wifi` (upstream PR
+  #139, fast reconnect to the last-known AP) is gone: espOS 0.11.0 ships it
+  from the registry, together with PR #146, which stops the setup portal
+  from opening in the middle of a connection attempt (the multi-minute
+  WiFi stall, issue #15 / espOS#136).
+
+### Fixed
+
+- The BOOT button's portal and factory-reset chirps are no longer cut off:
+  the restart used to follow 700 ms after the chirp started, shorter than
+  the new ~2 s default melodies. It now waits for the chirp's own length
+  (plus a small margin, capped at 10 s) on a timer, so the I/O loop's stall
+  alarm can't silence it either.
+
 ## [0.3.0] - 2026-09-28
 
 Time-based schedules with the board's own real-time clock, and better buzzer diagnostics.
