@@ -216,7 +216,7 @@ the entry.
 
 Schedule entries are numbered `s1_`…`s8_`; there is no `s0_`.
 
-**B12 [human] Sunset schedule (#9).** Takes a real sunset, so start it
+**B12 [auto] Sunset schedule (#9).** Takes a real sunset, so start it
 in the afternoon. Set the board's position and zone so the expected time
 is known: `setcfg '"fallback_lat":<lat>,"fallback_lon":<lon>'` for the
 bench, and check espOS's *Timezone* is the local one. With no fresh
@@ -231,7 +231,7 @@ position, not the sun math. Finally `setcfg '"s2_relay":0'`. The same
 check at sunrise, with `sunrise`/`sunrise+10`, covers the other
 calculation.
 
-**B13 [human] Repeating duty cycle (#9).**
+**B13 [auto] Repeating duty cycle (#9).**
 `setcfg '"s3_relay":4,"s3_mode":"repeat","s3_on":"1","s3_off":"3","s3_days":127'`
 (on 1 minute out of every 3). Cycles count from local midnight, so the
 relay is on during every minute whose minutes-since-midnight is a
