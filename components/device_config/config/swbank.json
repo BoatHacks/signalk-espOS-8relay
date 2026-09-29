@@ -573,7 +573,7 @@
     {
       "name": "tone_patterns",
       "type": "string",
-      "default": "[{\"name\":\"boot\",\"rtttl\":\"boot:d=16,o=7,b=200:c,e,g\"},{\"name\":\"portal\",\"rtttl\":\"portal:d=8,o=7,b=180:e,c,e,c\"},{\"name\":\"reset\",\"rtttl\":\"reset:d=8,o=7,b=120:g,e,c\"},{\"name\":\"relay-on\",\"rtttl\":\"relay-on:d=16,o=7,b=250:c\"},{\"name\":\"relay-off\",\"rtttl\":\"relay-off:d=16,o=6,b=250:c\"},{\"name\":\"input\",\"rtttl\":\"input:d=16,o=6,b=250:c,c\"},{\"name\":\"pulse-start\",\"rtttl\":\"pulse-start:d=32,o=7,b=250:c\"},{\"name\":\"pulse-stop\",\"rtttl\":\"pulse-stop:d=32,o=6,b=250:c\"}]",
+      "default": "[{\"name\":\"boot\",\"rtttl\":\"boot:d=16,o=5,b=200:g,a,b,c6,d6,e6,f#6,g6,a6,b6,2c7\"},{\"name\":\"portal\",\"rtttl\":\"portal:d=4,o=5,b=180:8g3,8c4,8e4,8g4,8c,8e,4g.,4e.\"},{\"name\":\"reset\",\"rtttl\":\"reset:d=4,o=5,b=100:16e6,16e6,32p,8e6,16c6,8e6,8g6,8p,8g\"},{\"name\":\"relay-on\",\"rtttl\":\"relay-on:d=16,o=7,b=250:c\"},{\"name\":\"relay-off\",\"rtttl\":\"relay-off:d=16,o=6,b=250:c\"},{\"name\":\"input\",\"rtttl\":\"input:d=16,o=5,b=120:g,c6\"},{\"name\":\"pulse-start\",\"rtttl\":\"pulse-start:d=32,o=7,b=250:c\"},{\"name\":\"pulse-stop\",\"rtttl\":\"pulse-stop:d=32,o=6,b=250:c\"}]",
       "maxLength": 3999,
       "x": {
         "format": "table",
