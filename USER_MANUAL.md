@@ -1,12 +1,22 @@
 # signalk-espOS-8relay User Manual
 
-> **Status: hardware bring-up.** Test releases exist (see
-> [GitHub Releases](https://github.com/BoatHacks/signalk-espOS-8relay/releases)),
-> and most of what's described here has now been confirmed on a real
-> board (see [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the
-> full results), but nothing has been checked on a boat yet. Setting
-> names and some details may still change. The requirements behind this
-> manual are in [SPEC.md](SPEC.md).
+This manual covers installing, setting up and using the
+signalk-espOS-8relay firmware on the Waveshare ESP32-S3-ETH-8DI-8RO-C
+board. Once installed, the board is an 8-relay, 8-input switch bank on
+your SignalK server and your NMEA 2000 bus, configured from a web page on
+the board itself.
+
+The short path is: flash a release over USB-C (section 3), join the
+board's setup access point and connect it to your network and SignalK
+server (section 4), then name and configure each relay and input
+(section 6). Section 7 covers day-to-day use, and section 8 what to do
+when something doesn't work.
+
+Releases are on
+[GitHub](https://github.com/BoatHacks/signalk-espOS-8relay/releases). What
+each one changed is in [CHANGELOG.md](CHANGELOG.md), how each is checked on
+a real board is in [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md), and
+the requirements behind this manual are in [SPEC.md](SPEC.md).
 
 ## 1. What you need
 
@@ -302,6 +312,8 @@ cautious than trying to work that out.
 **No valid time yet** (freshly powered on with a dead RTC battery, and
 neither SNTP nor SignalK have set the clock) makes every schedule do
 nothing, with its own health warning, until a source sets the clock.
+
+## 7. Using it
 
 ### 7.1 From SignalK
 

@@ -1,17 +1,28 @@
 # signalk-espOS-8relay
 
-Firmware for the Waveshare
+Firmware that turns the Waveshare
 [ESP32-S3-ETH-8DI-8RO-C](https://www.waveshare.com/wiki/ESP32-S3-ETH-8DI-8RO-C)
-industrial relay board that makes it a boat switch bank: 8 relays you can
-switch, and 8 isolated inputs you can read, over **SignalK** (WiFi or
-Ethernet) and **NMEA 2000** (the board's CAN port) at the same time.
+industrial relay board into a boat switch bank: 8 relays you can switch and
+8 isolated inputs you can read, over **SignalK** (WiFi or Ethernet) and
+**NMEA 2000** (the board's CAN port) at the same time.
+
+Flash it once over USB-C, set it up from your phone through its own access
+point, and from then on it shows up as a switch bank on your SignalK server
+and on the NMEA 2000 bus. Each relay has its own name, behaviour and
+fail-safe; inputs can raise bilge-style alarms or switch relays directly
+with no network involved; schedules run on the board's own real-time clock;
+and updates arrive signed, over the air.
 
 It runs on [espOS](https://github.com/signalk-espOS/espOS), which provides the
 networking, SignalK connection, settings web page and signed over-the-air
 updates. This project adds everything specific to the board.
 
-> **Status: hardware bring-up.** Test releases exist, but nothing has been
-> checked on a boat yet. See [Current status](#current-status).
+**Get started:** download the latest build from
+[Releases](https://github.com/BoatHacks/signalk-espOS-8relay/releases) and
+follow the [User Manual](USER_MANUAL.md). The firmware's behaviour is
+checked on a real board with a scripted test procedure; the results are in
+[docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md), and what hasn't been
+covered on hardware yet is listed under [Current status](#current-status).
 
 ## Scope
 
@@ -36,7 +47,7 @@ updates. This project adds everything specific to the board.
   every hour), kept by the board's own real-time clock so schedules work
   without a SignalK server.
 
-**Out of scope for the first release:** dimmers, scenes/groups,
+**Out of scope for 1.0:** dimmers, scenes/groups,
 multi-condition interlocks, and the board's RS485/expansion header.
 
 The full requirements are in [SPEC.md](SPEC.md).
@@ -54,9 +65,9 @@ The full requirements are in [SPEC.md](SPEC.md).
 | 04 — digital inputs | Done: polarity, 50 ms debounce, and toggle/follow input-to-relay overrides confirmed on the real board |
 | 05 — SignalK | Done: connection, republish interval, PUT switching, and SignalK-loss fail-safe confirmed on the real board; `controls.*` tree and renaming not yet exercised. Per-input alarm notifications confirmed on the real board (issue [#3](https://github.com/BoatHacks/signalk-espOS-8relay/issues/3), closed) |
 | 06 — NMEA 2000 | Done: on-bus operation, 127501 status, 127502 control, and address-claim collision handling confirmed against a real second device; MFD device listing not yet tested (no MFD on the bench) |
-| Status LED and alarm buzzer | Buzzer tone and live frequency change confirmed on the real board; LED colour not yet tested. The alarm-triggered buzzer pattern is deliberately not tested — the only way to trigger it is opening the case, which is declined; blocked until [espOS#137](https://github.com/signalk-espOS/espOS/issues/137)'s proposed remote test-injection endpoint lands upstream. Buzzer chirps on notable events (boot, BOOT-button actions, relay/input changes), the `/tones` page (Play button, CRUD, momentary/latching layout), and non-interference with the alarm and BOOT-button override are all confirmed (issue [#14](https://github.com/BoatHacks/signalk-espOS-8relay/issues/14), closed) |
+| Status LED and alarm buzzer | LED colours, buzzer tone and live frequency change confirmed on the real board. The alarm-triggered buzzer pattern hasn't been run on hardware yet; espOS 0.12's health drill endpoint now lets it be tested without opening the case ([HARDWARE_TESTS](docs/HARDWARE_TESTS.md) G4). Buzzer chirps on notable events (boot, BOOT-button actions, relay/input changes), the `/tones` page (Play button, CRUD, momentary/latching layout), and non-interference with the alarm and BOOT-button override are all confirmed (issue [#14](https://github.com/BoatHacks/signalk-espOS-8relay/issues/14), closed) |
 | BOOT-button setup/reset and debug console | Confirmed on real hardware: BOOT button reopens the setup portal (~5 s) or factory-resets (~15 s) (issue [#7](https://github.com/BoatHacks/signalk-espOS-8relay/issues/7), closed). A USB serial debug console (`relay`, `inputs`, `cfg`, `wifi_sta` commands) is also on `main`, useful for bench-testing without network reachability (issue [#16](https://github.com/BoatHacks/signalk-espOS-8relay/issues/16), closed) |
-| 07 — hardware bring-up and first release | In progress: most of the bring-up checklist passed on the first physical unit (2026-09-26); see [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the full results. Ethernet-plugged-in, captive portal, MFD-listing, and a signed release are still open. |
+| 07 — hardware bring-up and first release | Most of the bring-up checklist passed on the first physical unit (2026-09-26 and 2026-09-28); see [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the full results. Signed releases are published ([v0.1.0](https://github.com/BoatHacks/signalk-espOS-8relay/releases/tag/v0.1.0) onwards) and reach boards through the OTA manifest. Not yet tested on hardware: Ethernet with a cable plugged in, the setup portal on a fresh board, and listing on an MFD. |
 | Schedules (issue [#9](https://github.com/BoatHacks/signalk-espOS-8relay/issues/9), [plan 16](docs/plans/16-schedules.md)) | Implemented and host-tested: PCF85063 RTC driver and clock sync, timezone/position settings (SignalK or NMEA 2000 PGN 129025/129029), NOAA sunrise/sunset calculation, 8 schedule entries (fixed time, sunrise/sunset offset, or repeating duty cycle), overlapping-schedule and no-valid-time health warnings. Not yet confirmed on real hardware: RTC keeping time across a power cut, and a live sunrise/sunset transition. |
 
 Known issues found so far:
@@ -141,9 +152,11 @@ Work is split into stages, each with its own plan in
 
 ## Safety
 
-The relays switch real loads (up to 10 A at 250 V AC / 30 V DC). Until the
-first release has been tested on hardware, don't connect this board to
-anything on a boat that matters.
+The relays switch real loads (up to 10 A at 250 V AC / 30 V DC). Fuse every
+load, try a new setup with harmless loads (lamps) first, and decide for each
+relay what it should do when the network is lost or the board restarts
+before you wire it to a pump, heater or anything else that must not be left
+on or off by accident ([User Manual §2](USER_MANUAL.md#2-safety)).
 
 ## Board hardware
 
