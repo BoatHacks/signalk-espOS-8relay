@@ -289,6 +289,21 @@ static void request_chirp(int idx)
     atomic_store(&s.chirp_request, idx);
 }
 
+// Length of tones[idx] in ms, or 0 if request_chirp(idx) would drop it.
+static uint32_t chirp_duration_ms(int idx)
+{
+    if (idx < 0 || !atomic_load(&s.started) || !atomic_load(&s.event_enabled)) {
+        return 0;
+    }
+    uint32_t ms = 0;
+    taskENTER_CRITICAL(&s_tone_mux);
+    if ((size_t)idx < s.n_tones) {
+        ms = rtttl_duration_ms(s.tones[idx].notes, s.tones[idx].n_notes);
+    }
+    taskEXIT_CRITICAL(&s_tone_mux);
+    return ms;
+}
+
 // Logged unconditionally, the instant each entry point below is called --
 // distinct from the "chirp:"/"preview:"/"buzzer test:" lines in
 // indicator_task() above, which only fire once a request actually starts
@@ -306,14 +321,17 @@ static const char *event_name(indicator_event_t event)
     return "?";
 }
 
-void indicator_play_event(indicator_event_t event)
+uint32_t indicator_play_event(indicator_event_t event)
 {
     ESP_LOGI(TAG, "indicator_play_event(%s)", event_name(event));
+    int idx = -1;
     switch (event) {
-    case INDICATOR_EVENT_BOOT: request_chirp(atomic_load(&s.boot_idx)); break;
-    case INDICATOR_EVENT_PORTAL: request_chirp(atomic_load(&s.portal_idx)); break;
-    case INDICATOR_EVENT_FACTORY_RESET: request_chirp(atomic_load(&s.reset_idx)); break;
+    case INDICATOR_EVENT_BOOT: idx = atomic_load(&s.boot_idx); break;
+    case INDICATOR_EVENT_PORTAL: idx = atomic_load(&s.portal_idx); break;
+    case INDICATOR_EVENT_FACTORY_RESET: idx = atomic_load(&s.reset_idx); break;
     }
+    request_chirp(idx);
+    return chirp_duration_ms(idx);
 }
 
 void indicator_play_relay_tone(uint8_t channel, bool on)
