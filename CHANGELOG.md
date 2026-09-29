@@ -30,6 +30,12 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ### Changed
 
+- More of the buzzer moved into `components/espos_tone/` (issue #17, step
+  two): a one-shot tone player (`tone_player.h`: start, step, stop, pitch
+  per note) and an LEDC buzzer driver (`tone_buzzer.h`: pitch and on/off
+  on one channel). `indicator` now uses both, and event chirps and Tones
+  page previews share one player instead of two copies of the same
+  playback code. No change in behaviour.
 - espOS 0.10.3 -> 0.12.1. The locally vendored `espos_wifi` (upstream PR
   #139, fast reconnect to the last-known AP) is gone: espOS 0.11.0 ships it
   from the registry, together with PR #146, which stops the setup portal
