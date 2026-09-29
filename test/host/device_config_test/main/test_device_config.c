@@ -48,6 +48,7 @@ TEST_CASE("defaults match SPEC.md section 9", "[device_config]")
     TEST_ASSERT_TRUE(c.eth_enabled);
     TEST_ASSERT_TRUE(c.publish_switches_tree);
     TEST_ASSERT_FALSE(c.publish_controls_tree);
+    TEST_ASSERT_TRUE(c.n2k_alerts);
     TEST_ASSERT_EQUAL(10, c.led_brightness);
     TEST_ASSERT_EQUAL(100, c.interlock_dead_ms);
     TEST_ASSERT_FALSE(c.buzzer_on_alarm);

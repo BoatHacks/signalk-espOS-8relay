@@ -153,6 +153,7 @@ esp_err_t device_config_load(device_config_t *out)
     out->eth_enabled = get_bool("eth_enabled");
     out->publish_switches_tree = get_bool("pub_switches");
     out->publish_controls_tree = get_bool("pub_controls");
+    out->n2k_alerts = get_bool("n2k_alerts");
     out->led_brightness = (uint8_t)get_int("led_brightness");
     out->buzzer_on_alarm = get_bool("buzzer_alarm");
     out->buzzer_freq_hz = (uint16_t)get_int("buzzer_freq_hz");

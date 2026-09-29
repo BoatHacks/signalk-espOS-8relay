@@ -241,7 +241,7 @@ overrides.
 | Invert | Off | Turn on for normally-closed switches |
 | On chirp | input | Tone (from the Tones page, section 7.7) to play when this input's reported state changes to on. *(none)* = no chirp. |
 | Off chirp | input | As above, for changing to off. |
-| Alarm | Off | Raise a SignalK notification (section 7.1) while this input reads on, e.g. a bilge float switch. `off`/`warn`/`alarm`/`emergency` set the notification's severity; `off` raises nothing. |
+| Alarm | Off | Raise a SignalK notification (section 7.1), and an NMEA 2000 alert (section 7.3), while this input reads on, e.g. a bilge float switch. `off`/`warn`/`alarm`/`emergency` set the severity; `off` raises nothing. |
 | Alarm message | *(none)* | Notification text. Empty = "*name* active". |
 
 ### 6.5 Other
@@ -256,6 +256,7 @@ overrides.
 | Buzzer frequency | 2700 Hz | Tone of the buzzer, 42–10000 Hz. Applies at once; try it with *Test buzzer* on the relay page. |
 | Buzzer on events | Off | Chirp on boot, a BOOT-button action, a relay switching on/off, or an input changing (section 7.7). Separate from *Buzzer on alarm*. |
 | Interlock dead time | 100 ms | How long an interlocked relay's partner stays off before it switches on (0–2000 ms). Applies to every interlocked pair (section 6.3). |
+| Input alarms on NMEA 2000 | On | Also raise input alarms as NMEA 2000 alerts (section 7.3). Applies at once. |
 | Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
 
 ### 6.6 Schedules
@@ -418,6 +419,24 @@ the state (including each channel's `cycles` and `runTime`),
 The board appears on the bus as a switch-bank device. MFDs and switch
 panels that support NMEA 2000 switch banks show both banks, and can switch
 the relays.
+
+**Input alarms.** An input alarm (section 6.4) is also raised on the bus
+as an NMEA 2000 alert, so a chartplotter sounds it even without a SignalK
+server: PGN 126983 (*Alert*) every second while the input reads on, and
+126985 (*Alert Text*) with the same message as the SignalK notification
+every 10 seconds. `warn`, `alarm` and `emergency` are sent as the alert
+types *Warning*, *Alarm* and *Emergency Alarm*. Acknowledging it on the
+chartplotter marks it acknowledged until the input turns off; temporary
+silence isn't offered. When the input turns off, the alert goes back to
+*Normal* (sent three times, a second apart) and stops being sent. Like
+the SignalK notification, it's only raised once the input has settled
+after boot, so a switch that's already tripped still alarms at start-up.
+
+If your SignalK server runs signalk-to-nmea2000 with its *Notifications*
+conversion on, it also puts the board's SignalK notification on the bus,
+and the chartplotter shows the alarm twice. Turn off one of the two:
+*Input alarms on NMEA 2000* (section 6.5) on the board, or that option in
+the plugin.
 
 ### 7.4 Input overrides
 

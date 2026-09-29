@@ -298,6 +298,18 @@ switches the same relay, and both paths then report the new state.
   only. Fields 0/1 switch the channel, like a SignalK PUT; 3 ("take no
   action") and 2 (reserved) are ignored. Control messages for the input
   bank are ignored.
+- **126983 Alert / 126985 Alert Text** — an input alarm (plan 10, plan 21)
+  also raised on the bus while `n2kAlerts` is on (default): alert type
+  Warning/Alarm/Emergency Alarm from the input's severity, category
+  Technical, alert id = input channel, data source = this device's NAME,
+  instance = `inputBankId`, index = channel, a new occurrence number per
+  trip. 126983 every 1 s and 126985 (the SignalK notification's message)
+  every 10 s while active (canboat's intervals); on clearing, 126983 state
+  Normal three times, 1 s apart, then nothing.
+- **126984 Alert Response** — an Acknowledge for one of our active alerts
+  (matching NAME, instance, id, type and occurrence) turns it Acknowledged
+  until it clears. Temporary silence is not offered; test commands are
+  ignored.
 - **Network management**, from the NMEA2000 library: address claim
   (60928) with conflict handling, ISO request (59904), product
   information (126996), heartbeat (126993), PGN lists (126464). The last
@@ -368,6 +380,8 @@ User-tunable (via config store, §6.3):
   `electrical.controls.*` tree (§6.1a, RFC 0009 compatibility; see
   RFC-441-DIGITAL-SWITCHING.md). Any combination is valid, including both
   off (NMEA2000-only operation).
+- `n2kAlerts`: bool, default `true` — input alarms also raised as NMEA
+  2000 alerts (§6.2). Applies live.
 - `ledBrightness`: status LED brightness, 0–100 % (default `10`; 0 = off).
   The LED shows red for a health alarm, amber for a warning, blue while
   not connected to SignalK (only when a SignalK tree is published), green
@@ -382,7 +396,7 @@ User-tunable (via config store, §6.3):
 Fixed (not user-tunable, board/firmware constants):
 - Channel count (8 relays, 8 inputs)
 - GPIO pin mapping to physical RO/DI terminals
-- NMEA2000 PGN set supported (127501/127502)
+- NMEA2000 PGN set supported (127501/127502, alerts 126983/126984/126985)
 
 ## 10. MVP Scope
 

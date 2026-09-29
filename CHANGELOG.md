@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Each version starts with a one-line summary (at most 127 bytes): boards show
 it as the update's notes, and *Cut release* refuses a version without one.
 
+## [Unreleased]
+
+### Added
+
+- Input alarms on NMEA 2000 (plan 21, follow-up to issue #3): an input
+  alarm is also raised on the bus as an NMEA 2000 alert, so a chartplotter
+  sounds a bilge float switch without a SignalK server. PGN 126983 every
+  second and 126985 (the notification's message) every 10 s while active,
+  at the input's severity (Warning/Alarm/Emergency Alarm); back to Normal
+  when it clears. Acknowledging it on the chartplotter (126984) marks it
+  acknowledged. New setting *Input alarms on NMEA 2000* (on by default,
+  applies live). Host-tested; not yet checked on a real bus
+  (HARDWARE_TESTS.md E6).
+
 ## [0.3.0] - 2026-09-28
 
 Time-based schedules with the board's own real-time clock, and better buzzer diagnostics.

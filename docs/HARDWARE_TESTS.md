@@ -318,6 +318,15 @@ moves to a free address (`status` → new `address`) and keeps working.
 devices). Pass if within ~10 s `status` → `traffic: false` and the relay
 page shows "no bus traffic".
 
+**E6 [human] Input alarm on NMEA 2000 (plan 21).** Reuse C6's wiring and
+`setcfg '"input1_alarm":"alarm"'` (`n2k_alerts` is on by default). Flip
+the switch on: pass if the MFD raises an alarm reading "Input 1 active"
+(with a CAN adapter: canboat's `analyzer` shows PGN 126985 with that text,
+then 126983 *Alert State: Active*, repeated every second). Acknowledge it
+on the MFD: pass if it stays listed as acknowledged (126983 *Alert
+State: Acknowledged*). Flip off: pass if it clears (126983 *Normal*,
+three times, then no more 126983). Then `setcfg '"input1_alarm":"off"'`.
+
 ## F. Network
 
 **F1 [human] Ethernet preferred.** With Ethernet and WiFi both

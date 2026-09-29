@@ -39,6 +39,7 @@ were made on 2026-09-25 and are recorded in each plan.
 | 18 | [Per-relay NC/NO wiring setting](18-relay-nc-no-wiring.md) | [#13](https://github.com/BoatHacks/signalk-espOS-8relay/issues/13) | 03 | Medium, correctness-sensitive |
 | 19 | [Buzzer sound effects on events](19-buzzer-event-sounds.md) | [#14](https://github.com/BoatHacks/signalk-espOS-8relay/issues/14) | 14, 17 | Medium |
 | 20 | [CODE_OF_CONDUCT.md and CONTRIBUTING.md](20-community-docs.md) | [#12](https://github.com/BoatHacks/signalk-espOS-8relay/issues/12) | — | Small, blocked on decisions |
+| 21 | [Input alarms as NMEA 2000 alerts](21-n2k-alerts.md) | [#3](https://github.com/BoatHacks/signalk-espOS-8relay/issues/3) follow-up | 06, 10 | Small–medium |
 
 ## Facts established while writing these plans
 
