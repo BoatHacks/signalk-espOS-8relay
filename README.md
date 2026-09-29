@@ -119,10 +119,12 @@ Known issues found so far:
 
 ## Plans
 
-Work is split into stages, each with its own plan in
-[docs/plans/](docs/plans/README.md):
+Work is split into plans in [docs/plans/](docs/plans/README.md): stages
+00–07 built the firmware and took it through hardware bring-up and the
+first release, and each feature added since has its own plan, one per
+GitHub issue.
 
-| # | Stage |
+| # | Plan |
 |---|---|
 | 00 | [espOS fit check](docs/plans/00-espos-fit-check.md) |
 | 01 | [Project scaffold](docs/plans/01-project-scaffold.md) |
@@ -132,6 +134,20 @@ Work is split into stages, each with its own plan in
 | 05 | [SignalK bridge](docs/plans/05-signalk-bridge.md) |
 | 06 | [NMEA 2000 switch bank](docs/plans/06-n2k-switch-bank.md) |
 | 07 | [Bring-up and first release](docs/plans/07-bringup-and-release.md) |
+| 08 | [Push-button toggle for inputs](docs/plans/08-input-toggle-mode.md) |
+| 09 | [Maximum on-time per relay](docs/plans/09-max-on-time.md) |
+| 10 | [Input alarms as SignalK notifications](docs/plans/10-input-alarms.md) |
+| 11 | [Cycle counters and runtime hours](docs/plans/11-counters-and-runtime.md) |
+| 12 | ["Last switched by" on the relay page](docs/plans/12-last-switched-by.md) |
+| 13 | [Relay page: Pulse, status, version](docs/plans/13-relay-page-extras.md) |
+| 14 | [BOOT button: access point and factory reset](docs/plans/14-boot-button.md) |
+| 15 | [Interlocked relay pairs](docs/plans/15-interlocked-pairs.md) |
+| 16 | [Schedules with the real-time clock](docs/plans/16-schedules.md) |
+| 17 | [Buzzer test button and frequency](docs/plans/17-buzzer-test-and-frequency.md) |
+| 18 | [Per-relay NC/NO wiring setting](docs/plans/18-relay-nc-no-wiring.md) |
+| 19 | [Buzzer sound effects on events](docs/plans/19-buzzer-event-sounds.md) |
+| 20 | [CODE_OF_CONDUCT.md and CONTRIBUTING.md](docs/plans/20-community-docs.md) |
+| 21 | [Input alarms as NMEA 2000 alerts](docs/plans/21-n2k-alerts.md) |
 
 ## Documentation
 
