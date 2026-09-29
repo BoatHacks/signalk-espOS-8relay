@@ -26,7 +26,7 @@ dependencies:
       require: private
       version: '>=5.0'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 1.11.3
   espressif/w5500:
@@ -196,20 +196,10 @@ dependencies:
       type: service
     version: 0.12.1
   signalk-espos/espos_n2k:
-    component_hash: e7f6c989fb7c41b33479008de529af2611865dccbe63ccfbfa0b268fb73ec453
-    dependencies:
-    - name: espressif/mdns
-      registry_url: https://components.espressif.com
-      require: private
-      rules:
-      - if: target != linux
-      version: ==1.11.3
-    - name: idf
-      require: private
-      version: '>=6.0.0,<6.1.0'
+    dependencies: []
     source:
-      registry_url: https://components.espressif.com/
-      type: service
+      path: components/signalk-espos__espos_n2k
+      type: local
     version: 0.12.1
   signalk-espos/espos_net:
     component_hash: e0c6d64a607723ddeacad2547d445eb8a03869f321bea2220425efd583e44250
@@ -386,6 +376,7 @@ dependencies:
 direct_dependencies:
 - espressif/cjson
 - espressif/led_strip
+- espressif/mdns
 - espressif/w5500
 - idf
 - signalk-espos/espos_config
@@ -398,6 +389,6 @@ direct_dependencies:
 - signalk-espos/espos_sk
 - signalk-espos/espos_time
 - ttlappalainen/nmea2000
-manifest_hash: cd4ab0d6cb0984a2ecf422eea9760c6d1864447f8b0d56f60e7517cc15d4586e
+manifest_hash: 1c90e625db8e5cc173173bc3c1ca9994260506df8f109b39890c23eac4c8d2c7
 target: esp32s3
 version: 3.0.0
