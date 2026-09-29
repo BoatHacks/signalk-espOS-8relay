@@ -10,6 +10,18 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ## [Unreleased]
 
+### Added
+
+- Input alarms on NMEA 2000 (plan 21, follow-up to issue #3): an input
+  alarm is also raised on the bus as an NMEA 2000 alert, so a chartplotter
+  sounds a bilge float switch without a SignalK server. PGN 126983 every
+  second and 126985 (the notification's message) every 10 s while active,
+  at the input's severity (Warning/Alarm/Emergency Alarm); back to Normal
+  when it clears. Acknowledging it on the chartplotter (126984) marks it
+  acknowledged. New setting *Input alarms on NMEA 2000* (on by default,
+  applies live). Host-tested; not yet checked on a real bus
+  (HARDWARE_TESTS.md E6).
+
 ### Changed
 
 - espOS 0.10.3 -> 0.12.1. The locally vendored `espos_wifi` (upstream PR

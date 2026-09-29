@@ -533,6 +533,14 @@
       "description": "Paths in the style of SignalK RFC 0009. Relays can be switched through them."
     },
     {
+      "name": "n2k_alerts",
+      "type": "bool",
+      "default": true,
+      "group": "General",
+      "title": "Input alarms on NMEA 2000",
+      "description": "Also raise each input's alarm as an NMEA 2000 alert (PGN 126983/126985), so a chartplotter sounds it without a SignalK server. Turn off if the SignalK server already converts notifications to NMEA 2000 (signalk-to-nmea2000's Notifications option), or the alarm shows twice."
+    },
+    {
       "name": "led_brightness",
       "type": "int",
       "default": 10,

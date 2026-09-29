@@ -407,6 +407,7 @@ static void io_task(void *arg)
                 relay_ctrl_update_config(&s_cfg);
                 input_sense_update_config(&s_cfg);
                 sk_bridge_update_config(&s_cfg);
+                n2k_bridge_update_config(&s_cfg);
                 indicator_update_config(&s_cfg);
                 web_ui_update_config(&s_cfg);
             }

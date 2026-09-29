@@ -131,6 +131,9 @@ typedef struct {
     bool eth_enabled;
     bool publish_switches_tree;
     bool publish_controls_tree;
+    // Input alarms also raised as NMEA 2000 alerts, PGN 126983/126985
+    // (plan 21). Applies live.
+    bool n2k_alerts;
     uint8_t led_brightness;  // percent, 0 = off
     bool buzzer_on_alarm;
     uint16_t buzzer_freq_hz;

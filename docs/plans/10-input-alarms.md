@@ -33,7 +33,7 @@ turns off. The typical use is a bilge float switch.
 - **Buzzer:** optionally also sound the board's buzzer for input alarms
   (setting `i<n>_alarm_buzz`); depends on plan 17's "play pattern"
   refactor. Keep it out of the first version if that plan isn't done.
-- NMEA 2000 alerts (PGN 126983 family) are a separate follow-up.
+- NMEA 2000 alerts (PGN 126983 family) are a separate follow-up: plan 21.
 
 ## Open questions
 - Should `emergency` be allowed for a plain input? SignalK allows it;
@@ -69,8 +69,8 @@ On the board: float switch on DI → alarm on a SignalK display.
 - [x] Host tests
 - [x] Relay page marker (small)
 - [x] USER_MANUAL §6.4, §7.1; CHANGELOG
-- [ ] On-board check: float switch on a DI raises the alarm on a SignalK
-      display (not done in this worktree -- see report)
+- [x] On-board check: float switch on a DI raises the alarm on a SignalK
+      display (HARDWARE_TESTS.md C6, passed 2026-09-28)
 
 ## Files to Create/Modify
 - `components/device_config/`

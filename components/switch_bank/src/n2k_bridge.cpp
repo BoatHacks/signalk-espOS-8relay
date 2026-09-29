@@ -16,6 +16,8 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "espos_n2k_api.h"
+#include "freertos/semphr.h"
+#include "n2k_alerts.h"
 #include "nvs.h"
 #include "switch_bank_pgn.h"
 
@@ -38,14 +40,15 @@ constexpr uint32_t kStatusPeriodMs = 2000;
 constexpr uint32_t kLoopMs = 10;
 
 constexpr unsigned char kPriority = 3;
+constexpr unsigned char kAlertPriority = 2;  // canboat's for the alert PGNs
 constexpr uint32_t kOpenTimeoutMs = 5000;  // report a CAN bus that won't open
-const unsigned long kTransmitPgns[] = {SWITCH_BANK_PGN_STATUS, 0};
+const unsigned long kTransmitPgns[] = {SWITCH_BANK_PGN_STATUS, N2K_ALERT_PGN, N2K_ALERT_PGN_TEXT, 0};
 // Extended at n2k_bridge_start() with the position PGNs when
 // position_source=n2k (issue #9, plan 16) -- ExtendReceiveMessages() keeps
 // this pointer for the library's lifetime, so it must be static storage,
-// not built on the stack. Sized for the worst case: control + both
-// position PGNs + the 0 terminator.
-unsigned long g_receive_pgns[4] = {SWITCH_BANK_PGN_CONTROL, 0, 0, 0};
+// not built on the stack. Sized for the worst case: control + alert
+// response + both position PGNs + the 0 terminator.
+unsigned long g_receive_pgns[5] = {SWITCH_BANK_PGN_CONTROL, N2K_ALERT_PGN_RESPONSE, 0, 0, 0};
 
 struct MsgListener {
   n2k_bridge_msg_listener_t cb = nullptr;
@@ -117,7 +120,28 @@ struct State {
   bool inputs_on = false;
   std::atomic<bool> changed{true};
   nvs_handle_t nvs = 0;
+  // Input alarms as alerts (plan 21). `alerts` belongs to the NMEA 2000
+  // task; settings reach it through `pending_cfg`, under `cfg_lock`.
+  n2k_alerts_t alerts{};
+  SemaphoreHandle_t cfg_lock = nullptr;
+  n2k_alerts_cfg_t pending_cfg{};
+  std::atomic<bool> cfg_changed{false};
 } s;
+
+uint32_t now_ms() { return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS); }
+
+void send_alert_pgn(unsigned long pgn, const uint8_t *data, size_t len) {
+  tN2kMsg msg;
+  msg.SetPGN(pgn);
+  msg.Priority = kAlertPriority;
+  for (size_t i = 0; i < len; i++) msg.AddByte(data[i]);
+  s.bus->SendMsg(msg);
+}
+
+void send_alert_status(const uint8_t *data, size_t len, void *) { send_alert_pgn(N2K_ALERT_PGN, data, len); }
+void send_alert_text(const uint8_t *data, size_t len, void *) { send_alert_pgn(N2K_ALERT_PGN_TEXT, data, len); }
+
+const n2k_alerts_out_t kAlertsOut = {send_alert_status, send_alert_text, nullptr};
 
 void send_status(uint8_t instance, uint8_t mask) {
   uint8_t payload[SWITCH_BANK_PAYLOAD_LEN];
@@ -143,6 +167,11 @@ void on_message(const tN2kMsg &msg) {
   // only hand a single message handler for.
   for (auto &l : g_msg_listeners) {
     if (l.cb) l.cb(static_cast<uint32_t>(msg.PGN), msg.Data, static_cast<uint8_t>(msg.DataLen), l.arg);
+  }
+  if (msg.PGN == N2K_ALERT_PGN_RESPONSE) {
+    // Sent on the task's next alerts tick.
+    n2k_alerts_on_response(&s.alerts, msg.Data, msg.DataLen);
+    return;
   }
   if (msg.PGN != SWITCH_BANK_PGN_CONTROL) return;
   switch_bank_command_t cmd;
@@ -185,6 +214,12 @@ void n2k_task(void *) {
       send_all();
       last_status = now;
     }
+    if (s.cfg_changed.exchange(false)) {
+      xSemaphoreTake(s.cfg_lock, portMAX_DELAY);
+      n2k_alerts_set_config(&s.alerts, &s.pending_cfg);
+      xSemaphoreGive(s.cfg_lock);
+    }
+    n2k_alerts_tick(&s.alerts, s.io.inputs_ready(), s.io.input_mask(), now_ms(), &kAlertsOut);
     vTaskDelay(pdMS_TO_TICKS(kLoopMs));
   }
 }
@@ -201,7 +236,7 @@ extern "C" esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_co
   // (issue #9, plan 16): no point asking the library to hand us messages
   // nothing will decode. restart_required in the setting's schema, since
   // this list is fixed once ExtendReceiveMessages() below has run.
-  int pgn_idx = 1;
+  int pgn_idx = 2;
   if (cfg->position_source == POSITION_SRC_N2K) {
     g_receive_pgns[pgn_idx++] = 129025;
     g_receive_pgns[pgn_idx++] = 129029;
@@ -229,6 +264,12 @@ extern "C" esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_co
   s.bus->ExtendTransmitMessages(kTransmitPgns);
   s.bus->ExtendReceiveMessages(g_receive_pgns);
   s.bus->SetMsgHandler(on_message);
+  s.cfg_lock = xSemaphoreCreateMutex();
+  if (!s.cfg_lock) return ESP_ERR_NO_MEM;
+  n2k_alerts_cfg_t alerts_cfg;
+  n2k_alerts_cfg_from(cfg, &alerts_cfg);
+  // The NAME is fixed from here on (address claim changes only the address).
+  n2k_alerts_init(&s.alerts, &alerts_cfg, s.input_bank, s.bus->GetDeviceInformation().GetName(), now_ms());
   // Not Open() here: the library only opens once a millisecond has passed
   // since the object was made (OpenScheduler.FromNow(0) is checked with
   // `>`), so a quick first Open() returns false without trying, and 0.0.9
@@ -245,6 +286,18 @@ extern "C" esp_err_t n2k_bridge_start(const n2k_bridge_io_t *io, const device_co
 }
 
 extern "C" void n2k_bridge_state_changed(void) { s.changed.store(true); }
+
+extern "C" void n2k_bridge_update_config(const device_config_t *cfg) {
+  if (!s.cfg_lock) return;  // not started
+  n2k_alerts_cfg_t c;
+  n2k_alerts_cfg_from(cfg, &c);
+  // The input bank id needs a restart (as for 127501): keep the running one.
+  c.inputs_on = s.inputs_on;
+  xSemaphoreTake(s.cfg_lock, portMAX_DELAY);
+  s.pending_cfg = c;
+  xSemaphoreGive(s.cfg_lock);
+  s.cfg_changed.store(true);
+}
 
 extern "C" void n2k_bridge_get_status(n2k_bridge_status_t *out) {
   out->started = g_started.load();
