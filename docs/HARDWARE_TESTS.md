@@ -344,20 +344,38 @@ the last number of the IP address? A second POST while it plays → `409`.
 `5000`, test; back to `2700`. Pass if the pitch changes without a
 restart and both ends are audible.
 
-**G4 [human] Alarm buzzer.** `setcfg '"buzzer_alarm":true'`, then cause
-an alarm (disconnect the relay chip's I²C, or ask for another way); pass
-if the buzzer repeats the pattern every few seconds and the LED is red.
-Restore and `setcfg '"buzzer_alarm":false'`.
+**G4 [human] Alarm buzzer.** Needs espOS 0.12.0 or later, for its
+health drill endpoint ([espOS#137](https://github.com/signalk-espOS/espOS/issues/137),
+added in espOS#149). A drill raises a synthetic `test.*` condition through
+the same path as a real fault, so the LED and buzzer react to it exactly
+as they would to `relayExpander`. It can never reboot the board, and it
+clears itself after `ttl_s`.
 
-**Decided 2026-09-28: not opening the case to trigger this.** The only
-way to cause the one `ALARM`-level condition that doesn't force a reboot
-(`relayExpander`, an I²C fault) is physically disconnecting the relay
-chip's I²C inside the case, and that's declined as a way to run this
-test. This test stays blocked until
-[espOS#137](https://github.com/signalk-espOS/espOS/issues/137)'s
-proposed remote test-injection endpoint (like the existing buzzer-test
-endpoint) lands upstream, which would let it move to `[auto]`. Don't
-suggest opening the case as a way to unblock it.
+```sh
+setcfg '"buzzer_alarm":true'
+curl -s -X POST -H "$H" \
+  -d '{"key":"test.g4","state":"alarm","message":"G4 drill","ttl_s":45}' \
+  $B/api/v1/health/test | python3 -m json.tool
+```
+
+The response (and `curl -s $B/api/v1/health` while the drill is up) shows
+`"worst": "alarm"`, `"fatal": null` and a `test.g4` entry in
+`conditions`. Ask the person: does the buzzer repeat the alarm pattern
+every few seconds, and is the LED red? Then clear it and restore:
+
+```sh
+curl -s -X POST -H "$H" -d '{"key":"test.g4","state":"normal"}' \
+  $B/api/v1/health/test
+setcfg '"buzzer_alarm":false'
+```
+
+Pass if the buzzer and LED react as above, stop once the drill is
+cleared, and the board did not restart (no fresh boot banner in the
+log). Checking the API and log needs no one; only the buzzer and LED
+check needs the person.
+
+Don't trigger a real alarm by opening the case to disconnect the relay
+chip's I²C: that was declined on 2026-09-28, and the drill replaces it.
 
 ## H. Updates
 
