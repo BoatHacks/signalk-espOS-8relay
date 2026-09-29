@@ -66,6 +66,31 @@ TEST_CASE("RTTTL: empty or malformed input parses to zero notes", "[tone]")
     TEST_ASSERT_EQUAL(0, rtttl_parse("x:d=4,o=5,b=120:", notes, RTTTL_MAX_NOTES));
 }
 
+// Plan 22, area 5: a huge octave used to loop once per octave (minutes on
+// the chip for o=2147483647) and overflow the frequency; long digit strings
+// overflowed an int.
+TEST_CASE("RTTTL: an out-of-range octave plays at octave 8, at once", "[tone]")
+{
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    TEST_ASSERT_EQUAL(1, rtttl_parse("x:d=4,o=2147483647,b=63:c", notes, RTTTL_MAX_NOTES));
+    TEST_ASSERT_EQUAL(4186, notes[0].freq_hz);  // c8
+    TEST_ASSERT_EQUAL(1, rtttl_parse("x:d=4,o=5,b=63:c99999999999999999999", notes, RTTTL_MAX_NOTES));
+    TEST_ASSERT_EQUAL(4186, notes[0].freq_hz);
+    TEST_ASSERT_EQUAL(1, rtttl_parse("x:d=4,o=5,b=63:b#8", notes, RTTTL_MAX_NOTES));
+    TEST_ASSERT_EQUAL(8372, notes[0].freq_hz);  // b#8 is c9, still in range
+}
+
+TEST_CASE("RTTTL: huge numbers are capped, not wrapped", "[tone]")
+{
+    rtttl_note_t notes[RTTTL_MAX_NOTES];
+    // A tempo that overflowed an int used to wrap negative and drop the tune.
+    TEST_ASSERT_EQUAL(1, rtttl_parse("x:d=1,o=5,b=99999999999:c", notes, RTTTL_MAX_NOTES));
+    TEST_ASSERT_EQUAL(24, notes[0].duration_ms);  // 240000 / 9999
+    // A note longer than uint16_t holds is cut to its maximum, not wrapped.
+    TEST_ASSERT_EQUAL(1, rtttl_parse("x:d=1,o=5,b=1:c.", notes, RTTTL_MAX_NOTES));
+    TEST_ASSERT_EQUAL(65535, notes[0].duration_ms);
+}
+
 TEST_CASE("RTTTL: the tone follows the notes, then stops (one pass, no loop)", "[tone]")
 {
     rtttl_note_t notes[RTTTL_MAX_NOTES];
