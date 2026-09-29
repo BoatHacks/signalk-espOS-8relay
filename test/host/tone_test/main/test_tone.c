@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "tone.h"
+#include "tone_player.h"
 #include "unity.h"
 
 // -------------------------------------------------------------- RTTTL (#14)
@@ -134,4 +135,67 @@ TEST_CASE("chirp priority: HIGH always outranks NONE and CHIRP", "[tone]")
     TEST_ASSERT_TRUE(tone_priority_allowed(TONE_PRIORITY_HIGH, TONE_PRIORITY_NONE));
     TEST_ASSERT_TRUE(tone_priority_allowed(TONE_PRIORITY_HIGH, TONE_PRIORITY_CHIRP));
     TEST_ASSERT_FALSE(tone_priority_allowed(TONE_PRIORITY_HIGH, TONE_PRIORITY_HIGH));
+}
+
+// ------------------------------------------------------ one-shot player
+
+static tone_t two_notes(void)
+{
+    // 8th notes at 120 bpm = 250 ms each: a6 (1760 Hz), then a rest, then c7.
+    tone_t t = {0};
+    t.n_notes = rtttl_parse("x:d=8,o=6,b=120:a,p,c7", t.notes, RTTTL_MAX_NOTES);
+    return t;
+}
+
+TEST_CASE("player: sounds each note at its pitch, silent in a rest", "[tone]")
+{
+    tone_t t = two_notes();
+    tone_player_t p = {0};
+    uint16_t hz = 0;
+    TEST_ASSERT_TRUE(tone_player_start(&p, &t, 1000));
+    TEST_ASSERT_TRUE(tone_player_step(&p, 1000, &hz));
+    TEST_ASSERT_EQUAL(1760, hz);
+    hz = 42;
+    TEST_ASSERT_FALSE(tone_player_step(&p, 1300, &hz));  // the rest
+    TEST_ASSERT_EQUAL(42, hz);                           // pitch left alone
+    TEST_ASSERT_TRUE(p.playing);
+    TEST_ASSERT_TRUE(tone_player_step(&p, 1600, &hz));
+    TEST_ASSERT_EQUAL(2093, hz);
+}
+
+TEST_CASE("player: one pass, then it stops by itself", "[tone]")
+{
+    tone_t t = two_notes();
+    tone_player_t p = {0};
+    uint16_t hz = 0;
+    tone_player_start(&p, &t, 0);
+    TEST_ASSERT_EQUAL(750, p.len_ms);
+    TEST_ASSERT_FALSE(tone_player_step(&p, 750, &hz));
+    TEST_ASSERT_FALSE(p.playing);
+    TEST_ASSERT_FALSE(tone_player_step(&p, 0, &hz));  // not restarted by an earlier time
+}
+
+TEST_CASE("player: an empty tone doesn't start; stop is immediate", "[tone]")
+{
+    tone_t empty = {0};
+    tone_t t = two_notes();
+    tone_player_t p = {0};
+    uint16_t hz = 0;
+    TEST_ASSERT_FALSE(tone_player_start(&p, &empty, 0));
+    TEST_ASSERT_FALSE(p.playing);
+    tone_player_start(&p, &t, 0);
+    tone_player_stop(&p);
+    TEST_ASSERT_FALSE(tone_player_step(&p, 10, &hz));
+}
+
+TEST_CASE("player: survives the millisecond clock wrapping", "[tone]")
+{
+    tone_t t = two_notes();
+    tone_player_t p = {0};
+    uint16_t hz = 0;
+    tone_player_start(&p, &t, UINT32_MAX - 100);
+    TEST_ASSERT_TRUE(tone_player_step(&p, 50, &hz));  // 151 ms in: first note
+    TEST_ASSERT_EQUAL(1760, hz);
+    TEST_ASSERT_TRUE(tone_player_step(&p, 500, &hz));  // 601 ms in: third note
+    TEST_ASSERT_EQUAL(2093, hz);
 }
