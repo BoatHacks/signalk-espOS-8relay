@@ -111,7 +111,10 @@ void counters_on_change(counters_kind_t kind, uint8_t channel, bool on, uint32_t
 void counters_get(counters_kind_t kind, uint8_t channel, uint32_t now_ms, uint32_t *cycles, uint32_t *runtime_s)
 {
     slot_t *slot = slot_of(kind, channel);
-    if (!slot) {
+    // !s.lock: counters_init() never ran (its NVS namespace failed to open,
+    // main.c boots on without counters), but the relay page and SignalK
+    // still ask. Read zeros rather than take a NULL mutex.
+    if (!slot || !s.lock) {
         if (cycles) {
             *cycles = 0;
         }

@@ -10,6 +10,7 @@
 typedef struct {
     bool valid;  // has this entry's "last active" actually been computed
     bool active;
+    uint8_t relay;  // the relay `active` was last sent to
 } entry_state_t;
 
 static struct {
@@ -160,9 +161,12 @@ void schedule_eval_tick(const device_config_t *cfg, bool time_valid, const espos
         }
         const bool active =
             sc->mode == SCHEDULE_MODE_REPEAT ? repeat_active(sc, local) : clock_active(sc, local, &sun_today);
-        if (!s.entries[i].valid || active != s.entries[i].active) {
+        // An entry retargeted to another relay resyncs that relay at once,
+        // like a re-enabled one: it has never been told this entry's state.
+        if (!s.entries[i].valid || active != s.entries[i].active || sc->relay != s.entries[i].relay) {
             s.io.set_relay(sc->relay, active);
             s.entries[i].active = active;
+            s.entries[i].relay = sc->relay;
             s.entries[i].valid = true;
         }
     }

@@ -396,3 +396,26 @@ TEST_CASE("a disabled entry (relay=0) is skipped; re-enabling resyncs", "[schedu
     TEST_ASSERT_EQUAL(7, calls[0].channel);
     TEST_ASSERT_TRUE(calls[0].on);
 }
+
+TEST_CASE("an entry moved to another relay syncs the new relay at once", "[schedule_eval]")
+{
+    fresh();
+    reset_cfg();
+    entry(1)->relay = 3;
+    entry(1)->days = 0x7F;
+    entry(1)->on = (schedule_time_t){.kind = SCHEDULE_TIME_CLOCK, .minute_of_day = 0};
+    entry(1)->off = (schedule_time_t){.kind = SCHEDULE_TIME_CLOCK, .minute_of_day = 1439};
+
+    espos_time_parts_t local = local_at(2026, 9, 28, 1, 12, 0, 0);
+    schedule_eval_tick(&s_cfg, true, &local, 0, 0);
+    TEST_ASSERT_EQUAL(1, n_calls);
+    TEST_ASSERT_EQUAL(3, calls[0].channel);
+
+    // Same window, other relay: nothing about "active" changes, but relay 5
+    // has never been told. It must not wait for the next edge.
+    entry(1)->relay = 5;
+    schedule_eval_tick(&s_cfg, true, &local, 0, 0);
+    TEST_ASSERT_EQUAL(2, n_calls);
+    TEST_ASSERT_EQUAL(5, calls[1].channel);
+    TEST_ASSERT_TRUE(calls[1].on);
+}
