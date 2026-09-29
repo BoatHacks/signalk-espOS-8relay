@@ -58,12 +58,27 @@ typedef struct {
     bool n2k_started;
     uint8_t n2k_address;
     bool n2k_traffic;
+    // The clock, for the page's Clock section (setting it by hand on a
+    // board with no SNTP or SignalK). clock_local is the board's own
+    // timezone, "YYYY-MM-DD HH:MM:SS"; clock_source is espOS's name for
+    // who set it ("rtc", "sk", "manual", "sntp"). rtc_ok: the PCF85063 is
+    // there to keep a set time across a power cut.
+    bool clock_synced;
+    char clock_source[8];
+    int64_t clock_unix_ms;
+    char clock_local[32];  // roomy enough that -Wformat-truncation has nothing to say
+    int32_t clock_utc_offset_s;
+    char clock_tz[40];
+    bool rtc_ok;
 } web_ui_status_t;
 
 // {"version":"…","hostname":"…","network":{"up":true,"interface":"eth",
 //  "ip":"…"},"signalk":{"enabled":true,"connected":true,"server":"…"},
-//  "nmea2000":{"started":true,"address":35,"traffic":true}}; empty strings
-// become null. Returns a malloc'ed string, or NULL when out of memory.
+//  "nmea2000":{"started":true,"address":35,"traffic":true},
+//  "clock":{"synced":true,"source":"manual","now":<unix ms>,
+//  "local":"2026-09-29 21:20:05","utcOffsetS":7200,"tz":"…","rtc":true}};
+// empty strings become null, and so do the clock's source/now/local/
+// utcOffsetS while it isn't synced. Returns a malloc'ed string, or NULL when out of memory.
 char *web_ui_status_json(const web_ui_status_t *st);
 
 // Relay channel from a request path "<prefix>/<n>", n = 1..BOARD_CHANNELS

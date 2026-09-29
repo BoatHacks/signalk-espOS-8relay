@@ -143,7 +143,8 @@ char *web_ui_status_json(const web_ui_status_t *st)
     cJSON *net = cJSON_AddObjectToObject(root, "network");
     cJSON *sk = cJSON_AddObjectToObject(root, "signalk");
     cJSON *n2k = cJSON_AddObjectToObject(root, "nmea2000");
-    if (!net || !sk || !n2k) {
+    cJSON *clk = cJSON_AddObjectToObject(root, "clock");
+    if (!net || !sk || !n2k || !clk) {
         cJSON_Delete(root);
         return NULL;
     }
@@ -160,6 +161,21 @@ char *web_ui_status_json(const web_ui_status_t *st)
         cJSON_AddNullToObject(n2k, "address");
     }
     cJSON_AddBoolToObject(n2k, "traffic", st->n2k_started && st->n2k_traffic);
+    cJSON_AddBoolToObject(clk, "synced", st->clock_synced);
+    if (st->clock_synced) {
+        add_str_or_null(clk, "source", st->clock_source);
+        // A double holds unix milliseconds exactly (cJSON's int is 32-bit).
+        cJSON_AddNumberToObject(clk, "now", (double)st->clock_unix_ms);
+        add_str_or_null(clk, "local", st->clock_local);
+        cJSON_AddNumberToObject(clk, "utcOffsetS", st->clock_utc_offset_s);
+    } else {
+        cJSON_AddNullToObject(clk, "source");
+        cJSON_AddNullToObject(clk, "now");
+        cJSON_AddNullToObject(clk, "local");
+        cJSON_AddNullToObject(clk, "utcOffsetS");
+    }
+    add_str_or_null(clk, "tz", st->clock_tz);
+    cJSON_AddBoolToObject(clk, "rtc", st->rtc_ok);
     char *out = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     return out;

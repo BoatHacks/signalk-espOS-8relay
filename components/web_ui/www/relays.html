@@ -56,6 +56,14 @@ h1 small { font-size: 13px; font-weight: 400; color: var(--muted); }
   border-radius: 999px; padding: 1px 8px; }
 .counters { display: flex; align-items: center; gap: 6px; }
 .reset { padding: 2px 8px; min-height: auto; font-size: 12px; font-weight: 400; color: var(--muted); }
+.clock { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 14px; margin-top: 12px; }
+.clock h2 { font-size: 16px; margin: 0 0 4px; }
+.clock .now { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.clock .set { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.clock input { font: inherit; padding: 7px 10px; min-height: 40px; border-radius: 8px;
+  border: 1px solid var(--btn-line); background: var(--btn); color: var(--text); }
+.clock .warn { color: var(--warn); }
 @media (min-width: 640px) {
   .row { grid-template-columns: minmax(0, 1fr) auto minmax(150px, 190px); }
   .input { grid-column: auto; }
@@ -78,6 +86,20 @@ h1 small { font-size: 13px; font-weight: 400; color: var(--muted); }
   <p id="links"></p>
   <p id="status">Loading…</p>
   <div id="list" class="list"></div>
+  <section class="clock">
+    <h2>Clock</h2>
+    <div id="clock-now" class="now">–</div>
+    <div id="clock-meta" class="meta"></div>
+    <div id="clock-warn" class="meta warn" hidden></div>
+    <div class="set">
+      <button id="clock-browser" class="off" type="button">Set to this device's time</button>
+    </div>
+    <div class="set">
+      <input id="clock-input" type="datetime-local" step="1" aria-label="Date and time to set">
+      <button id="clock-set" class="off" type="button">Set</button>
+    </div>
+    <div id="clock-hint" class="meta"></div>
+  </section>
 </main>
 <script>
 "use strict";
@@ -320,6 +342,7 @@ function renderStatus(st) {
   parts.push(!n2k.started ? part("NMEA 2000: off", false)
     : part("NMEA 2000: address " + n2k.address + (n2k.traffic ? "" : ", no bus traffic"), n2k.traffic));
   linksEl.replaceChildren(...parts);
+  if (st.clock) renderClock(st.clock);
 }
 
 async function pollStatus() {
@@ -330,6 +353,112 @@ async function pollStatus() {
   } catch (e) { /* the relay poll reports reachability */ }
   if (!document.hidden) statusTimer = setTimeout(pollStatus, STATUS_MS);
 }
+
+// The Clock section: show the board's time and set it by hand, for a board
+// with no NTP server or SignalK to learn it from. Setting goes to espOS's
+// own PUT /api/v1/time (a "manual" source: outranks SignalK and the RTC,
+// never NTP); the firmware then writes it to the RTC chip so it survives a
+// power cut.
+const clockNow = document.getElementById("clock-now");
+const clockMeta = document.getElementById("clock-meta");
+const clockWarn = document.getElementById("clock-warn");
+const clockHint = document.getElementById("clock-hint");
+const clockInput = document.getElementById("clock-input");
+const clockSet = document.getElementById("clock-set");
+const clockBrowser = document.getElementById("clock-browser");
+const CLOCK_SOURCES = { rtc: "the board's RTC", sk: "SignalK", manual: "set by hand", sntp: "NTP" };
+let clock = null;       // the last status "clock" object
+let clockAt = 0;        // Date.now() when it arrived, to keep the display ticking
+let clockTimer = null;
+
+const pad = (n) => String(n).padStart(2, "0");
+
+function fmtOffset(s) {
+  const a = Math.abs(s);
+  return "UTC" + (s < 0 ? "−" : "+") + pad(Math.floor(a / 3600)) + ":" + pad(Math.floor(a % 3600 / 60));
+}
+
+// "YYYY-MM-DDTHH:MM:SS" of a Date's UTC fields: what a datetime-local input
+// takes, and (shifted by the board's offset) the board's local time.
+function isoLocal(d) {
+  return d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate()) + "T" +
+    pad(d.getUTCHours()) + ":" + pad(d.getUTCMinutes()) + ":" + pad(d.getUTCSeconds());
+}
+
+// The board's offset is only known while its clock is set; before that an
+// entered time is read in this browser's own zone instead.
+function boardZone() {
+  return clock && clock.synced && typeof clock.utcOffsetS === "number";
+}
+
+function boardNowLocal() {
+  const ms = clock.now + (Date.now() - clockAt) + clock.utcOffsetS * 1000;
+  return isoLocal(new Date(ms));
+}
+
+function tickClock() {
+  clearTimeout(clockTimer);
+  if (clock && clock.synced) {
+    clockNow.textContent = boardNowLocal().replace("T", " ") + " (" + fmtOffset(clock.utcOffsetS) + ")";
+    clockTimer = setTimeout(tickClock, 1000 - (Date.now() % 1000));
+  } else {
+    clockNow.textContent = "Not set";
+  }
+}
+
+function renderClock(c) {
+  clock = c;
+  clockAt = Date.now();
+  tickClock();
+  const bits = [];
+  if (c.synced) bits.push("from " + (CLOCK_SOURCES[c.source] || c.source));
+  else bits.push("schedules don't run until the clock is set");
+  if (c.tz) bits.push("time zone " + c.tz);
+  clockMeta.textContent = bits.join(" · ");
+  clockWarn.hidden = c.rtc;
+  clockWarn.textContent = c.rtc ? "" : "RTC chip not found: a time set here is lost at the next power cut.";
+  const ntp = c.synced && c.source === "sntp";
+  clockSet.disabled = clockBrowser.disabled = ntp;
+  clockHint.textContent = ntp
+    ? "NTP keeps this clock, so it can't be set by hand."
+    : boardZone()
+      ? "A time typed above is read in the board's time zone (" + fmtOffset(c.utcOffsetS) + ")."
+      : "A time typed above is read in this browser's time zone, since the board's clock isn't set yet.";
+  if (!clockInput.value && document.activeElement !== clockInput) {
+    clockInput.value = boardZone() ? boardNowLocal() : isoLocal(new Date(Date.now() - new Date().getTimezoneOffset() * 60000));
+  }
+}
+
+// Unix ms for what's typed into the input, or NaN.
+function enteredMs() {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(clockInput.value);
+  if (!m) return NaN;
+  const f = m.slice(1).map((x) => Number(x || 0));
+  if (boardZone()) return Date.UTC(f[0], f[1] - 1, f[2], f[3], f[4], f[5]) - clock.utcOffsetS * 1000;
+  return new Date(f[0], f[1] - 1, f[2], f[3], f[4], f[5]).getTime();
+}
+
+async function setClock(ms) {
+  if (!(ms > 0)) { showStatus("Enter a date and time first", true); return; }
+  showStatus("Setting the clock…");
+  try {
+    const res = await fetch("/api/v1/time", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ now: Math.round(ms) }),
+    });
+    if (res.status === 409) throw new Error("NTP already keeps this clock");
+    await handle(res);
+    clockInput.value = "";
+    showStatus("Clock set");
+  } catch (e) {
+    showStatus("Setting the clock failed: " + e.message, true);
+  }
+  pollStatus();
+}
+
+clockBrowser.onclick = () => setClock(Date.now());
+clockSet.onclick = () => setClock(enteredMs());
 
 document.getElementById("buzz").onclick = async () => {
   showStatus("Buzzer test…");

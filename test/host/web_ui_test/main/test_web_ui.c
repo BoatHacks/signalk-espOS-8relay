@@ -260,6 +260,49 @@ TEST_CASE("status: down, unknown and not started become false or null", "[web_ui
     cJSON_Delete(root);
 }
 
+TEST_CASE("status: a synced clock reports source, instant, local time and offset", "[web_ui]")
+{
+    web_ui_status_t st = {.clock_synced = true, .clock_unix_ms = 1790709605123LL,
+                          .clock_utc_offset_s = 7200, .rtc_ok = true};
+    strcpy(st.clock_source, "manual");
+    strcpy(st.clock_local, "2026-09-29 21:20:05");
+    strcpy(st.clock_tz, "CET-1CEST,M3.5.0,M10.5.0/3");
+    char *json = web_ui_status_json(&st);
+    cJSON *root = cJSON_Parse(json);
+    free(json);
+    cJSON *clk = cJSON_GetObjectItem(root, "clock");
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(clk, "synced")));
+    TEST_ASSERT_EQUAL_STRING("manual", cJSON_GetObjectItem(clk, "source")->valuestring);
+    // Unix ms is past 2^31, so check the double, not cJSON's 32-bit valueint.
+    TEST_ASSERT_TRUE(cJSON_GetObjectItem(clk, "now")->valuedouble == 1790709605123.0);
+    TEST_ASSERT_EQUAL_STRING("2026-09-29 21:20:05", cJSON_GetObjectItem(clk, "local")->valuestring);
+    TEST_ASSERT_EQUAL(7200, cJSON_GetObjectItem(clk, "utcOffsetS")->valueint);
+    TEST_ASSERT_EQUAL_STRING("CET-1CEST,M3.5.0,M10.5.0/3", cJSON_GetObjectItem(clk, "tz")->valuestring);
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItem(clk, "rtc")));
+    cJSON_Delete(root);
+}
+
+TEST_CASE("status: an unsynced clock nulls every time field but still reports tz and rtc", "[web_ui]")
+{
+    // Stale values behind synced = false must not leak out.
+    web_ui_status_t st = {.clock_unix_ms = 1790709605123LL, .clock_utc_offset_s = 7200};
+    strcpy(st.clock_source, "rtc");
+    strcpy(st.clock_local, "2026-09-29 21:20:05");
+    strcpy(st.clock_tz, "UTC0");
+    char *json = web_ui_status_json(&st);
+    cJSON *root = cJSON_Parse(json);
+    free(json);
+    cJSON *clk = cJSON_GetObjectItem(root, "clock");
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(clk, "synced")));
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(clk, "source")));
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(clk, "now")));
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(clk, "local")));
+    TEST_ASSERT_TRUE(cJSON_IsNull(cJSON_GetObjectItem(clk, "utcOffsetS")));
+    TEST_ASSERT_EQUAL_STRING("UTC0", cJSON_GetObjectItem(clk, "tz")->valuestring);
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItem(clk, "rtc")));
+    cJSON_Delete(root);
+}
+
 // ---------------------------------------------------- interlock (issue #8)
 
 TEST_CASE("all-on skip mask: interlocked relays only", "[web_ui]")
