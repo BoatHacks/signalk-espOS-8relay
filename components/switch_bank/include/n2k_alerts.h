@@ -78,7 +78,8 @@ void n2k_alerts_init(n2k_alerts_t *a, const n2k_alerts_cfg_t *cfg, uint8_t insta
 void n2k_alerts_set_config(n2k_alerts_t *a, const n2k_alerts_cfg_t *cfg);
 
 // Call often (every loop of the NMEA 2000 task): raises, clears and
-// repeats alerts from the current input readings.
+// repeats alerts from the current input readings. Sends for one channel
+// per call at most; other channels' due messages wait for the next call.
 void n2k_alerts_tick(n2k_alerts_t *a, bool inputs_ready, uint8_t input_mask, uint32_t now_ms,
                      const n2k_alerts_out_t *out);
 

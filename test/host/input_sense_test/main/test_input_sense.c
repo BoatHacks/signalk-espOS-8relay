@@ -110,6 +110,61 @@ TEST_CASE("start-up applies every override from the settled inputs", "[input_sen
     TEST_ASSERT_FALSE(overrides[2].on);
 }
 
+// Bounce input `input` (20 ms on, 20 ms off) for `ms`, polling as run_for().
+static void chatter(int input, uint32_t ms)
+{
+    for (uint32_t t = 0; t < ms; t += 5) {
+        energise(input, (t / 20) % 2 == 0);
+        clock_ms += 5;
+        input_sense_poll();
+    }
+}
+
+TEST_CASE("one input bouncing at start-up doesn't hold back the others", "[input_sense]")
+{
+    fresh();
+    cfg.relays[0].override_di = 3;  // relay 1 follows input 3
+    energise(3, true);
+    start();
+    chatter(1, 1000);  // inside debounce + 1 s: still waiting
+    TEST_ASSERT_FALSE(input_sense_ready());
+    TEST_ASSERT_EQUAL(0, n_changes);
+    chatter(1, 100);
+    TEST_ASSERT_TRUE(input_sense_ready());
+    TEST_ASSERT_EQUAL_HEX8(0x04, input_sense_get_mask());  // input 1 reads off
+    TEST_ASSERT_EQUAL(8, n_changes);
+    TEST_ASSERT_EQUAL(1, n_overrides);
+    TEST_ASSERT_EQUAL(1, overrides[0].ch);
+    TEST_ASSERT_TRUE(overrides[0].on);
+}
+
+TEST_CASE("a late input's first reading is its boot reading", "[input_sense]")
+{
+    fresh();
+    cfg.relays[1].override_di = 1;  // relay 2 follows input 1
+    cfg.relays[2].override_di = 1;  // relay 3 toggles on input 1
+    cfg.relays[2].link = INPUT_LINK_TOGGLE;
+    start();
+    chatter(1, 1100);
+    TEST_ASSERT_TRUE(input_sense_ready());
+    TEST_ASSERT_EQUAL(0, n_overrides);  // input 1 never settled: no override yet
+    n_changes = 0;
+    energise(1, true);
+    run_for(60);
+    TEST_ASSERT_EQUAL_HEX8(0x01, input_sense_get_mask());
+    TEST_ASSERT_EQUAL(1, n_changes);
+    TEST_ASSERT_EQUAL(1, n_overrides);  // the follow link; no toggle
+    TEST_ASSERT_EQUAL(2, overrides[0].ch);
+    TEST_ASSERT_TRUE(overrides[0].on);
+    // From here on it is an ordinary input: a press toggles.
+    energise(1, false);
+    run_for(60);
+    energise(1, true);
+    run_for(60);
+    TEST_ASSERT_EQUAL(4, n_overrides);
+    TEST_ASSERT_TRUE(overrides[3].toggle);
+}
+
 // ------------------------------------------------------------- debounce
 
 TEST_CASE("bounce shorter than the debounce time is ignored", "[input_sense]")

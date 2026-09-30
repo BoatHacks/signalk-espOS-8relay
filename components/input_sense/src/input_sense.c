@@ -4,6 +4,10 @@
 #include <string.h>
 
 #define MAX_LISTENERS 4
+// How long past the debounce time start-up waits for every input to settle.
+// After that, inputs still bouncing are reported off, so one chattering
+// input can't keep the other seven (and their alarms) dark.
+#define STARTUP_GRACE_MS 1000
 
 typedef struct {
     input_listener_t cb;
@@ -19,6 +23,10 @@ static struct {
     bool candidate[BOARD_CHANNELS];
     uint32_t candidate_since[BOARD_CHANNELS];
     uint8_t stable;
+    uint32_t start_ms;
+    // Inputs that hadn't settled when start-up gave up waiting: reported off
+    // until they first settle, which then counts as their boot reading.
+    uint8_t late;
     atomic_uchar published;  // `stable`, once ready
     atomic_bool ready;
     listener_t listeners[MAX_LISTENERS];
@@ -66,10 +74,12 @@ esp_err_t input_sense_init(const input_sense_hw_t *hw, const device_config_t *cf
     s.cfg = *cfg;
     s.override = override;
     s.stable = 0;
+    s.late = 0;
     atomic_store(&s.published, 0);
     atomic_store(&s.ready, false);
     const uint8_t raw = s.hw.read_pins(s.hw.ctx);
     const uint32_t now = s.hw.now_ms();
+    s.start_ms = now;
     for (int i = 0; i < BOARD_CHANNELS; i++) {
         s.candidate[i] = read_input(raw, i);
         s.candidate_since[i] = now;
@@ -106,7 +116,7 @@ void input_sense_poll(void)
 {
     const uint8_t raw = s.hw.read_pins(s.hw.ctx);
     const uint32_t now = s.hw.now_ms();
-    bool all_settled = true;
+    uint8_t settled = 0;
     uint8_t settled_value = 0;
 
     for (int i = 0; i < BOARD_CHANNELS; i++) {
@@ -116,35 +126,46 @@ void input_sense_poll(void)
             s.candidate_since[i] = now;
         }
         if (now - s.candidate_since[i] >= s.cfg.debounce_ms) {
+            settled |= 1u << i;
             settled_value |= (uint8_t)(v << i);
-        } else {
-            all_settled = false;
         }
     }
 
     if (!atomic_load(&s.ready)) {
-        if (!all_settled) {
+        if (settled != 0xFF && now - s.start_ms < (uint32_t)s.cfg.debounce_ms + STARTUP_GRACE_MS) {
             return;
         }
         // First stable readings: report every input, then apply every
         // override (after relay_ctrl's own boot state, as SPEC.md §2 wants).
+        // An input still bouncing reads off for now; its first settled
+        // reading is handled as a boot reading below.
         s.stable = settled_value;
+        s.late = (uint8_t)~settled;
         atomic_store(&s.published, s.stable);
         atomic_store(&s.ready, true);
         for (int i = 0; i < BOARD_CHANNELS; i++) {
             notify(i, s.stable & (1u << i), s.stable);
         }
         for (int i = 0; i < BOARD_CHANNELS; i++) {
-            apply_override(i, s.stable & (1u << i), true);
+            if (settled & (1u << i)) {
+                apply_override(i, s.stable & (1u << i), true);
+            }
         }
         return;
     }
 
     uint8_t changed = 0;
+    uint8_t boot = 0;
     for (int i = 0; i < BOARD_CHANNELS; i++) {
         const uint8_t bit = 1u << i;
-        const bool settled = now - s.candidate_since[i] >= s.cfg.debounce_ms;
-        if (settled && s.candidate[i] != (bool)(s.stable & bit)) {
+        if (!(settled & bit)) {
+            continue;
+        }
+        if (s.late & bit) {
+            s.late &= ~bit;
+            boot |= bit;
+        }
+        if (s.candidate[i] != (bool)(s.stable & bit)) {
             s.stable ^= bit;
             changed |= bit;
         }
@@ -156,7 +177,9 @@ void input_sense_poll(void)
     for (int i = 0; i < BOARD_CHANNELS; i++) {
         if (changed & (1u << i)) {
             notify(i, s.stable & (1u << i), s.stable);
-            apply_override(i, s.stable & (1u << i), false);
+            // A late input's first reading is its boot reading: a toggle
+            // link ignores it, as it would at start-up.
+            apply_override(i, s.stable & (1u << i), boot & (1u << i));
         }
     }
 }

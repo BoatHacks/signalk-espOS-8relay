@@ -217,6 +217,26 @@ TEST_CASE("alerts: input off sends Normal three times, then nothing", "[alerts]"
     TEST_ASSERT_EQUAL(N2K_ALERT_STATE_NORMAL, state_sent());
 }
 
+TEST_CASE("alerts: several channels due together go out one channel per tick", "[alerts]")
+{
+    n2k_alerts_cfg_t c = cfg_with(0, INPUT_ALARM_OFF);
+    for (int i = 0; i < BOARD_CHANNELS; i++) {
+        c.level[i] = INPUT_ALARM_ALARM;
+    }
+    start(&c);
+    n2k_alerts_tick(&a, true, 0xFF, 10, &out);
+    TEST_ASSERT_EQUAL(1, sent.text);  // channel 1 only
+    TEST_ASSERT_EQUAL(1, sent.status);
+    for (uint32_t t = 20; t <= 80; t += 10) {
+        n2k_alerts_tick(&a, true, 0xFF, t, &out);
+    }
+    TEST_ASSERT_EQUAL(8, sent.text);  // all eight raised, 10 ms apart
+    TEST_ASSERT_EQUAL(8, sent.status);
+    TEST_ASSERT_EQUAL(8, sent.last_status[3]);  // alert id = channel 8, last
+    n2k_alerts_tick(&a, true, 0xFF, 90, &out);
+    TEST_ASSERT_EQUAL(8, sent.status);  // nothing left due
+}
+
 TEST_CASE("alerts: each trip is a new occurrence", "[alerts]")
 {
     n2k_alerts_cfg_t c = cfg_with(1, INPUT_ALARM_ALARM);

@@ -91,8 +91,13 @@ class EsposN2k : public tNMEA2000 {
     m.frame.extended = true;
     m.frame.dlc = len > espos_n2k::kCanMaxData ? espos_n2k::kCanMaxData : len;
     memcpy(m.frame.data, buf, m.frame.dlc);
-    tx_.set(m);  // queues without blocking; a full queue is counted by espOS
-    return true;
+    // set() queues without blocking and only counts a frame it couldn't
+    // queue. Say so here: the library then keeps the frame in its own send
+    // buffer and retries it from ParseMessages(), instead of the frame (and
+    // with it a whole fast-packet message) being lost (plan 22, 1.2).
+    const uint32_t fails = tx_.tx_fail_count();
+    tx_.set(m);
+    return tx_.tx_fail_count() == fails;
   }
 
   bool CANGetFrame(unsigned long &id, unsigned char &len, unsigned char *buf) override {
