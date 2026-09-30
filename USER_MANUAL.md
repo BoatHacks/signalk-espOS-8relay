@@ -141,6 +141,15 @@ hardware*:
 4. On the SignalK server, approve the device's access request
    (Security → Access Requests). Without approval it can't publish or be
    switched from SignalK.
+5. Secure it. In espOS's settings, set an **API key** (security settings)
+   and an **Access point password** (WiFi, 8 to 63 characters). The setup
+   access point doesn't ask for the API key, so while it is open, anyone
+   who can join it can switch the relays and change every setting. It is
+   up all the time on an Ethernet-only board (WiFi station off), and on
+   any board after 90 seconds without a WiFi connection. With the
+   password set, only someone who knows it can join. Keep both somewhere
+   safe: the password is what you'll need for the BOOT button recovery in
+   section 8.
 
 If the board later loses its WiFi (e.g. the boat's password changed) and
 you don't have a laptop and USB cable handy, see the BOOT button recovery
@@ -268,7 +277,7 @@ overrides.
 | Buzzer on events | Off | Chirp on boot, a BOOT-button action, a relay switching on/off, or an input changing (section 7.7). Separate from *Buzzer on alarm*. |
 | Interlock dead time | 100 ms | How long an interlocked relay's partner stays off before it switches on (0–2000 ms). Applies to every interlocked pair (section 6.3). |
 | Input alarms on NMEA 2000 | On | Also raise input alarms as NMEA 2000 alerts (section 7.3). Applies at once. |
-| Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
+| Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point then stays up, so set its password (section 4, step 5). |
 
 ### 6.6 Schedules
 
