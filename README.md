@@ -76,6 +76,11 @@ Known issues found so far:
   with a cable plugged in).
 - espOS's NMEA 2000 debug server (candump) can't run alongside our NMEA 2000
   code, so it's left out.
+- espOS 0.12.1's NMEA 2000 transmit path hands the CAN driver frames that
+  are gone before a queued frame is sent, which corrupts every message
+  longer than one frame. This repo carries a patched copy of `espos_n2k`
+  under `components/signalk-espos__espos_n2k` until espOS fixes it; see
+  that directory's `idf_component.yml` for when to remove it.
 - espOS's NMEA 2000 component only passes raw CAN frames, so the NMEA 2000
   protocol layer comes from a separate library.
 - espOS's WiFi station regularly retries a few times with `AUTH_EXPIRE`

@@ -362,6 +362,14 @@ on the MFD: pass if it stays listed as acknowledged (126983 *Alert
 State: Acknowledged*). Flip off: pass if it clears (126983 *Normal*,
 three times, then no more 126983). Then `setcfg '"input1_alarm":"off"'`.
 
+**E7 [auto] Multi-frame messages intact (plan 22, finding 1.1).** With a
+CAN adapter as `can0`, run `candump can0 | analyzer` and ask for product
+information: `cansend can0 18EAFF10#14F001`. Pass if 126996 decodes with
+model "signalk-espOS-8relay" and the firmware version. Then repeat E6's
+alarm with several inputs on at once: pass if every 126983 and 126985
+decodes, and the input bank's 127501 decodes every 2 s. Expected to fail
+on espOS 0.12.1 until 1.1 is fixed.
+
 ## F. Network
 
 **F1 [human] Ethernet preferred.** With Ethernet and WiFi both

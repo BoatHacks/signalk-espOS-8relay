@@ -44,6 +44,13 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ### Fixed
 
+- NMEA 2000 messages longer than one frame (alerts, product information,
+  PGN lists) and the input bank's 127501 no longer go out corrupted. espOS
+  0.12.1 gave the CAN driver frames on the stack, but the driver keeps a
+  pointer to every frame it has to queue until it is sent. This repo
+  carries a patched copy of espOS's `espos_n2k` under
+  `components/signalk-espos__espos_n2k` until an espOS release fixes it
+  (plan 22, finding 1.1; HARDWARE_TESTS.md E7).
 - The BOOT button's portal and factory-reset chirps are no longer cut off:
   the restart used to follow 700 ms after the chirp started, shorter than
   the new ~2 s default melodies. It now waits for the chirp's own length
