@@ -243,8 +243,11 @@ static void publish_all_locked(void)
                 const bool on = inputs & (1u << (ch - 1));
                 publish_state(t, true, ch, on);
                 publish_counters(t, true, ch);
-                if (on && alarm_configured(ch)) {
-                    publish_notification(t, ch, true);
+                // Cleared ones too: the server keeps the last value, so an
+                // alarm that cleared while the stream was down, or across a
+                // restart, would otherwise stay raised there.
+                if (alarm_configured(ch)) {
+                    publish_notification(t, ch, on);
                 }
             }
         }

@@ -684,18 +684,35 @@ TEST_CASE("an active alarm is republished after a reconnect", "[sk_bridge]")
     TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"state\":\"alarm\""));
 }
 
-TEST_CASE("once cleared, an alarm is not republished on reconnect", "[sk_bridge]")
+TEST_CASE("a cleared alarm is republished as normal on reconnect", "[sk_bridge]")
 {
     fresh();
     cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
     start();
     sk_bridge_stream_changed(true);
+    input_mask = 0x01;
     sk_bridge_input_changed(1, true);
-    sk_bridge_input_changed(1, false);
-    n_calls = 0;
     sk_bridge_stream_changed(false);
+    input_mask = 0x00;
+    sk_bridge_input_changed(1, false);  // cleared while the stream was down
+    n_calls = 0;
     sk_bridge_stream_changed(true);
-    TEST_ASSERT_EQUAL(-1, find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state"));
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_TRUE(i >= 0);
+    TEST_ASSERT_EQUAL_STRING("{\"state\":\"normal\",\"method\":[],\"message\":\"\"}", calls[i].text);
+    // Only configured alarms: input 2 has none.
+    TEST_ASSERT_EQUAL(-1, find(CALL_JSON, "notifications.electrical.switches.bank.1.2.state"));
+}
+
+TEST_CASE("an alarm that cleared across a restart is cleared on the server at start", "[sk_bridge]")
+{
+    fresh();
+    cfg.inputs[0].alarm = INPUT_ALARM_ALARM;
+    input_mask = 0x00;  // settled off before the bridge starts
+    start();
+    int i = find(CALL_JSON, "notifications.electrical.switches.bank.1.1.state");
+    TEST_ASSERT_TRUE(i >= 0);
+    TEST_ASSERT_NOT_NULL(strstr(calls[i].text, "\"state\":\"normal\""));
 }
 
 TEST_CASE("turning the alarm setting off live clears an already-raised alarm", "[sk_bridge]")
