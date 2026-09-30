@@ -124,10 +124,18 @@ static esp_err_t install(void)
     }
 
     // Use the chip's own Ethernet MAC address, so every board has a stable,
-    // unique one whatever the W5500 holds.
+    // unique one whatever the W5500 holds. Errors from here on are returned,
+    // not asserted: a W5500 that answered the install but fails a later SPI
+    // write must not restart the device.
     uint8_t mac_addr[6];
-    ESP_ERROR_CHECK(esp_read_mac(mac_addr, ESP_MAC_ETH));
-    ESP_ERROR_CHECK(esp_eth_ioctl(s.eth, ETH_CMD_S_MAC_ADDR, mac_addr));
+    err = esp_read_mac(mac_addr, ESP_MAC_ETH);
+    if (err == ESP_OK) {
+        err = esp_eth_ioctl(s.eth, ETH_CMD_S_MAC_ADDR, mac_addr);
+    }
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "setting the MAC address: %s", esp_err_to_name(err));
+        return err;
+    }
 
     esp_netif_config_t ncfg = ESP_NETIF_DEFAULT_ETH();
     s.netif = esp_netif_new(&ncfg);
@@ -136,9 +144,17 @@ static esp_err_t install(void)
         return ESP_FAIL;
     }
 
-    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, on_eth_event, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, on_ip_event, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_LOST_IP, on_ip_event, NULL));
+    err = esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, on_eth_event, NULL);
+    if (err == ESP_OK) {
+        err = esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, on_ip_event, NULL);
+    }
+    if (err == ESP_OK) {
+        err = esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_LOST_IP, on_ip_event, NULL);
+    }
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_event_handler_register: %s", esp_err_to_name(err));
+        return err;
+    }
 
     // Before the driver starts, so the first DHCP request carries espOS's
     // hostname.

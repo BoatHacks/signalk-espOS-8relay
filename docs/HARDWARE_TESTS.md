@@ -429,6 +429,16 @@ check needs the person.
 Don't trigger a real alarm by opening the case to disconnect the relay
 chip's I²C: that was declined on 2026-09-28, and the drill replaces it.
 
+**G5 [auto] The API refuses a request without the key (plan 22, 5.3).**
+Set an API key (`curl -s -X PUT -H "$H" -d '{"httpd":{"api_key":"<key>"}}' $B/api/v1/config`),
+then without the `Authorization` header: `GET /api/v1/relays`,
+`GET /api/v1/relays/status`, `PUT /api/v1/relays/1`, `PUT /api/v1/relays`,
+`POST /api/v1/relays/1/counters/reset`, `POST /api/v1/inputs/1/counters/reset`,
+`POST /api/v1/buzzer/test` and `POST /api/v1/buzzer/preview` each answer
+`401`, and no relay switched; `GET /relays` and `GET /tones` answer `200`.
+With the header, a `PUT` without `Content-Type: application/json` answers
+`415`. Clear the key again afterwards.
+
 ## H. Updates
 
 **H1 [auto] The board finds and installs an update from the manifest.**
@@ -442,6 +452,23 @@ release with `"newer": true`, and installing it
 ends with the new version running and `espos_ota: new image confirmed`.
 On the new version, a first boot logs `app: update manifest: https://…`
 only if the URL was empty.
+
+**H2 [auto] A wrongly signed image is refused (plan 22, 6.4).** Build
+the firmware with a throwaway key (`espsecure generate-signing-key
+--version 2 --scheme rsa3072 secure_boot_signing_key.pem`, `idf.py
+build`), serve `build/signalk-espos-8relay.bin` from the test computer
+(`python3 -m http.server 8000`), then
+`curl -s -X POST -H "$H" -d '{"url":"http://<computer>:8000/signalk-espos-8relay.bin"}' $B/api/v1/ota`.
+Pass if `ota/status` ends in `failed` with `image rejected: bad signature`
+and the board keeps running its version without restarting.
+
+**H3 [auto] Rollback (plan 22, 6.1).** After H1 has installed the new
+version, `curl -s -X POST -H "$H" -d '{}' $B/api/v1/ota/rollback`. Pass
+if the board restarts into the previous version and `ota/status` reports
+`rolled_back: true`. For finding 6.1, check that H1's normal update logs
+`new image confirmed` and no `rolling back` line; the failing-expander
+path itself isn't tested on the board, because that means opening the case
+(declined, see G4).
 
 ---
 

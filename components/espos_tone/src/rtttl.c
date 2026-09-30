@@ -23,10 +23,21 @@ static int semitone_of(char letter)
     }
 }
 
+// Highest octave played; a higher one plays at this octave. c8 is ~4.2 kHz,
+// already above what the buzzer reproduces well, and every octave doubles
+// the frequency: an unbounded one overflows uint16_t and takes as many loop
+// passes below as its value. o=2147483647 took 1.5 s on a PC; on the chip,
+// with doubles in software, far past the 30 s task watchdog.
+#define OCTAVE_MAX 8
+
+// Numbers larger than this are read as this. Every value RTTTL uses is far
+// smaller; the cap keeps a long digit string from overflowing an int.
+#define NUMBER_MAX 9999
+
 static uint16_t note_freq_hz(int semitone, bool sharp, int octave)
 {
     int idx = semitone + (sharp ? 1 : 0);
-    int oct = octave;
+    int oct = octave < OCTAVE_MAX ? octave : OCTAVE_MAX;
     while (idx >= 12) {
         idx -= 12;
         oct++;
@@ -50,8 +61,13 @@ static bool read_digits(const char **p, int *out)
     const char *start = *p;
     int v = 0;
     while (isdigit((unsigned char)**p)) {
-        v = v * 10 + (**p - '0');
+        if (v <= NUMBER_MAX) {
+            v = v * 10 + (**p - '0');
+        }
         (*p)++;
+    }
+    if (v > NUMBER_MAX) {
+        v = NUMBER_MAX;
     }
     if (*p == start) {
         return false;
@@ -88,15 +104,11 @@ size_t rtttl_parse(const char *rtttl, rtttl_note_t *out, size_t max)
                 eq++;
             }
             if (eq < defs_end && eq + 1 <= defs_end) {
+                // defs_end is the ':' or the terminating NUL, so the digits
+                // stop there by themselves.
                 const char *v = eq + 1;
                 int val = 0;
-                bool got = false;
-                while (v < defs_end && isdigit((unsigned char)*v)) {
-                    val = val * 10 + (*v - '0');
-                    v++;
-                    got = true;
-                }
-                if (got) {
+                if (read_digits(&v, &val)) {
                     if (key == 'd') {
                         def_duration = val;
                     } else if (key == 'o') {
@@ -169,7 +181,7 @@ size_t rtttl_parse(const char *rtttl, rtttl_note_t *out, size_t max)
             ms *= 1.5;
         }
         out[n].freq_hz = is_pause ? 0 : note_freq_hz(semitone, sharp, octave);
-        out[n].duration_ms = (uint16_t)(ms + 0.5);
+        out[n].duration_ms = ms < UINT16_MAX ? (uint16_t)(ms + 0.5) : UINT16_MAX;
         n++;
     }
     return n;

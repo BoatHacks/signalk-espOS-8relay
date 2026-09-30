@@ -476,9 +476,13 @@ jobs:
   # (USER_MANUAL §3.3): manifest.json on the `ota` branch, served at
   # https://raw.githubusercontent.com/<repo>/ota/manifest.json. A full
   # release goes on the stable and beta channels, a pre-release on beta.
+  # Never an unsigned build: it carries a throwaway key no board accepts, so
+  # every board would find it, download it and reject it.
   manifest:
-    if: inputs.tag != '' || github.event_name == 'release' || github.ref_type == 'tag'
-    needs: release
+    if: >-
+      (inputs.tag != '' || github.event_name == 'release' || github.ref_type == 'tag')
+      && needs.build.outputs.unsigned != 'true'
+    needs: [build, release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
