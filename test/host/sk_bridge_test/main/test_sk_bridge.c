@@ -199,7 +199,7 @@ TEST_CASE("default: switches tree only, a PUT handler per relay", "[sk_bridge]")
 static void call_everything_early(void)
 {
     sk_bridge_tick();
-    sk_bridge_relay_changed(1, true);
+    sk_bridge_relay_changed(1);
     sk_bridge_input_changed(2, true);
     sk_bridge_update_config(&cfg);
     sk_bridge_stream_changed(false);
@@ -332,10 +332,23 @@ TEST_CASE("a relay change is published on every enabled tree", "[sk_bridge]")
     cfg.publish_controls_tree = true;
     start();
     n_calls = 0;
-    sk_bridge_relay_changed(5, true);
+    relay_mask = 0x10;
+    sk_bridge_relay_changed(5);
     TEST_ASSERT_EQUAL(2, n_calls);
     TEST_ASSERT_EQUAL(1, calls[find(CALL_NUMBER, "electrical.switches.bank.0.5.state")].number);
     TEST_ASSERT_EQUAL(1, calls[find(CALL_NUMBER, "electrical.controls.espOS-instance0-relay5.state")].number);
+}
+
+TEST_CASE("a relay change publishes the current state, not a stale one", "[sk_bridge]")
+{
+    fresh();
+    start();
+    // Relay 2 went on, then off, but the "on" notification arrives last.
+    relay_mask = 0x00;
+    sk_bridge_relay_changed(2);
+    n_calls = 0;
+    sk_bridge_relay_changed(2);
+    TEST_ASSERT_EQUAL(0, calls[find(CALL_NUMBER, "electrical.switches.bank.0.2.state")].number);
 }
 
 TEST_CASE("inputs are published once they have settled", "[sk_bridge]")

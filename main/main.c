@@ -200,7 +200,7 @@ static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_
     ESP_LOGI(TAG, "relay %u %s by %s", channel, on ? "on" : "off", source_name(src));
     counters_on_change(COUNTERS_RELAY, channel, on, now_ms());
     web_ui_relay_changed(channel, source_name(src));
-    sk_bridge_relay_changed(channel, on);
+    sk_bridge_relay_changed(channel);
     n2k_bridge_state_changed();
     if (relay_ctrl_is_momentary(channel)) {
         // A pulse's end always chirps, even when the timer ran it out
