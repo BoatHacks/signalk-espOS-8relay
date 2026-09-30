@@ -44,6 +44,10 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ### Fixed
 
+- One input bouncing at start-up (a loose wire, a pulsing signal) no
+  longer keeps all eight inputs, their alarms and their relay links dark.
+  Start-up waits at most the debounce time plus 1 s; an input still
+  bouncing then reads off until it settles (plan 22, finding 3.1).
 - NMEA 2000 messages longer than one frame (alerts, product information,
   PGN lists) and the input bank's 127501 no longer go out corrupted. espOS
   0.12.1 gave the CAN driver frames on the stack, but the driver keeps a

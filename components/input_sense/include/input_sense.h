@@ -41,7 +41,10 @@ void input_sense_update_config(const device_config_t *cfg);
 // Call every few milliseconds, from one task only.
 void input_sense_poll(void);
 
-// False until every input has had one stable reading after start-up.
+// False until every input has had one stable reading after start-up, or
+// until the debounce time plus 1 s has passed, whichever is first: an input
+// still bouncing then reads off until it settles, and that first settled
+// reading counts as its boot reading (a toggle link ignores it).
 bool input_sense_ready(void);
 
 // Debounced states, bit n-1 = input n (0 before input_sense_ready()).
