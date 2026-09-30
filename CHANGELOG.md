@@ -52,6 +52,10 @@ it as the update's notes, and *Cut release* refuses a version without one.
   while the board restarts, no longer stays raised on the server: every
   configured alarm is sent at start-up and on each reconnect, cleared ones
   as `normal` (plan 22, finding 3.2).
+- Several NMEA 2000 alerts falling due at once no longer overflow the CAN
+  transmit queue and lose whole alerts: they go out one input per 10 ms,
+  and a frame the queue can't take is kept and retried by the NMEA 2000
+  library instead of dropped (plan 22, finding 1.2).
 - NMEA 2000 messages longer than one frame (alerts, product information,
   PGN lists) and the input bank's 127501 no longer go out corrupted. espOS
   0.12.1 gave the CAN driver frames on the stack, but the driver keeps a
