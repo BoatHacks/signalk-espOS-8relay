@@ -287,6 +287,18 @@ entirely without, a SignalK server (section 7.8). Time zone is espOS's own
 `CET-1CEST,M3.5.0,M10.5.0/3` for central Europe) -- nothing new here, a
 schedule's `HH:MM` and days of the week are read in that zone.
 
+**Setting the clock by hand.** A board with no NTP server and no SignalK
+server can't learn the time on its own. The *Clock* section at the bottom
+of the relay page shows the board's local time and where it came from.
+*Set to this device's time* copies the clock of the phone or laptop
+you're using; or type a date and time and press *Set* (read in the
+board's time zone once its clock is set, in your browser's zone before
+that). The time is written to the board's real-time clock, so it survives
+a power cut. NTP always wins: while an NTP server keeps the clock, it
+can't be set by hand. A hand-set time beats the SignalK server's time
+until the next restart, so correct a bad hand-set time by setting it
+again.
+
 | Setting | Default | Notes |
 |---|---|---|
 | Position source | SignalK | Where sunrise/sunset math gets the boat's position: `navigation.position` from the SignalK stream, or decoded from the board's own NMEA 2000 bus (PGN 129025/129029). *Restart.* |
@@ -678,7 +690,8 @@ Check the health page first for one of two schedule-specific warnings:
   brand-new board before its first SNTP or SignalK sync, or one whose RTC
   battery has died and lost power completely. Every schedule does nothing
   until a source sets the clock. Confirm the board has a network route to
-  an NTP server or a SignalK connection; `http://<board>/api/v1/time`
+  an NTP server or a SignalK connection, or set the clock by hand in the
+  relay page's *Clock* section (section 6.6); `http://<board>/api/v1/time`
   shows whether the clock is currently synced and from which source.
 - **A relay named by two or more schedules**: rejected outright, not
   resolved by listing order -- every entry naming that relay does nothing

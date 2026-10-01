@@ -27,6 +27,16 @@ it as the update's notes, and *Cut release* refuses a version without one.
   Morse ("IN 3"), independent of *Buzzer on alarm*, and takes over from a
   health alarm's pattern. Applies live. Host-tested; not yet checked on
   the board (HARDWARE_TESTS.md C7).
+- Set the clock by hand (for a board with no NTP server or SignalK to
+  learn the time from): the relay page has a new *Clock* section showing
+  the board's local time, where it came from and its time zone, with a
+  *Set to this device's time* button and a date/time field. It uses
+  espOS's existing `PUT /api/v1/time`, and the firmware writes the result
+  to the RTC chip like any other sync, so it survives a power cut. A
+  manual time outranks SignalK and the RTC but never NTP (the buttons are
+  greyed out while NTP keeps the clock). `GET /api/v1/relays/status` gains
+  a `clock` object. Host-tested; not yet checked on a board
+  (HARDWARE_TESTS.md G6).
 
 ### Changed
 

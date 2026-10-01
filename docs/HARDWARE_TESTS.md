@@ -439,6 +439,38 @@ then without the `Authorization` header: `GET /api/v1/relays`,
 With the header, a `PUT` without `Content-Type: application/json` answers
 `415`. Clear the key again afterwards.
 
+**G6 [human] Setting the clock by hand.** Simulates a standalone board
+with no NTP and no SignalK: turn both time sources off and restart.
+
+```sh
+curl -s -X PUT -H "$H" -d '{"time":{"sntp":false,"sk_fallback":false}}' $B/api/v1/config
+curl -s -X POST -H "$H" -d '{}' $B/api/v1/system/reboot
+```
+
+After boot, `status` → `clock.source` is `"rtc"` (or `clock.synced` is
+false on a board whose RTC never had a time). On the relay page's Clock
+section, type a time one hour off (e.g. an hour behind the real time)
+and press *Set*. Pass if the status line says "Clock set", the Clock
+section shows that time ticking, "from set by hand", and `status` →
+`clock.source` is `"manual"`; the log shows `clock set from manual`.
+Then power-cycle the board (supply off 10 s): pass if after boot
+`clock.source` is `"rtc"` and the time is still the hour-off one (plus
+the elapsed time), proving the manual set reached the RTC chip. Now
+press *Set to this device's time*: the Clock section matches the phone
+or laptop's clock to within a second or two, and `clock.local` agrees
+with the configured time zone (`clock.tz`). Restore the sources and
+restart:
+
+```sh
+curl -s -X PUT -H "$H" -d '{"time":{"sntp":true,"sk_fallback":true}}' $B/api/v1/config
+curl -s -X POST -H "$H" -d '{}' $B/api/v1/system/reboot
+```
+
+Once NTP has synced (`clock.source` `"sntp"`), both set buttons are
+greyed out with "NTP keeps this clock", and
+`curl -s -X PUT -H "$H" -d '{"now":1700000000000}' $B/api/v1/time`
+answers `409`.
+
 ## H. Updates
 
 **H1 [auto] The board finds and installs an update from the manifest.**

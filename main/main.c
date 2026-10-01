@@ -163,6 +163,23 @@ static void web_status(web_ui_status_t *out)
     out->n2k_started = n2k.started;
     out->n2k_address = n2k.address;
     out->n2k_traffic = n2k.traffic;
+
+    // The page's Clock section. Setting the time goes straight to espOS's
+    // own PUT /api/v1/time (ESPOS_TIME_SRC_MANUAL); on_time_synced() below
+    // then writes it to the PCF85063 like any other sync.
+    espos_time_parts_t local = {0};
+    out->clock_synced = espos_time_is_synced() && espos_time_parts(&local) == ESP_OK;
+    if (out->clock_synced) {
+        snprintf(out->clock_source, sizeof(out->clock_source), "%s", espos_time_src_str(espos_time_source()));
+        out->clock_unix_ms = espos_time_now_ms();
+        snprintf(out->clock_local, sizeof(out->clock_local), "%04d-%02u-%02u %02u:%02u:%02u", (int)local.year,
+                 (unsigned)local.month, (unsigned)local.day, (unsigned)local.hour, (unsigned)local.minute,
+                 (unsigned)local.second);
+        out->clock_utc_offset_s = local.utc_offset_s;
+    }
+    const char *tz = espos_time_tz();
+    snprintf(out->clock_tz, sizeof(out->clock_tz), "%s", tz ? tz : "");
+    out->rtc_ok = s_rtc_ok;
 }
 
 // Counters getters for sk_bridge / web_ui (plan 11, issue #4): every source
