@@ -5,6 +5,15 @@
     {
       "target": "esp32s3",
       "channel": "stable",
+      "version": "v0.4.0",
+      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.4.0/signalk-espOS-8relay-v0.4.0-ota.bin",
+      "size": 1708032,
+      "sha256": "75bbdb2349d0b598102b3d7246c9402bde60f306e14afbed98d86e06fa95b88a",
+      "notes": "Input alarms on NMEA 2000 and the buzzer, setting the clock by hand, espOS 0.12.1 and review fixes."
+    },
+    {
+      "target": "esp32s3",
+      "channel": "stable",
       "version": "v0.3.0",
       "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.3.0/signalk-espOS-8relay-v0.3.0-ota.bin",
       "size": 1708032,
@@ -23,6 +32,15 @@
     {
       "target": "esp32s3",
       "channel": "beta",
+      "version": "v0.4.0",
+      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.4.0/signalk-espOS-8relay-v0.4.0-ota.bin",
+      "size": 1708032,
+      "sha256": "75bbdb2349d0b598102b3d7246c9402bde60f306e14afbed98d86e06fa95b88a",
+      "notes": "Input alarms on NMEA 2000 and the buzzer, setting the clock by hand, espOS 0.12.1 and review fixes."
+    },
+    {
+      "target": "esp32s3",
+      "channel": "beta",
       "version": "v0.3.0",
       "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.3.0/signalk-espOS-8relay-v0.3.0-ota.bin",
       "size": 1708032,
@@ -37,15 +55,6 @@
       "size": 1642496,
       "sha256": "879f3f18d8d14fd832e986f947c1f009b7d3ef6867ad56cdabf8ae6f1d4f715f",
       "notes": "Input alarms, cycle counters, interlocked pairs and NC wiring, all confirmed on real hardware."
-    },
-    {
-      "target": "esp32s3",
-      "channel": "beta",
-      "version": "v0.1.0",
-      "url": "https://github.com/BoatHacks/signalk-espOS-8relay/releases/download/v0.1.0/signalk-espOS-8relay-v0.1.0-ota.bin",
-      "size": 1576960,
-      "sha256": "b496904c0584269c80650a9df8e975a9832102423c2472c21aedcf5a22e465ae",
-      "notes": "First release tested end to end on real hardware: relays, inputs, SignalK, NMEA 2000 (bench-tested, not on a boat yet)."
     }
   ]
 }
