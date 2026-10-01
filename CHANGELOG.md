@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Each version starts with a one-line summary (at most 127 bytes): boards show
 it as the update's notes, and *Cut release* refuses a version without one.
 
-## [Unreleased]
+## [0.4.0] - 2026-10-01
+
+Input alarms on NMEA 2000 and the buzzer, setting the clock by hand, espOS 0.12.1 and review fixes.
 
 ### Added
 
@@ -464,6 +466,8 @@ First build for hardware bring-up. Not usable: it boot-loops (fixed in 0.0.2).
 - All settings in espOS's web UI.
 - Signed release builds with a merged image for USB and an image for OTA.
 
+[0.4.0]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.10...v0.1.0
 [0.0.10]: https://github.com/BoatHacks/signalk-espOS-8relay/compare/v0.0.9...v0.0.10
