@@ -15,6 +15,7 @@
 #include "esp_console.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_ota_ops.h"
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "espos.h"
@@ -217,7 +218,7 @@ static void on_relay_change(uint8_t channel, bool on, relay_source_t src, uint8_
     ESP_LOGI(TAG, "relay %u %s by %s", channel, on ? "on" : "off", source_name(src));
     counters_on_change(COUNTERS_RELAY, channel, on, now_ms());
     web_ui_relay_changed(channel, source_name(src));
-    sk_bridge_relay_changed(channel, on);
+    sk_bridge_relay_changed(channel);
     n2k_bridge_state_changed();
     if (relay_ctrl_is_momentary(channel)) {
         // A pulse's end always chirps, even when the timer ran it out
@@ -242,6 +243,7 @@ static void on_input_change(uint8_t channel, bool on, uint8_t mask, void *arg)
     counters_on_change(COUNTERS_INPUT, channel, on, now_ms());
     sk_bridge_input_changed(channel, on);
     n2k_bridge_state_changed();
+    indicator_set_inputs(mask);
     indicator_play_input_tone(channel, on);
 }
 
@@ -376,8 +378,9 @@ static void button_poll(void)
 // the device restarts within IO_RESTART_US (io_supervisor) and relays take
 // their boot state. espOS's task watchdog (30 s) is the backstop.
 // static: device_config_t now carries the tone_patterns table (up to
-// ~4 KB), far too big for a local on io_task's 4 KB stack. io_task is the
-// only writer; schedule_tick() (also io_task) only reads it.
+// ~4 KB), far too big for a local on io_task's 4 KB stack. start_io()
+// seeds it before io_task exists; after that io_task is the only writer,
+// and schedule_tick() (also io_task) only reads it.
 static device_config_t s_cfg;
 static uint32_t s_last_schedule_tick_ms;
 
@@ -650,6 +653,24 @@ static void start_debug_console(void)
 // relays reach their boot state (SPEC.md section 3.2) as early as possible:
 // after a warm reset, default-safe relays would otherwise stay on until the
 // network is up.
+// espOS confirms a freshly installed image once the network is up; it knows
+// nothing of the relays. An update that can't drive the relay expander goes
+// back to the previous firmware instead (plan 22, 6.1). If that one fails
+// too, the fault is the hardware: it is already confirmed, so it keeps
+// booting and reports the expander through health as before.
+static void rollback_if_unconfirmed(void)
+{
+    esp_ota_img_states_t state;
+    if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &state) != ESP_OK ||
+        state != ESP_OTA_IMG_PENDING_VERIFY) {
+        return;
+    }
+    ESP_LOGE(TAG, "new firmware can't drive the relays: rolling back to the previous one");
+    esp_err_t err = esp_ota_mark_app_invalid_rollback_and_reboot();
+    // Only returns when there is no valid image to go back to.
+    ESP_LOGE(TAG, "rollback failed (%s); keeping this firmware", esp_err_to_name(err));
+}
+
 static esp_err_t start_io(void *arg)
 {
     device_config_t *cfg = arg;
@@ -671,6 +692,7 @@ static esp_err_t start_io(void *arg)
     // device stays reachable for diagnosis and updates.
     if (relay_ctrl_init(&hw, cfg) != ESP_OK) {
         ESP_LOGE(TAG, "relay expander did not respond; relays unavailable");
+        rollback_if_unconfirmed();
     }
     // Every relay's state now is its start-up state (off, or held).
     // relay_ctrl never notifies listeners of it (there is no listener yet),
@@ -720,6 +742,9 @@ static esp_err_t start_io(void *arg)
         ESP_LOGE(TAG, "BOOT button unavailable");
     }
 
+    // io_task's own copy: schedule_tick() reads it every second, and until
+    // the first settings save nothing else would fill it in.
+    s_cfg = *cfg;
     s_io_alive_us = esp_timer_get_time();
     xTaskCreate(io_task, "io", 4096, NULL, 5, &s_io_task);
     const esp_timer_create_args_t sup = {.callback = io_supervisor, .name = "io_sup"};

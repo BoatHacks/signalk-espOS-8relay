@@ -109,6 +109,23 @@ void indicator_alarm_text(const char *ip, char *out, size_t size)
     }
 }
 
+void indicator_input_alarm_text(uint8_t mask, char *out, size_t size)
+{
+    if (size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (mask == 0) {
+        return;
+    }
+    size_t len = (size_t)snprintf(out, size, "IN");
+    for (int i = 0; i < 8 && len < size; i++) {
+        if (mask & (1u << i)) {
+            len += (size_t)snprintf(out + len, size - len, " %d", i + 1);
+        }
+    }
+}
+
 uint32_t morse_duration_ms(const morse_seg_t *segs, size_t n, uint32_t unit_ms)
 {
     uint32_t total = 0;

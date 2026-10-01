@@ -36,6 +36,12 @@ void indicator_play_input_tone(uint8_t channel, bool on);
 // pulse_start_tone/pulse_stop_tone instead of its on_tone/off_tone.
 void indicator_play_relay_pulse_tone(uint8_t channel, bool start);
 
+// Every input's settled state (bit 0 = input 1), from input_sense's
+// listener. While an input whose alarm is set to buzz (`input<n>_alm_buzz`)
+// reads on, the buzzer sounds "IN <n>" in Morse, whether or not the buzzer
+// is enabled for health alarms. Callable from any task.
+void indicator_set_inputs(uint8_t mask);
+
 // The BOOT button (plan 14) drives this while held: NONE shows espOS
 // health/SignalK status as usual, anything else takes over the LED (not the
 // buzzer) until set back to NONE. Callable from any task.

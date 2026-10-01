@@ -55,8 +55,11 @@ esp_err_t sk_bridge_start(const sk_api_t *api, const sk_bridge_io_t *io, const d
 // Names change live: re-declare metadata and republish name paths.
 void sk_bridge_update_config(const device_config_t *cfg);
 
-// Feed from relay_ctrl / input_sense listeners.
-void sk_bridge_relay_changed(uint8_t channel, bool on);
+// Feed from relay_ctrl / input_sense listeners. A relay change publishes
+// the relay's current state, read here, not the state the listener was
+// called with: two changes to one relay can reach their listeners out of
+// order, and the later call must not publish the older state.
+void sk_bridge_relay_changed(uint8_t channel);
 void sk_bridge_input_changed(uint8_t channel, bool on);
 
 // Feed from espOS's stream connected/disconnected events. On connect all

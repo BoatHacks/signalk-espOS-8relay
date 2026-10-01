@@ -1728,6 +1728,14 @@
       "description": "Notification message. Empty = \"<input name> active\"."
     },
     {
+      "name": "input1_alm_buzz",
+      "type": "bool",
+      "default": false,
+      "group": "Inputs",
+      "title": "Input 1: alarm buzzer",
+      "description": "Also sound the buzzer while this input's alarm is active: \"IN\" and the input's number, in Morse. Needs the alarm set to something other than off; independent of \"Buzzer on alarm\"."
+    },
+    {
       "name": "input2_name",
       "type": "string",
       "default": "Input 2",
@@ -1784,6 +1792,14 @@
       "group": "Inputs",
       "title": "Input 2: alarm message",
       "description": "Notification message. Empty = \"<input name> active\"."
+    },
+    {
+      "name": "input2_alm_buzz",
+      "type": "bool",
+      "default": false,
+      "group": "Inputs",
+      "title": "Input 2: alarm buzzer",
+      "description": "Also sound the buzzer while this input's alarm is active: \"IN\" and the input's number, in Morse. Needs the alarm set to something other than off; independent of \"Buzzer on alarm\"."
     },
     {
       "name": "input3_name",
@@ -1844,6 +1860,14 @@
       "description": "Notification message. Empty = \"<input name> active\"."
     },
     {
+      "name": "input3_alm_buzz",
+      "type": "bool",
+      "default": false,
+      "group": "Inputs",
+      "title": "Input 3: alarm buzzer",
+      "description": "Also sound the buzzer while this input's alarm is active: \"IN\" and the input's number, in Morse. Needs the alarm set to something other than off; independent of \"Buzzer on alarm\"."
+    },
+    {
       "name": "input4_name",
       "type": "string",
       "default": "Input 4",
@@ -1900,6 +1924,14 @@
       "group": "Inputs",
       "title": "Input 4: alarm message",
       "description": "Notification message. Empty = \"<input name> active\"."
+    },
+    {
+      "name": "input4_alm_buzz",
+      "type": "bool",
+      "default": false,
+      "group": "Inputs",
+      "title": "Input 4: alarm buzzer",
+      "description": "Also sound the buzzer while this input's alarm is active: \"IN\" and the input's number, in Morse. Needs the alarm set to something other than off; independent of \"Buzzer on alarm\"."
     },
     {
       "name": "input5_name",
@@ -1960,6 +1992,14 @@
       "description": "Notification message. Empty = \"<input name> active\"."
     },
     {
+      "name": "input5_alm_buzz",
+      "type": "bool",
+      "default": false,
+      "group": "Inputs",
+      "title": "Input 5: alarm buzzer",
+      "description": "Also sound the buzzer while this input's alarm is active: \"IN\" and the input's number, in Morse. Needs the alarm set to something other than off; independent of \"Buzzer on alarm\"."
+    },
+    {
       "name": "input6_name",
       "type": "string",
       "default": "Input 6",
@@ -2016,6 +2056,14 @@
       "group": "Inputs",
       "title": "Input 6: alarm message",
       "description": "Notification message. Empty = \"<input name> active\"."
+    },
+    {
+      "name": "input6_alm_buzz",
+      "type": "bool",
+      "default": false,
+      "group": "Inputs",
+      "title": "Input 6: alarm buzzer",
+      "description": "Also sound the buzzer while this input's alarm is active: \"IN\" and the input's number, in Morse. Needs the alarm set to something other than off; independent of \"Buzzer on alarm\"."
     },
     {
       "name": "input7_name",
@@ -2076,6 +2124,14 @@
       "description": "Notification message. Empty = \"<input name> active\"."
     },
     {
+      "name": "input7_alm_buzz",
+      "type": "bool",
+      "default": false,
+      "group": "Inputs",
+      "title": "Input 7: alarm buzzer",
+      "description": "Also sound the buzzer while this input's alarm is active: \"IN\" and the input's number, in Morse. Needs the alarm set to something other than off; independent of \"Buzzer on alarm\"."
+    },
+    {
       "name": "input8_name",
       "type": "string",
       "default": "Input 8",
@@ -2132,6 +2188,14 @@
       "group": "Inputs",
       "title": "Input 8: alarm message",
       "description": "Notification message. Empty = \"<input name> active\"."
+    },
+    {
+      "name": "input8_alm_buzz",
+      "type": "bool",
+      "default": false,
+      "group": "Inputs",
+      "title": "Input 8: alarm buzzer",
+      "description": "Also sound the buzzer while this input's alarm is active: \"IN\" and the input's number, in Morse. Needs the alarm set to something other than off; independent of \"Buzzer on alarm\"."
     }
   ]
 }

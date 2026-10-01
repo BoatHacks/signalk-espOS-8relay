@@ -63,6 +63,12 @@ size_t morse_encode(const char *text, morse_seg_t *out, size_t max);
 // setup access point.
 void indicator_alarm_text(const char *ip, char *out, size_t size);
 
+// The input-alarm message (plan 10's buzzer follow-up): "IN", then the
+// number of every input in `mask` (bit 0 = input 1), lowest first: "IN 3",
+// "IN 3 5". Empty when `mask` is 0.
+#define INDICATOR_INPUT_ALARM_TEXT_MAX 24  // "IN 1 2 3 4 5 6 7 8" and the NUL
+void indicator_input_alarm_text(uint8_t mask, char *out, size_t size);
+
 // Length of one pass of the message, without the pause.
 uint32_t morse_duration_ms(const morse_seg_t *segs, size_t n, uint32_t unit_ms);
 

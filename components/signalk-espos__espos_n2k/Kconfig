@@ -1,0 +1,40 @@
+menu "espOS NMEA 2000"
+
+    config ESPOS_N2K_CANDUMP_PORT
+        int "candump TCP server port"
+        default 2599
+        range 1 65535
+        help
+            Default listening port of CandumpTcpServer
+            (CandumpTcpServerConfig::port overrides it per instance). 2599 is
+            what the SensESP-era gateway listened on and what existing
+            canboatjs / SignalK n2k-ip-gateway sources have configured by
+            hand; clients that browse mDNS take the port from the record and
+            do not care.
+
+    config ESPOS_N2K_RX_QUEUE_DEPTH
+        int "TWAI receive queue depth (frames)"
+        default 64
+        range 8 1024
+        help
+            Frames the TWAI node's ISR hands to its task before the oldest
+            is dropped. A saturated 250 kbit/s bus delivers roughly 1900
+            frames a second, so 64 is about 30 ms of backlog -- enough for
+            the task to be held off briefly by WiFi or a display refresh,
+            not for a stalled consumer. Each slot is one CanMessage (about
+            32 bytes).
+
+    config ESPOS_N2K_MDNS_LEGACY_TYPE
+        bool "Advertise the legacy _sensesp-n2k._tcp service type"
+        default y
+        help
+            Register the candump server with mDNS as _sensesp-n2k._tcp with
+            model=sensesp-n2k-gateway, the names the SensESP-based gateway
+            used. They are on the wire: SignalK's n2k-ip-gateway-canboatjs
+            source browses for exactly this type and every deployed client
+            has it configured, so renaming would make every gateway
+            invisible to every client for the sake of tidiness. Off switches
+            to _espos-n2k._tcp / model=espos-n2k-gateway, which no released
+            client looks for yet.
+
+endmenu

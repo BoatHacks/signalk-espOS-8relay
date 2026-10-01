@@ -1,12 +1,22 @@
 # signalk-espOS-8relay User Manual
 
-> **Status: hardware bring-up.** Test releases exist (see
-> [GitHub Releases](https://github.com/BoatHacks/signalk-espOS-8relay/releases)),
-> and most of what's described here has now been confirmed on a real
-> board (see [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the
-> full results), but nothing has been checked on a boat yet. Setting
-> names and some details may still change. The requirements behind this
-> manual are in [SPEC.md](SPEC.md).
+This manual covers installing, setting up and using the
+signalk-espOS-8relay firmware on the Waveshare ESP32-S3-ETH-8DI-8RO-C
+board. Once installed, the board is an 8-relay, 8-input switch bank on
+your SignalK server and your NMEA 2000 bus, configured from a web page on
+the board itself.
+
+The short path is: flash a release over USB-C (section 3), join the
+board's setup access point and connect it to your network and SignalK
+server (section 4), then name and configure each relay and input
+(section 6). Section 7 covers day-to-day use, and section 8 what to do
+when something doesn't work.
+
+Releases are on
+[GitHub](https://github.com/BoatHacks/signalk-espOS-8relay/releases). What
+each one changed is in [CHANGELOG.md](CHANGELOG.md), how each is checked on
+a real board is in [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md), and
+the requirements behind this manual are in [SPEC.md](SPEC.md).
 
 ## 1. What you need
 
@@ -131,6 +141,15 @@ hardware*:
 4. On the SignalK server, approve the device's access request
    (Security → Access Requests). Without approval it can't publish or be
    switched from SignalK.
+5. Secure it. In espOS's settings, set an **API key** (security settings)
+   and an **Access point password** (WiFi, 8 to 63 characters). The setup
+   access point doesn't ask for the API key, so while it is open, anyone
+   who can join it can switch the relays and change every setting. It is
+   up all the time on an Ethernet-only board (WiFi station off), and on
+   any board after 90 seconds without a WiFi connection. With the
+   password set, only someone who knows it can join. Keep both somewhere
+   safe: the password is what you'll need for the BOOT button recovery in
+   section 8.
 
 If the board later loses its WiFi (e.g. the boat's password changed) and
 you don't have a laptop and USB cable handy, see the BOOT button recovery
@@ -243,6 +262,7 @@ overrides.
 | Off chirp | input | As above, for changing to off. |
 | Alarm | Off | Raise a SignalK notification (section 7.1), and an NMEA 2000 alert (section 7.3), while this input reads on, e.g. a bilge float switch. `off`/`warn`/`alarm`/`emergency` set the severity; `off` raises nothing. |
 | Alarm message | *(none)* | Notification text. Empty = "*name* active". |
+| Alarm buzzer | Off | Also sound the board's buzzer while this input's alarm is active (section 7.6). Needs *Alarm* set to something other than `off`; works whether or not *Buzzer on alarm* is on. |
 
 ### 6.5 Other
 
@@ -257,7 +277,7 @@ overrides.
 | Buzzer on events | Off | Chirp on boot, a BOOT-button action, a relay switching on/off, or an input changing (section 7.7). Separate from *Buzzer on alarm*. |
 | Interlock dead time | 100 ms | How long an interlocked relay's partner stays off before it switches on (0–2000 ms). Applies to every interlocked pair (section 6.3). |
 | Input alarms on NMEA 2000 | On | Also raise input alarms as NMEA 2000 alerts (section 7.3). Applies at once. |
-| Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point stays available. |
+| Ethernet enabled | On | Off = WiFi only. To use Ethernet only, turn off espOS's WiFi "Station enabled" setting instead; the setup access point then stays up, so set its password (section 4, step 5). |
 
 ### 6.6 Schedules
 
@@ -314,6 +334,8 @@ cautious than trying to work that out.
 **No valid time yet** (freshly powered on with a dead RTC battery, and
 neither SNTP nor SignalK have set the clock) makes every schedule do
 nothing, with its own health warning, until a source sets the clock.
+
+## 7. Using it
 
 ### 7.1 From SignalK
 
@@ -511,6 +533,16 @@ complaining: `. ... .--.  ....- ..---` is "ESP 42", the board at
 192.168.x.42. Without a network address (for example when WiFi is down)
 it beeps "ESP AP" (`. ... .--.  .- .--.`): join the board's setup access
 point, `espOS-xxxx`, to reconfigure it.
+
+An input with *Alarm buzzer* turned on (section 6.4) sounds the buzzer
+while its alarm is active, whether or not *Buzzer on alarm* is on: "IN"
+and the input's number in Morse, every few seconds, so `.. -.  ...--`
+("IN 3") is input 3's float switch. Several inputs at once are all named,
+lowest first ("IN 3 5"). It stops when the input reads off again; to
+silence it before then, turn *Alarm buzzer* off (applies at once). An
+input alarm takes the buzzer over from a health alarm, which still shows
+on the LED; the health alarm's pattern comes back once no input alarm is
+left.
 
 To hear the buzzer without waiting for an alarm, press *Test buzzer* on
 the relay page (section 7.2). It plays the same pattern once, whether or

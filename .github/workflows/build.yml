@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     container: espressif/idf:v6.0.3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build for esp32s3
         shell: bash
         run: |
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     container: espressif/idf:v6.0.3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install host build dependencies
         run: apt-get update && apt-get install -y libbsd-dev
       - name: Run host tests

@@ -137,7 +137,16 @@ void n2k_alerts_tick(n2k_alerts_t *a, bool inputs_ready, uint8_t input_mask, uin
         if (text_period && c->active) {
             c->text_due = true;
         }
+    }
 
+    // One channel's messages per tick, so eight alarms falling due together
+    // don't burst ~90 frames at the transmit queue at once (plan 22, 1.2).
+    // The rest stay due for the next tick, 10 ms later.
+    for (uint8_t ch = 1; ch <= BOARD_CHANNELS; ch++) {
+        n2k_alerts_chan_t *c = &a->ch[ch - 1];
+        if (!c->text_due && !c->status_due) {
+            continue;
+        }
         if (c->text_due) {
             n2k_alert_id_t id;
             id_of(a, ch, c->level, c->occurrence, &id);
@@ -162,6 +171,7 @@ void n2k_alerts_tick(n2k_alerts_t *a, bool inputs_ready, uint8_t input_mask, uin
             }
             c->status_due = false;
         }
+        break;
     }
 }
 

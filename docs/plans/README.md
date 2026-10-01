@@ -40,6 +40,7 @@ were made on 2026-09-25 and are recorded in each plan.
 | 19 | [Buzzer sound effects on events](19-buzzer-event-sounds.md) | [#14](https://github.com/BoatHacks/signalk-espOS-8relay/issues/14) | 14, 17 | Medium |
 | 20 | [CODE_OF_CONDUCT.md and CONTRIBUTING.md](20-community-docs.md) | [#12](https://github.com/BoatHacks/signalk-espOS-8relay/issues/12) | — | Small, blocked on decisions |
 | 21 | [Input alarms as NMEA 2000 alerts](21-n2k-alerts.md) | [#3](https://github.com/BoatHacks/signalk-espOS-8relay/issues/3) follow-up | 06, 10 | Small–medium |
+| 22 | [Full code review before 1.0.0](22-pre-1.0-code-review.md) | — | all | Large, review only |
 
 ## Facts established while writing these plans
 

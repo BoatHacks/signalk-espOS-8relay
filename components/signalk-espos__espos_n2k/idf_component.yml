@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: 2026 Dirk Wahrheit
+# SPDX-License-Identifier: Apache-2.0
+## espos_n2k component manifest: registry metadata for signalk-espos/espos_n2k.
+## The version is espOS's (version.txt) and moves with it, see docs/releasing.md.
+##
+## LOCAL PATCH (2026-09-29, plan 22 finding 1.1): espOS 0.12.1's
+## TwaiNode::transmit() hands esp_twai a twai_frame_t and payload on its own
+## stack, but the driver keeps both pointers for any frame it has to queue
+## behind a busy controller, which is every frame after the first of a
+## fast-packet message. This is espOS 0.12.1's espos_n2k (tag v0.12.1) with
+## one change in src/twai_node.{h,cpp}: frames live in slots owned by
+## TwaiNode until on_tx_done() frees them. The directory name matches the
+## registry's (signalk-espos__espos_n2k), so ESP-IDF builds this copy instead
+## of the registry one, as was done for espos_wifi before 0.12.1.
+##
+## REMOVE THIS DIRECTORY once an espOS release fixes TwaiNode::transmit(),
+## and move main/idf_component.yml's espos_n2k pin to that release.
+# x-release-please-start-version
+version: "0.12.1"
+# x-release-please-end
+description: "NMEA 2000 over TWAI + a candump TCP server"
+url: "https://github.com/signalk-espOS/espOS/tree/main/components/espos_n2k"
+repository: "https://github.com/signalk-espOS/espOS.git"
+documentation: "https://github.com/signalk-espOS/espOS/blob/main/docs/n2k.md"
+issues: "https://github.com/signalk-espOS/espOS/issues"
+license: "Apache-2.0"
+maintainers:
+  - "Dirk Wahrheit <dirkwahrheit@gmail.com>"
+tags:
+  - signalk
+  - marine
+  - esp-idf
+  - espos
+  - nmea2000
+  - twai
+  - can
+  - candump
+# No `targets`, although the TWAI controller exists on esp32/s2/s3/c3/c5/c6/
+# h2/h21/h4/p4 only and twai_node.cpp does not compile for the linux host:
+# the component manager refuses to configure any target missing from the
+# `targets` of ANY component in the tree, so a list without linux here would
+# fail every host-test project that puts components/ on EXTRA_COMPONENT_DIRS.
+files:
+  exclude:
+    - "build/**/*"
+    - "build-*/**/*"
+    - "sdkconfig*"
+    - "managed_components/**/*"
+    - "dependencies.lock"
+    - "examples/*/build/**/*"
+    - "examples/*/build-*/**/*"
+    - "examples/*/managed_components/**/*"
+    - "examples/*/dependencies.lock"
+    # The GENERATED sdkconfig only. Not "sdkconfig*": that glob also matched
+    # the tracked sdkconfig.defaults[.<target>] files, which for an example
+    # without the prologue ARE the example -- a downloaded from_registry was
+    # missing the nine settings espos_core then refused to build without.
+    - "examples/*/sdkconfig"
+    - "examples/*/sdkconfig.old"
+    - "examples/*/*.pem"
+dependencies:
+  idf: ">=6.0.0,<6.1.0"
+  # mDNS left the IDF core in 5.0; exact-pinned like the other registry deps.
+  espressif/mdns:
+    version: "==1.11.3"
+    rules:
+      - if: "target != linux"

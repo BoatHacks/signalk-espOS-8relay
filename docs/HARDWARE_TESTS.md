@@ -201,18 +201,44 @@ while relay 1's pending-on is still waiting (no double-flip). Finally
 `setcfg '"r1_interlock":0,"r2_interlock":0'`.
 
 **B11 [human] RTC-backed schedule (#9).** On a spare relay (e.g. 6),
-`setcfg '"s0_relay":6,"s0_mode":"clock","s0_on":"<now+2min HH:MM>",
-"s0_off":"<now+4min HH:MM>","s0_days":127'` (all seven days). Pass if
+`setcfg '"s1_relay":6,"s1_mode":"clock","s1_on":"<now+2min HH:MM>",
+"s1_off":"<now+4min HH:MM>","s1_days":127'` (all seven days). Pass if
 the log shows `relay 6 on by schedule` at the on-time and `relay 6 off
 by schedule` two minutes later, both within the 1 s evaluator tick
 (check log timestamps, not a stopwatch). Then power-cycle the board
 (supply off 10 s, back on) partway through a fresh on-window (set a new
-`s0_on`/`s0_off` pair that straddles the restart) — pass if, after boot,
+`s1_on`/`s1_off` pair that straddles the restart) — pass if, after boot,
 the log's very first schedule evaluation immediately turns relay 6 on
 (the resync-on-first-evaluation behavior, not waiting for the next edge)
 without needing SNTP or SignalK, proving the RTC alone survived the
-power cut with a good time. Finally `setcfg '"s0_relay":0'` to disable
+power cut with a good time. Finally `setcfg '"s1_relay":0'` to disable
 the entry.
+
+Schedule entries are numbered `s1_`…`s8_`; there is no `s0_`.
+
+**B12 [auto] Sunset schedule (#9).** Takes a real sunset, so start it
+in the afternoon. Set the board's position and zone so the expected time
+is known: `setcfg '"fallback_lat":<lat>,"fallback_lon":<lon>'` for the
+bench, and check espOS's *Timezone* is the local one. With no fresh
+position from SignalK (or the NMEA 2000 source), the fallback is used.
+Look up today's sunset for that position (e.g. NOAA's solar calculator),
+then on a spare relay:
+`setcfg '"s2_relay":5,"s2_mode":"clock","s2_on":"sunset","s2_off":"sunset+10","s2_days":127'`.
+Pass if the log shows `relay 5 on by schedule` within ±2 minutes of the
+published sunset, and `relay 5 off by schedule` ten minutes after that
+(check log timestamps). A larger error usually means a wrong timezone or
+position, not the sun math. Finally `setcfg '"s2_relay":0'`. The same
+check at sunrise, with `sunrise`/`sunrise+10`, covers the other
+calculation.
+
+**B13 [auto] Repeating duty cycle (#9).**
+`setcfg '"s3_relay":4,"s3_mode":"repeat","s3_on":"1","s3_off":"3","s3_days":127'`
+(on 1 minute out of every 3). Cycles count from local midnight, so the
+relay is on during every minute whose minutes-since-midnight is a
+multiple of 3 (e.g. 14:00, 14:03, 14:06). Pass if, over three cycles,
+the log shows `relay 4 on by schedule` at the start of each such minute
+and `relay 4 off by schedule` one minute later. Then
+`setcfg '"s3_relay":0'`.
 
 ## C. Inputs
 
@@ -251,6 +277,15 @@ any mechanical switch) wiring on DI1. `setcfg
 Flip the switch on: pass if a notification with `"state":"alarm"` and a
 message appears within the SignalK republish interval; flip off: pass
 if it clears to `"state":"normal"`. Then `setcfg
+'"input1_alarm":"off"'`.
+
+**C7 [human] Input alarm buzzer (plan 10 follow-up).** Reuse C6's wiring
+on DI1. `setcfg '"input1_alarm":"alarm","input1_alm_buzz":true'` (leave
+*Buzzer on alarm* off). Flip the switch on: pass if the buzzer sounds
+`.. -.  .----` ("IN 1") every few seconds and the serial log shows
+`alarm: buzzing "IN 1"`; flip off: pass if it stops within a second.
+Flip on again, then `setcfg '"input1_alm_buzz":false'`: pass if it stops
+at once while the switch is still on. Then `setcfg
 '"input1_alarm":"off"'`.
 
 ## D. SignalK
@@ -327,6 +362,14 @@ on the MFD: pass if it stays listed as acknowledged (126983 *Alert
 State: Acknowledged*). Flip off: pass if it clears (126983 *Normal*,
 three times, then no more 126983). Then `setcfg '"input1_alarm":"off"'`.
 
+**E7 [auto] Multi-frame messages intact (plan 22, finding 1.1).** With a
+CAN adapter as `can0`, run `candump can0 | analyzer` and ask for product
+information: `cansend can0 18EAFF10#14F001`. Pass if 126996 decodes with
+model "signalk-espOS-8relay" and the firmware version. Then repeat E6's
+alarm with several inputs on at once: pass if every 126983 and 126985
+decodes, and the input bank's 127501 decodes every 2 s. Expected to fail
+on espOS 0.12.1 until 1.1 is fixed.
+
 ## F. Network
 
 **F1 [human] Ethernet preferred.** With Ethernet and WiFi both
@@ -386,7 +429,17 @@ check needs the person.
 Don't trigger a real alarm by opening the case to disconnect the relay
 chip's I²C: that was declined on 2026-09-28, and the drill replaces it.
 
-**G5 [human] Setting the clock by hand.** Simulates a standalone board
+**G5 [auto] The API refuses a request without the key (plan 22, 5.3).**
+Set an API key (`curl -s -X PUT -H "$H" -d '{"httpd":{"api_key":"<key>"}}' $B/api/v1/config`),
+then without the `Authorization` header: `GET /api/v1/relays`,
+`GET /api/v1/relays/status`, `PUT /api/v1/relays/1`, `PUT /api/v1/relays`,
+`POST /api/v1/relays/1/counters/reset`, `POST /api/v1/inputs/1/counters/reset`,
+`POST /api/v1/buzzer/test` and `POST /api/v1/buzzer/preview` each answer
+`401`, and no relay switched; `GET /relays` and `GET /tones` answer `200`.
+With the header, a `PUT` without `Content-Type: application/json` answers
+`415`. Clear the key again afterwards.
+
+**G6 [human] Setting the clock by hand.** Simulates a standalone board
 with no NTP and no SignalK: turn both time sources off and restart.
 
 ```sh
@@ -431,6 +484,23 @@ release with `"newer": true`, and installing it
 ends with the new version running and `espos_ota: new image confirmed`.
 On the new version, a first boot logs `app: update manifest: https://…`
 only if the URL was empty.
+
+**H2 [auto] A wrongly signed image is refused (plan 22, 6.4).** Build
+the firmware with a throwaway key (`espsecure generate-signing-key
+--version 2 --scheme rsa3072 secure_boot_signing_key.pem`, `idf.py
+build`), serve `build/signalk-espos-8relay.bin` from the test computer
+(`python3 -m http.server 8000`), then
+`curl -s -X POST -H "$H" -d '{"url":"http://<computer>:8000/signalk-espos-8relay.bin"}' $B/api/v1/ota`.
+Pass if `ota/status` ends in `failed` with `image rejected: bad signature`
+and the board keeps running its version without restarting.
+
+**H3 [auto] Rollback (plan 22, 6.1).** After H1 has installed the new
+version, `curl -s -X POST -H "$H" -d '{}' $B/api/v1/ota/rollback`. Pass
+if the board restarts into the previous version and `ota/status` reports
+`rolled_back: true`. For finding 6.1, check that H1's normal update logs
+`new image confirmed` and no `rolling back` line; the failing-expander
+path itself isn't tested on the board, because that means opening the case
+(declined, see G4).
 
 ---
 

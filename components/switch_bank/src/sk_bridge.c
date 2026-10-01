@@ -243,8 +243,11 @@ static void publish_all_locked(void)
                 const bool on = inputs & (1u << (ch - 1));
                 publish_state(t, true, ch, on);
                 publish_counters(t, true, ch);
-                if (on && alarm_configured(ch)) {
-                    publish_notification(t, ch, true);
+                // Cleared ones too: the server keeps the last value, so an
+                // alarm that cleared while the stream was down, or across a
+                // restart, would otherwise stay raised there.
+                if (alarm_configured(ch)) {
+                    publish_notification(t, ch, on);
                 }
             }
         }
@@ -404,12 +407,15 @@ void sk_bridge_update_config(const device_config_t *cfg)
     xSemaphoreGive(s.lock);
 }
 
-void sk_bridge_relay_changed(uint8_t channel, bool on)
+void sk_bridge_relay_changed(uint8_t channel)
 {
-    if (!s.lock) {
+    if (!s.lock || channel < 1 || channel > BOARD_CHANNELS) {
         return;  // before sk_bridge_init(): nothing to publish yet
     }
     xSemaphoreTake(s.lock, portMAX_DELAY);
+    // Read under our lock, so whichever of two racing calls publishes last
+    // also publishes the newest state (plan 22, 2.1).
+    const bool on = s.started && (s.io.relay_mask() >> (channel - 1)) & 1;
     for (tree_t t = TREE_SWITCHES; s.started && t <= TREE_CONTROLS; t++) {
         if (tree_on(t)) {
             publish_state(t, false, channel, on);

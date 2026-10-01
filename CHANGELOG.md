@@ -21,6 +21,12 @@ it as the update's notes, and *Cut release* refuses a version without one.
   acknowledged. New setting *Input alarms on NMEA 2000* (on by default,
   applies live). Host-tested; not yet checked on a real bus
   (HARDWARE_TESTS.md E6).
+- Input alarms on the buzzer (plan 10 follow-up, issue #3): new per-input
+  setting *Alarm buzzer* (`input<n>_alm_buzz`, off by default). While that
+  input's alarm is active the buzzer sounds "IN" and the input's number in
+  Morse ("IN 3"), independent of *Buzzer on alarm*, and takes over from a
+  health alarm's pattern. Applies live. Host-tested; not yet checked on
+  the board (HARDWARE_TESTS.md C7).
 - Set the clock by hand (for a board with no NTP server or SignalK to
   learn the time from): the relay page has a new *Clock* section showing
   the board's local time, where it came from and its time zone, with a
@@ -30,10 +36,16 @@ it as the update's notes, and *Cut release* refuses a version without one.
   manual time outranks SignalK and the RTC but never NTP (the buttons are
   greyed out while NTP keeps the clock). `GET /api/v1/relays/status` gains
   a `clock` object. Host-tested; not yet checked on a board
-  (HARDWARE_TESTS.md G5).
+  (HARDWARE_TESTS.md G6).
 
 ### Changed
 
+- More of the buzzer moved into `components/espos_tone/` (issue #17, step
+  two): a one-shot tone player (`tone_player.h`: start, step, stop, pitch
+  per note) and an LEDC buzzer driver (`tone_buzzer.h`: pitch and on/off
+  on one channel). `indicator` now uses both, and event chirps and Tones
+  page previews share one player instead of two copies of the same
+  playback code. No change in behaviour.
 - espOS 0.10.3 -> 0.12.1. The locally vendored `espos_wifi` (upstream PR
   #139, fast reconnect to the last-known AP) is gone: espOS 0.11.0 ships it
   from the registry, together with PR #146, which stops the setup portal
@@ -42,6 +54,28 @@ it as the update's notes, and *Cut release* refuses a version without one.
 
 ### Fixed
 
+- One input bouncing at start-up (a loose wire, a pulsing signal) no
+  longer keeps all eight inputs, their alarms and their relay links dark.
+  Start-up waits at most the debounce time plus 1 s; an input still
+  bouncing then reads off until it settles (plan 22, finding 3.1).
+- An input alarm that clears while the SignalK connection is down, or
+  while the board restarts, no longer stays raised on the server: every
+  configured alarm is sent at start-up and on each reconnect, cleared ones
+  as `normal` (plan 22, finding 3.2).
+- Several NMEA 2000 alerts falling due at once no longer overflow the CAN
+  transmit queue and lose whole alerts: they go out one input per 10 ms,
+  and a frame the queue can't take is kept and retried by the NMEA 2000
+  library instead of dropped (plan 22, finding 1.2).
+- SignalK no longer keeps showing a relay's older state when two sources
+  switch it at nearly the same moment: each change publishes the relay's
+  current state (plan 22, finding 2.1).
+- NMEA 2000 messages longer than one frame (alerts, product information,
+  PGN lists) and the input bank's 127501 no longer go out corrupted. espOS
+  0.12.1 gave the CAN driver frames on the stack, but the driver keeps a
+  pointer to every frame it has to queue until it is sent. This repo
+  carries a patched copy of espOS's `espos_n2k` under
+  `components/signalk-espos__espos_n2k` until an espOS release fixes it
+  (plan 22, finding 1.1; HARDWARE_TESTS.md E7).
 - The BOOT button's portal and factory-reset chirps are no longer cut off:
   the restart used to follow 700 ms after the chirp started, shorter than
   the new ~2 s default melodies. It now waits for the chirp's own length
